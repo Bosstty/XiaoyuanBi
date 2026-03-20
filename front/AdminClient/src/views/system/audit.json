@@ -1,0 +1,57 @@
+{
+  "success": true,
+  "message": "获取审计日志成功",
+  "data": [
+    {
+      "id": 3465,
+      "user_id": null,
+      "admin_id": 1,
+      "action": "GET /:id",
+      "resource_type": null,
+      "resource_id": 3461,
+      "method": "GET",
+      "url": "/api/admin/audit/3461",
+      "ip_address": "::ffff:127.0.0.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+      "request_body": {},
+      "response_status": 200,
+      "response_body": null,
+      "duration": 5,
+      "session_id": null,
+      "risk_level": "low",
+      "success": true,
+      "error_message": null,
+      "extra_data": {
+        "query": {},
+        "params": {
+          "id": "3461"
+        },
+        "headers": {
+          "host": "127.0.0.1:3000",
+          "accept": "*/*",
+          "referer": "http://localhost:5173/system/audit",
+          "sec-ch-ua": "\"Not:A-Brand\";v=\"99\", \"Google Chrome\";v=\"145\", \"Chromium\";v=\"145\"",
+          "connection": "close",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+          "content-type": "application/json",
+          "authorization": "***",
+          "sec-fetch-dest": "empty",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-site": "same-origin",
+          "accept-encoding": "gzip, deflate, br, zstd",
+          "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,fr;q=0.7",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "\"Windows\""
+        }
+      },
+      "createdAt": "2026-03-02T06:38:52.000Z",
+      "updatedAt": "2026-03-02T06:38:52.000Z",
+      "user": null,
+      "admin": {
+        "id": 1,
+        "username": "admin",
+        "name": "超级管理员"
+      }
+    }
+  ]
+}

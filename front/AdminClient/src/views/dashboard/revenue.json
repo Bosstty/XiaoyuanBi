@@ -1,0 +1,427 @@
+
+http://localhost:5173/api/admin/analytics/revenue?period=year{
+  "success": true,
+  "message": "操作成功",
+  "data": {
+    "revenue_trend": [
+      {
+        "date": "2026-02-27",
+        "revenue": "198.89",
+        "transaction_count": 1
+      },
+      {
+        "date": "2026-02-28",
+        "revenue": "149.14",
+        "transaction_count": 2
+      },
+      {
+        "date": "2026-03-01",
+        "revenue": "124.89",
+        "transaction_count": 2
+      },
+      {
+        "date": "2026-03-02",
+        "revenue": "288.68",
+        "transaction_count": 3
+      },
+      {
+        "date": "2026-03-03",
+        "revenue": "18680.96",
+        "transaction_count": 164
+      }
+    ],
+    "revenue_by_type": [
+      {
+        "type": "recharge",
+        "amount": "5554.91",
+        "count": 46
+      },
+      {
+        "type": "earn_task",
+        "amount": "4708.84",
+        "count": 39
+      },
+      {
+        "type": "earn_pickup",
+        "amount": "4631.89",
+        "count": 43
+      },
+      {
+        "type": "refund",
+        "amount": "4546.92",
+        "count": 44
+      }
+    ],
+    "commission_stats": {
+      "total_commission": "579.30",
+      "avg_commission_rate": "0.10000000"
+    },
+    "payment_method_distribution": [
+      {
+        "payment_method": "alipay",
+        "amount": "10220.83",
+        "count": 89
+      },
+      {
+        "payment_method": "balance",
+        "amount": "9115.05",
+        "count": 77
+      },
+      {
+        "payment_method": "wechat",
+        "amount": "10406.38",
+        "count": 94
+      }
+    ],
+    "period": "week"
+  }
+},
+http://localhost:5173/api/admin/analytics/service-quality{
+    "success": true,
+    "message": "操作成功",
+    "data": {
+        "order_metrics": [
+            {
+                "status": "pending",
+                "count": 36
+            },
+            {
+                "status": "accepted",
+                "count": 40
+            },
+            {
+                "status": "picking",
+                "count": 39
+            },
+            {
+                "status": "delivering",
+                "count": 32
+            },
+            {
+                "status": "completed",
+                "count": 32
+            },
+            {
+                "status": "cancelled",
+                "count": 31
+            }
+        ],
+        "avg_delivery_time": "-41104.5625",
+        "rating_distribution": [
+            {
+                "rating": 0,
+                "count": 1
+            },
+            {
+                "rating": 1,
+                "count": 2
+            },
+            {
+                "rating": 3,
+                "count": 10
+            },
+            {
+                "rating": 4,
+                "count": 12
+            },
+            {
+                "rating": 5,
+                "count": 7
+            }
+        ],
+        "complaints": 0,
+        "deliverer_performance": [
+            {
+                "id": 11,
+                "rating": "4.94",
+                "completed_orders": 151,
+                "total_orders": 85,
+                "completion_rate": "177.6471",
+                "user": {
+                    "username": "用户11"
+                }
+            },
+            {
+                "id": 19,
+                "rating": "4.93",
+                "completed_orders": 166,
+                "total_orders": 128,
+                "completion_rate": "129.6875",
+                "user": {
+                    "username": "用户19"
+                }
+            },
+            {
+                "id": 15,
+                "rating": "4.80",
+                "completed_orders": 86,
+                "total_orders": 10,
+                "completion_rate": "860.0000",
+                "user": {
+                    "username": "用户15"
+                }
+            },
+            {
+                "id": 12,
+                "rating": "4.78",
+                "completed_orders": 121,
+                "total_orders": 34,
+                "completion_rate": "355.8824",
+                "user": {
+                    "username": "用户12"
+                }
+            },
+            {
+                "id": 6,
+                "rating": "4.75",
+                "completed_orders": 4,
+                "total_orders": 66,
+                "completion_rate": "6.0606",
+                "user": {
+                    "username": "用户6"
+                }
+            },
+            {
+                "id": 14,
+                "rating": "4.75",
+                "completed_orders": 152,
+                "total_orders": 199,
+                "completion_rate": "76.3819",
+                "user": {
+                    "username": "用户14"
+                }
+            },
+            {
+                "id": 16,
+                "rating": "4.64",
+                "completed_orders": 133,
+                "total_orders": 31,
+                "completion_rate": "429.0323",
+                "user": {
+                    "username": "用户16"
+                }
+            },
+            {
+                "id": 8,
+                "rating": "4.57",
+                "completed_orders": 31,
+                "total_orders": 172,
+                "completion_rate": "18.0233",
+                "user": {
+                    "username": "用户8"
+                }
+            },
+            {
+                "id": 2,
+                "rating": "4.55",
+                "completed_orders": 44,
+                "total_orders": 4,
+                "completion_rate": "1100.0000",
+                "user": {
+                    "username": "用户2"
+                }
+            },
+            {
+                "id": 10,
+                "rating": "4.53",
+                "completed_orders": 177,
+                "total_orders": 176,
+                "completion_rate": "100.5682",
+                "user": {
+                    "username": "用户10"
+                }
+            }
+        ],
+        "period": "year"
+    }
+},http://localhost:5173/api/admin/analytics/user-behavior?period=year{
+    "success": true,
+    "message": "操作成功",
+    "data": {
+        "user_activity": [
+            {
+                "date": "2026-03-03",
+                "active_users": 50,
+                "total_actions": 500
+            }
+        ],
+        "popular_actions": [
+            {
+                "action": "user.logout",
+                "count": 54
+            },
+            {
+                "action": "order.cancel",
+                "count": 52
+            },
+            {
+                "action": "task.create",
+                "count": 49
+            },
+            {
+                "action": "order.complete",
+                "count": 43
+            },
+            {
+                "action": "recharge.create",
+                "count": 35
+            },
+            {
+                "action": "order.update",
+                "count": 35
+            },
+            {
+                "action": "task.accept",
+                "count": 33
+            },
+            {
+                "action": "user.register",
+                "count": 32
+            },
+            {
+                "action": "task.complete",
+                "count": 32
+            },
+            {
+                "action": "forum.comment.create",
+                "count": 29
+            }
+        ],
+        "retention": {
+            "day_1": 0,
+            "day_7": 0,
+            "day_30": 0
+        },
+        "period": "year"
+    }
+}http://localhost:5173/api/admin/analytics/dashboard
+{
+    "success": true,
+    "message": "操作成功",
+    "data": {
+        "users": {
+            "total": 50,
+            "new": 50
+        },
+        "orders": {
+            "total": 210,
+            "new": 210,
+            "completed": 32
+        },
+        "tasks": {
+            "total": 100,
+            "new": 100
+        },
+        "revenue": 19932.04,
+        "deliverers": {
+            "total": 20,
+            "online": 13
+        },
+        "period": "year"
+    }
+}
+http://localhost:5173/api/admin/analytics/alerts/abnormal-orders
+{
+    "success": true,
+    "message": "操作成功",
+    "data": {
+        "total_alerts": 1,
+        "alerts": [
+            {
+                "type": "overdue_orders",
+                "level": "high",
+                "count": 50,
+                "message": "有50个订单超时未完成",
+                "data": [
+                    {
+                        "id": 1,
+                        "order_no": "ORD17725066858330001",
+                        "user_id": 38,
+                        "deliverer_id": 15,
+                        "type": "medicine",
+                        "title": "药品代购1",
+                        "description": "订单描述1",
+                        "pickup_location": "菜鸟驿站",
+                        "delivery_location": "2号楼",
+                        "pickup_time": null,
+                        "delivery_time": "2026-01-24T10:18:36.000Z",
+                        "contact_name": "张三38",
+                        "contact_phone": "13800000038",
+                        "pickup_code": "9625",
+                        "weight": "10.00",
+                        "size": null,
+                        "price": "47.64",
+                        "tip": "0.00",
+                        "urgent": false,
+                        "fragile": false,
+                        "status": "accepted",
+                        "payment_status": "paid",
+                        "images": null,
+                        "notes": null,
+                        "rating": null,
+                        "rating_comment": null,
+                        "accept_time": null,
+                        "pickup_complete_time": null,
+                        "delivery_complete_time": null,
+                        "cancel_reason": null,
+                        "cancel_time": null,
+                        "createdAt": "2026-03-03T02:58:05.000Z",
+                        "updatedAt": "2026-03-03T02:58:05.000Z",
+                        "user": {
+                            "username": "用户38",
+                            "phone": "13800000038"
+                        },
+                        "deliverer": {
+                            "username": "用户15",
+                            "phone": "13800000015"
+                        }
+                    }......
+                    {
+                        "id": 39,
+                        "order_no": "ORD17725066858330039",
+                        "user_id": 38,
+                        "deliverer_id": 12,
+                        "type": "food",
+                        "title": "外卖代取39",
+                        "description": "订单描述39",
+                        "pickup_location": "菜鸟驿站",
+                        "delivery_location": "4号楼",
+                        "pickup_time": null,
+                        "delivery_time": "2025-12-29T11:41:23.000Z",
+                        "contact_name": "张三38",
+                        "contact_phone": "13800000038",
+                        "pickup_code": "7433",
+                        "weight": "9.00",
+                        "size": null,
+                        "price": "28.60",
+                        "tip": "0.00",
+                        "urgent": false,
+                        "fragile": false,
+                        "status": "picking",
+                        "payment_status": "paid",
+                        "images": null,
+                        "notes": null,
+                        "rating": null,
+                        "rating_comment": null,
+                        "accept_time": null,
+                        "pickup_complete_time": null,
+                        "delivery_complete_time": null,
+                        "cancel_reason": null,
+                        "cancel_time": null,
+                        "createdAt": "2026-03-03T02:58:05.000Z",
+                        "updatedAt": "2026-03-03T02:58:05.000Z",
+                        "user": {
+                            "username": "用户38",
+                            "phone": "13800000038"
+                        },
+                        "deliverer": {
+                            "username": "用户12",
+                            "phone": "13800000012"
+                        }
+                    }
+                ]
+            }
+        ],
+        "generated_at": "2026-03-03T09:49:32.177Z"
+    }
+}

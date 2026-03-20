@@ -1,0 +1,100 @@
+{
+  "success": true,
+  "message": "获取审计日志统计成功",
+  "data": {
+    "overview": {
+      "total": 3590,
+      "today": 576,
+      "success": 3173,
+      "fail": 417,
+      "high_risk": 26,
+      "success_rate": "88.38"
+    },
+    "date_trend": [
+      {
+        "date": "2026-02-25",
+        "count": 258
+      },
+      {
+        "date": "2026-02-26",
+        "count": 1108
+      },
+      {
+        "date": "2026-02-27",
+        "count": 703
+      },
+      {
+        "date": "2026-02-28",
+        "count": 945
+      },
+      {
+        "date": "2026-03-02",
+        "count": 576
+      }
+    ],
+    "risk_distribution": {
+      "low": 3127,
+      "medium": 437,
+      "high": 26
+    },
+    "method_distribution": {
+      "GET": 3508,
+      "POST": 70,
+      "PATCH": 11,
+      "PUT": 2
+    },
+    "top_actions": [
+      {
+        "action": "GET /",
+        "count": 1830
+      },
+      {
+        "action": "GET /:id",
+        "count": 372
+      },
+      {
+        "action": "GET /stats/overview",
+        "count": 227
+      },
+      {
+        "action": "GET /conversations",
+        "count": 226
+      },
+      {
+        "action": "GET /conversations/:id",
+        "count": 200
+      },
+      {
+        "action": "GET /posts",
+        "count": 187
+      },
+      {
+        "action": "GET /stats",
+        "count": 181
+      },
+      {
+        "action": "GET /dashboard",
+        "count": 159
+      },
+      {
+        "action": "GET /posts/:id",
+        "count": 71
+      },
+      {
+        "action": "GET /users/:userId/stats",
+        "count": 38
+      }
+    ],
+    "user_type_distribution": {
+      "user": 0,
+      "admin": 2439,
+      "anonymous": 1152
+    },
+    "status_distribution": {
+      "4xx": 15,
+      "2xx": 606,
+      "5xx": 402,
+      "3xx": 2568
+    }
+  }
+}

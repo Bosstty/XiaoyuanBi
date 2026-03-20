@@ -1,0 +1,55 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "ticket_no": "TK1772246308549000",
+      "type": "complaint",
+      "title": "配送员态度恶劣",
+      "description": "配送员在送餐时语言不友好，甚至有辱骂行为，希望能严肃处理。",
+      "priority": "high",
+      "status": "pending",
+      "order_id": 5,
+      "user_id": 5,
+      "deliverer_id": 1,
+      "service_id": 1,
+      "solution": null,
+      "resolved_at": null,
+      "created_at": "2026-02-28T02:38:28.000Z",
+      "updated_at": "2026-02-28T02:38:28.000Z",
+      "user": {
+        "id": 5,
+        "username": "qianqi",
+        "phone": "13873090096"
+      }
+    },
+    {
+      "id": 2,
+      "ticket_no": "TK1772246308564001",
+      "type": "refund",
+      "title": "订单退款申请",
+      "description": "商品已损坏，申请全额退款。",
+      "priority": "medium",
+      "status": "pending",
+      "order_id": 2,
+      "user_id": 2,
+      "deliverer_id": 3,
+      "service_id": 1,
+      "solution": null,
+      "resolved_at": null,
+      "created_at": "2026-02-28T02:38:28.000Z",
+      "updated_at": "2026-02-28T02:38:28.000Z",
+      "user": {
+        "id": 2,
+        "username": "lisi",
+        "phone": "13859968360"
+      }
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "per_page": 10,
+    "total": 15,
+    "total_pages": 2
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "message": "获取配送员统计成功",
+  "data": {
+    "statusStats": [
+      {
+        "status": "active",
+        "count": 3
+      }
+    ],
+    "verifiedStats": [
+      {
+        "verified": 0,
+        "count": 3
+      }
+    ],
+    "ratingDistribution": [],
+    "overview": {
+      "totalDeliverers": 3,
+      "activeDeliverers": 3,
+      "pendingVerification": 0,
+      "todayNew": 0,
+      "avgRating": 0
+    }
+  }
+}

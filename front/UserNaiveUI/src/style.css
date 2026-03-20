@@ -1,0 +1,141 @@
+/**
+ * 校园生活服务平台 - 基础样式
+ * 全局重置 + 移动端适配
+ */
+
+/* ============================================
+   全局重置
+   ============================================ */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+        'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--n-body-color, var(--ios-bg-secondary, #F2F2F7));
+    color: var(--n-text-color-1, var(--ios-text-primary, #000000));
+}
+
+#app {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--n-body-color, var(--ios-bg-secondary, #F2F2F7));
+    color: var(--n-text-color-1, var(--ios-text-primary, #000000));
+}
+
+/* 移动端应用容器 */
+.mobile-app {
+    height: 100%;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS 安全区域适配 */
+.mobile-app.is-ios {
+    --status-bar-height: env(safe-area-inset-top, 44px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 34px);
+}
+
+/* ============================================
+   滚动条样式
+   ============================================ */
+
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* 深色模式滚动条 */
+.dark-theme ::-webkit-scrollbar-thumb,
+:root.dark ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.dark-theme ::-webkit-scrollbar-thumb:hover,
+:root.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================
+   输入框适配
+   ============================================ */
+
+input,
+textarea,
+select {
+    font-size: 16px !important;
+}
+
+/* ============================================
+   链接和按钮重置
+   ============================================ */
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+ul,
+ol {
+    list-style: none;
+}
+
+img {
+    max-width: 100%;
+    display: block;
+}
+
+/* ============================================
+   主题适配
+   ============================================ */
+
+.light-theme,
+:root:not(.dark) {
+    color-scheme: light;
+}
+
+.dark-theme,
+:root.dark {
+    color-scheme: dark;
+}

@@ -1,0 +1,55 @@
+{
+  "success": true,
+  "message": "获取任务列表成功",
+  "data": {
+    "tasks": [
+      {
+        "id": 1,
+        "task_no": "TASK17667408172790",
+        "publisher_id": 2,
+        "assignee_id": null,
+        "category": "design",
+        "title": "辅导高等数学",
+        "description": "这是一个测试任务描述，任务详情如下...",
+        "requirements": null,
+        "tags": null,
+        "skills_required": null,
+        "price": "20.98",
+        "location": null,
+        "start_time": null,
+        "deadline": "2026-01-01T18:12:23.000Z",
+        "estimated_duration": null,
+        "max_applicants": 1,
+        "urgent": false,
+        "remote_work": false,
+        "status": "published",
+        "payment_status": "unpaid",
+        "images": null,
+        "attachments": null,
+        "rating": null,
+        "rating_comment": null,
+        "accept_time": null,
+        "submit_time": null,
+        "complete_time": null,
+        "cancel_reason": null,
+        "view_count": 35,
+        "createdAt": "2025-12-26T09:20:17.000Z",
+        "updatedAt": "2025-12-26T09:20:17.000Z",
+        "publisher": {
+          "id": 2,
+          "username": "lisi",
+          "real_name": "李四",
+          "avatar": null,
+          "phone": "13859968360"
+        },
+        "assignee": null
+      }
+    ],
+    "pagination": {
+      "total": 8,
+      "page": 1,
+      "limit": 20,
+      "totalPages": 1
+    }
+  }
+}

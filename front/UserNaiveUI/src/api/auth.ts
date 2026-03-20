@@ -1,0 +1,106 @@
+import { apiClient } from './client';
+import type {
+    User,
+    UserRegisterData,
+    UserLoginData,
+    LoginResponse,
+    UserStats,
+    ApiResponse,
+} from '@/types';
+
+export class AuthApi {
+    // 用户注册
+    static async register(data: UserRegisterData): Promise<ApiResponse<LoginResponse>> {
+        return apiClient.post('/auth/register', data);
+    }
+
+    // 用户登录
+    static async login(data: UserLoginData): Promise<ApiResponse<LoginResponse>> {
+        return apiClient.post('/auth/login', data);
+    }
+
+    // 退出登录
+    static async logout(): Promise<ApiResponse> {
+        return apiClient.post('/auth/logout');
+    }
+
+    // 获取用户信息
+    static async getProfile(): Promise<ApiResponse<User>> {
+        return apiClient.get('/auth/profile');
+    }
+
+    // 更新用户信息
+    static async updateProfile(data: Partial<User>): Promise<ApiResponse<User>> {
+        return apiClient.put('/auth/profile', data);
+    }
+
+    // 修改密码
+    static async changePassword(data: {
+        old_password: string;
+        new_password: string;
+    }): Promise<ApiResponse> {
+        return apiClient.post('/auth/change-password', data);
+    }
+
+    // 上传头像
+    static async uploadAvatar(file: File): Promise<ApiResponse<{ avatar: string }>> {
+        return apiClient.upload('/auth/upload-avatar', file);
+    }
+
+    // 发送验证码
+    static async sendVerificationCode(data: {
+        type: 'email' | 'phone';
+        target: string;
+    }): Promise<ApiResponse> {
+        return apiClient.post('/auth/send-verification-code', data);
+    }
+
+    // 验证验证码
+    static async verifyCode(data: {
+        type: 'email' | 'phone';
+        target: string;
+        code: string;
+    }): Promise<ApiResponse> {
+        return apiClient.post('/auth/verify-code', data);
+    }
+
+    // 微信登录
+    static async wechatLogin(data: { code: string }): Promise<ApiResponse<LoginResponse>> {
+        return apiClient.post('/auth/wechat-login', data);
+    }
+
+    // 注销账号
+    static async deleteAccount(data: { password: string }): Promise<ApiResponse> {
+        return apiClient.delete('/auth/account', { data });
+    }
+
+    // 重置密码
+    static async resetPassword(data: {
+        resetToken: string;
+        newPassword: string;
+    }): Promise<ApiResponse> {
+        return apiClient.post('/auth/reset-password', data);
+    }
+}
+
+export class UserApi {
+    // 获取个人资料
+    static async getProfile(): Promise<ApiResponse<User>> {
+        return apiClient.get('/user/profile');
+    }
+
+    // 更新个人资料
+    static async updateProfile(data: Partial<User>): Promise<ApiResponse<User>> {
+        return apiClient.put('/user/profile', data);
+    }
+
+    // 上传头像
+    static async uploadAvatar(file: File): Promise<ApiResponse<{ avatar: string }>> {
+        return apiClient.upload('/user/avatar', file);
+    }
+
+    // 获取用户统计
+    static async getStats(): Promise<ApiResponse<UserStats>> {
+        return apiClient.get('/user/stats');
+    }
+}

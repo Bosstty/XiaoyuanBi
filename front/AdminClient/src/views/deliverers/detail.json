@@ -1,0 +1,77 @@
+{
+  "success": true,
+  "message": "获取配送员详情成功",
+  "data": {
+    "id": 1,
+    "user_id": 1,
+    "real_name": "配送员1号",
+    "phone": "13938623391",
+    "id_card": "2301011990429718",
+    "vehicle_type": "walk",
+    "vehicle_number": null,
+    "emergency_contact_name": "紧急联系人",
+    "emergency_contact_phone": "15027076462",
+    "service_areas": null,
+    "available_hours": null,
+    "id_card_front": "https://example.com/id_front_1.jpg",
+    "id_card_back": "https://example.com/id_back_1.jpg",
+    "health_certificate": null,
+    "vehicle_license": null,
+    "application_status": "approved",
+    "approval_time": null,
+    "approval_admin_id": null,
+    "rejection_reason": null,
+    "rating": "4.44",
+    "total_orders": 0,
+    "completed_orders": 0,
+    "cancelled_orders": 0,
+    "total_earnings": "0.00",
+    "current_latitude": null,
+    "current_longitude": null,
+    "location_updated_at": null,
+    "is_online": false,
+    "last_online_at": null,
+    "certificate_expiry": null,
+    "status": "active",
+    "isDeleted": false,
+    "createdAt": "2025-12-26T09:20:17.000Z",
+    "updatedAt": "2025-12-26T09:20:17.000Z",
+    "user": {
+      "id": 1,
+      "username": "zhangsan",
+      "real_name": "张三",
+      "avatar": null,
+      "phone": "13887113961",
+      "student_id": "20240001"
+    },
+    "orders": [
+      {
+        "id": 7,
+        "order_no": "ORD17667408172426",
+        "status": "accepted",
+        "price": "15.57",
+        "createdAt": "2025-12-26T09:20:17.000Z"
+      },
+      {
+        "id": 5,
+        "order_no": "ORD17667408172224",
+        "status": "accepted",
+        "price": "16.31",
+        "createdAt": "2025-12-26T09:20:17.000Z"
+      },
+      {
+        "id": 1,
+        "order_no": "ORD17667408171780",
+        "status": "delivering",
+        "price": "16.70",
+        "createdAt": "2025-12-26T09:20:17.000Z"
+      }
+    ],
+    "stats": {
+      "totalOrders": 3,
+      "completedOrders": 0,
+      "cancelledOrders": 0,
+      "totalRevenue": 0
+    }
+  }
+}
