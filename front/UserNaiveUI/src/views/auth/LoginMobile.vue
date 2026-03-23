@@ -1,11 +1,18 @@
 <template>
     <div class="auth-shell auth-shell--login">
         <div class="auth-topbar">
-            <button type="button" class="auth-back touch-feedback" aria-label="返回" @click="goBack">
+            <button
+                type="button"
+                class="auth-back touch-feedback"
+                aria-label="返回"
+                @click="goBack"
+            >
                 <NIcon :size="20"><ChevronBackOutline /></NIcon>
             </button>
             <span>校园服务登录</span>
-            <button type="button" class="auth-link-btn" @click="router.push('/register')">注册</button>
+            <button type="button" class="auth-link-btn" @click="router.push('/register')">
+                注册
+            </button>
         </div>
 
         <section class="auth-hero">
@@ -38,7 +45,11 @@
                         @blur="validateEmail"
                         @keydown.enter="handleLogin"
                     />
-                    <span v-if="formData.email" class="auth-input-action" @click="formData.email = ''">
+                    <span
+                        v-if="formData.email"
+                        class="auth-input-action"
+                        @click="formData.email = ''"
+                    >
                         <NIcon :size="16"><CloseCircleOutline /></NIcon>
                     </span>
                 </div>
@@ -79,7 +90,11 @@
                     <input v-model="rememberMe" type="checkbox" hidden />
                     <span>记住我</span>
                 </label>
-                <button type="button" class="auth-link-btn" @click="router.push('/auth/forgot-password')">
+                <button
+                    type="button"
+                    class="auth-link-btn"
+                    @click="router.push('/auth/forgot-password')"
+                >
                     忘记密码？
                 </button>
             </div>
@@ -96,26 +111,55 @@
 
             <div class="auth-divider"><span>快速入口</span></div>
 
-            <button type="button" class="auth-ghost touch-feedback" @click="router.push('/')">先逛一逛首页</button>
+            <button type="button" class="auth-ghost touch-feedback" @click="router.push('/')">
+                先逛一逛首页
+            </button>
         </section>
 
         <section class="auth-feature-grid">
             <article class="auth-feature">
-                <div class="auth-feature-icon" style="background: linear-gradient(135deg, rgba(47,107,255,0.16), rgba(75,184,255,0.18))">
+                <div
+                    class="auth-feature-icon"
+                    style="
+                        background: linear-gradient(
+                            135deg,
+                            rgba(47, 107, 255, 0.16),
+                            rgba(75, 184, 255, 0.18)
+                        );
+                    "
+                >
                     <NIcon :size="18"><BagHandleOutline /></NIcon>
                 </div>
                 <strong>订单同步</strong>
                 <p>查看代取、代购状态与消息提醒。</p>
             </article>
             <article class="auth-feature">
-                <div class="auth-feature-icon" style="background: linear-gradient(135deg, rgba(25,179,107,0.16), rgba(120,224,171,0.18))">
+                <div
+                    class="auth-feature-icon"
+                    style="
+                        background: linear-gradient(
+                            135deg,
+                            rgba(25, 179, 107, 0.16),
+                            rgba(120, 224, 171, 0.18)
+                        );
+                    "
+                >
                     <NIcon :size="18"><DocumentTextOutline /></NIcon>
                 </div>
                 <strong>任务协作</strong>
                 <p>管理发布需求和参与记录。</p>
             </article>
             <article class="auth-feature">
-                <div class="auth-feature-icon" style="background: linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))">
+                <div
+                    class="auth-feature-icon"
+                    style="
+                        background: linear-gradient(
+                            135deg,
+                            rgba(255, 155, 61, 0.18),
+                            rgba(247, 199, 95, 0.2)
+                        );
+                    "
+                >
                     <NIcon :size="18"><WalletOutline /></NIcon>
                 </div>
                 <strong>钱包记录</strong>
@@ -125,7 +169,9 @@
 
         <div class="auth-footer">
             <span class="auth-footer-text">还没有账户？</span>
-            <button type="button" class="auth-link-btn" @click="router.push('/register')">立即注册</button>
+            <button type="button" class="auth-link-btn" @click="router.push('/register')">
+                立即注册
+            </button>
         </div>
     </div>
 </template>
@@ -165,7 +211,12 @@ const formData = reactive({
 });
 
 const isFormValid = computed(() => {
-    return formData.email.trim() !== '' && formData.password.trim() !== '' && !emailError.value && !passwordError.value;
+    return (
+        formData.email.trim() !== '' &&
+        formData.password.trim() !== '' &&
+        !emailError.value &&
+        !passwordError.value
+    );
 });
 
 const validateEmail = () => {

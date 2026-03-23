@@ -22,34 +22,48 @@
             </div>
 
             <div class="campus-home__hero-grid">
-                <article class="campus-home__primary-card campus-home__primary-card--orders touch-feedback" @click="go('/pickup')">
+                <article
+                    class="campus-home__primary-card campus-home__primary-card--orders touch-feedback"
+                    @click="go('/pickup')"
+                >
                     <div class="campus-home__primary-icon">
                         <NIcon :size="30"><BagHandleOutline /></NIcon>
                     </div>
                     <div class="campus-home__primary-copy">
                         <span>即时履约</span>
                         <h2>订单中心</h2>
-                        <p>快递代取、外卖代拿、药品代购、生活用品采购</p>
+                        <p>快递代取、外卖代拿、药品代购、生活用品采购。</p>
                     </div>
                     <div class="campus-home__metric-row">
-                        <div v-for="item in orderMetrics" :key="item.label" class="campus-home__metric">
+                        <div
+                            v-for="item in orderMetrics"
+                            :key="item.label"
+                            class="campus-home__metric"
+                        >
                             <strong>{{ item.value }}</strong>
                             <span>{{ item.label }}</span>
                         </div>
                     </div>
                 </article>
 
-                <article class="campus-home__primary-card campus-home__primary-card--tasks touch-feedback" @click="go('/tasks')">
+                <article
+                    class="campus-home__primary-card campus-home__primary-card--tasks touch-feedback"
+                    @click="go('/tasks')"
+                >
                     <div class="campus-home__primary-icon">
                         <NIcon :size="30"><BriefcaseOutline /></NIcon>
                     </div>
                     <div class="campus-home__primary-copy">
                         <span>校园协作</span>
                         <h2>任务中心</h2>
-                        <p>学习、设计、技术、文案和生活互助都能在这里快速成交</p>
+                        <p>学习、设计、技术、文案和生活互助都能在这里快速成单。</p>
                     </div>
                     <div class="campus-home__metric-row">
-                        <div v-for="item in taskMetrics" :key="item.label" class="campus-home__metric">
+                        <div
+                            v-for="item in taskMetrics"
+                            :key="item.label"
+                            class="campus-home__metric"
+                        >
                             <strong>{{ item.value }}</strong>
                             <span>{{ item.label }}</span>
                         </div>
@@ -63,8 +77,16 @@
                 <h3>今日看板</h3>
                 <button type="button" @click="go('/pickup')">进入订单</button>
             </div>
+            <div v-if="homeLoading" class="campus-home__status">首页数据加载中...</div>
+            <div v-else-if="homeError" class="campus-home__status campus-home__status--muted">
+                {{ homeError }}
+            </div>
             <div class="campus-home__board-grid">
-                <article v-for="card in dashboardCards" :key="card.title" class="campus-home__board-card">
+                <article
+                    v-for="card in dashboardCards"
+                    :key="card.title"
+                    class="campus-home__board-card"
+                >
                     <div class="campus-home__board-icon" :style="{ background: card.tint }">
                         <NIcon :size="20"><component :is="card.icon" /></NIcon>
                     </div>
@@ -109,7 +131,9 @@
                     @click="go('/forum')"
                 >
                     <div class="campus-home__post-meta">
-                        <NTag size="small" :bordered="false" :type="post.tagType">{{ post.tag }}</NTag>
+                        <NTag size="small" :bordered="false" :type="post.tagType">
+                            {{ post.tag }}
+                        </NTag>
                         <span>{{ post.time }}</span>
                     </div>
                     <h4>{{ post.title }}</h4>
@@ -127,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { markRaw } from 'vue';
+import { computed, markRaw, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { NAvatar, NIcon, NTag } from 'naive-ui';
 import {
@@ -141,25 +165,71 @@ import {
     RocketOutline,
     ChatbubblesOutline,
 } from '@vicons/ionicons5';
+import { HomeApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
+import type { ForumPost, Task } from '@/types';
+
+type MetricItem = {
+    label: string;
+    value: string | number;
+};
+
+type DashboardCard = {
+    title: string;
+    value: string | number;
+    description: string;
+    icon: ReturnType<typeof markRaw>;
+    tint: string;
+};
+
+type FeaturedPostCard = {
+    id: number | string;
+    tag: string;
+    tagType: 'default' | 'info' | 'success' | 'warning' | 'error';
+    time: string;
+    title: string;
+    excerpt: string;
+    author: string;
+    stats: string;
+};
+
+type HomeOrderStats = {
+    published?: {
+        total?: number;
+        pending?: number;
+        completed?: number;
+    };
+    accepted?: {
+        total?: number;
+        in_progress?: number;
+        completed?: number;
+    };
+};
 
 const router = useRouter();
 const appStore = useAppStore();
 const userStore = useUserStore();
 
-const orderMetrics = [
+const hasSession = computed(() => !!userStore.token);
+const homeLoading = ref(false);
+const homeError = ref('');
+const homeTasks = ref<Task[]>([]);
+const homePosts = ref<ForumPost[]>([]);
+const homeOrderStats = ref<HomeOrderStats | null>(null);
+
+const fallbackOrderMetrics: MetricItem[] = [
     { label: '待接订单', value: '36' },
     { label: '平均送达', value: '22m' },
     { label: '今日完成', value: '128' },
 ];
 
-const taskMetrics = [
+const fallbackTaskMetrics: MetricItem[] = [
     { label: '新任务', value: '54' },
     { label: '正在招募', value: '31' },
-    { label: '本周收入', value: '¥860' },
+    { label: '本周收入', value: '860' },
 ];
 
-const dashboardCards = [
+const fallbackDashboardCards: DashboardCard[] = [
     {
         title: '订单热度',
         value: '南区宿舍',
@@ -184,48 +254,219 @@ const dashboardCards = [
 ];
 
 const shortcuts = [
-    { title: '发布订单', description: '下单找人代取', route: '/pickup/create', icon: markRaw(ReceiptOutline), tint: '#eaf0ff' },
-    { title: '发布任务', description: '发起协作需求', route: '/tasks/create', icon: markRaw(RocketOutline), tint: '#eef9f3' },
-    { title: '论坛交流', description: '看文章与讨论', route: '/forum', icon: markRaw(ChatbubblesOutline), tint: '#fff3e8' },
-    { title: '钱包记录', description: '查看收益与支出', route: '/wallet', icon: markRaw(WalletOutline), tint: '#eef5fb' },
+    {
+        title: '发布订单',
+        description: '下单找人代取',
+        route: '/pickup/create',
+        icon: markRaw(ReceiptOutline),
+        tint: '#eaf0ff',
+    },
+    {
+        title: '发布任务',
+        description: '发起协作需求',
+        route: '/tasks/create',
+        icon: markRaw(RocketOutline),
+        tint: '#eef9f3',
+    },
+    {
+        title: '论坛交流',
+        description: '看文章与讨论',
+        route: '/forum',
+        icon: markRaw(ChatbubblesOutline),
+        tint: '#fff3e8',
+    },
+    {
+        title: '钱包记录',
+        description: '查看收益与支出',
+        route: '/wallet',
+        icon: markRaw(WalletOutline),
+        tint: '#eef5fb',
+    },
 ];
 
-const featuredPosts = [
+const fallbackFeaturedPosts: FeaturedPostCard[] = [
     {
         id: 1,
         tag: '校园动态',
-        tagType: 'info' as const,
+        tagType: 'info',
         time: '12 分钟前',
-        title: '图书馆自习区新开放夜间座位预约',
-        excerpt: '不少同学已经在讨论最适合复习的楼层和时间段，帖子热度持续上涨。',
+        title: '图书馆自习区新增夜间座位预约',
+        excerpt: '不少同学正在讨论更适合复习的楼层和时间段，帖子热度还在持续上升。',
         author: '校园助手',
-        stats: '236 浏览 · 18 回复',
+        stats: '236 浏览 / 18 回复',
     },
     {
         id: 2,
         tag: '技能分享',
-        tagType: 'success' as const,
+        tagType: 'success',
         time: '1 小时前',
-        title: '接设计类任务前，怎么快速确认需求不翻车',
+        title: '接设计类任务前，怎么快速确认需求边界',
         excerpt: '从需求澄清、交付节点到返工边界，适合做海报和视频任务的同学收藏。',
         author: '视觉社成员',
-        stats: '189 浏览 · 26 点赞',
+        stats: '189 浏览 / 26 点赞',
     },
     {
         id: 3,
         tag: '生活服务',
-        tagType: 'warning' as const,
+        tagType: 'warning',
         time: '2 小时前',
         title: '快递驿站高峰时段避雷时间表更新',
         excerpt: '结合最近一周的排队情况，整理了早中晚三个时间段的真实取件体验。',
         author: '宿舍区观察员',
-        stats: '302 浏览 · 41 回复',
+        stats: '302 浏览 / 41 回复',
     },
 ];
 
+const orderMetrics = computed<MetricItem[]>(() => {
+    if (!homeOrderStats.value) return fallbackOrderMetrics;
+
+    return [
+        { label: '我发布的', value: homeOrderStats.value.published?.total ?? 0 },
+        { label: '待处理', value: homeOrderStats.value.published?.pending ?? 0 },
+        { label: '已完成', value: homeOrderStats.value.published?.completed ?? 0 },
+    ];
+});
+
+const taskMetrics = computed<MetricItem[]>(() => {
+    if (!homeTasks.value.length) return fallbackTaskMetrics;
+
+    const urgentCount = homeTasks.value.filter((task: Task) => task.urgent).length;
+    const totalReward = homeTasks.value.reduce(
+        (sum: number, task: Task) => sum + Number(task.price || 0),
+        0
+    );
+
+    return [
+        { label: '最新任务', value: homeTasks.value.length },
+        { label: '加急任务', value: urgentCount },
+        { label: '任务总额', value: `¥${totalReward}` },
+    ];
+});
+
+const dashboardCards = computed<DashboardCard[]>(() => {
+    if (!homeOrderStats.value && !homeTasks.value.length) {
+        return fallbackDashboardCards;
+    }
+
+    return [
+        {
+            title: '订单概览',
+            value: `${homeOrderStats.value?.accepted?.total ?? 0} 单`,
+            description: '当前账号已承接的订单总量',
+            icon: markRaw(FlashOutline),
+            tint: 'linear-gradient(135deg, rgba(47,107,255,0.18), rgba(75,184,255,0.18))',
+        },
+        {
+            title: '任务招募',
+            value: `${homeTasks.value.length} 条`,
+            description: '首页已拉取的最新任务数量',
+            icon: markRaw(TrendingUpOutline),
+            tint: 'linear-gradient(135deg, rgba(255,155,61,0.2), rgba(247,199,95,0.2))',
+        },
+        {
+            title: '远程任务',
+            value: `${homeTasks.value.filter((task: Task) => task.remote_work).length} 条`,
+            description: '最新任务里支持远程协作的数量',
+            icon: markRaw(TimeOutline),
+            tint: 'linear-gradient(135deg, rgba(25,179,107,0.18), rgba(75,184,255,0.12))',
+        },
+    ];
+});
+
+const featuredPosts = computed<FeaturedPostCard[]>(() => {
+    if (!homePosts.value.length) return fallbackFeaturedPosts;
+
+    return homePosts.value.slice(0, 3).map((post: ForumPost) => ({
+        id: post.id,
+        tag: mapPostCategory(post.category),
+        tagType: mapPostTagType(post.category),
+        time: formatRelativeTime(post.createdAt),
+        title: post.title,
+        excerpt: post.summary || post.content?.slice(0, 72) || '暂无摘要',
+        author: post.author?.username || post.author?.real_name || '匿名用户',
+        stats: `${post.view_count ?? 0} 浏览 / ${post.comment_count ?? 0} 回复`,
+    }));
+});
+
+const mapPostCategory = (category?: ForumPost['category']) => {
+    const categoryMap: Record<string, string> = {
+        academic: '学业交流',
+        life: '生活服务',
+        campus: '校园动态',
+        task: '任务广场',
+        skill: '技能分享',
+    };
+    return categoryMap[category || ''] || '论坛精选';
+};
+
+const mapPostTagType = (category?: ForumPost['category']): FeaturedPostCard['tagType'] => {
+    const typeMap: Record<string, FeaturedPostCard['tagType']> = {
+        academic: 'info',
+        life: 'warning',
+        campus: 'success',
+        task: 'default',
+        skill: 'success',
+    };
+    return typeMap[category || ''] || 'info';
+};
+
+const formatRelativeTime = (value?: string) => {
+    if (!value) return '刚刚';
+
+    const target = new Date(value).getTime();
+    if (Number.isNaN(target)) return '刚刚';
+
+    const diff = Date.now() - target;
+    const minute = 60 * 1000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+
+    if (diff < minute) return '刚刚';
+    if (diff < hour) return `${Math.max(1, Math.floor(diff / minute))} 分钟前`;
+    if (diff < day) return `${Math.max(1, Math.floor(diff / hour))} 小时前`;
+    return `${Math.max(1, Math.floor(diff / day))} 天前`;
+};
+
+const loadHomeData = async () => {
+    if (!hasSession.value) {
+        homeError.value = '';
+        homeOrderStats.value = null;
+        homeTasks.value = [];
+        homePosts.value = [];
+        return;
+    }
+
+    homeLoading.value = true;
+    homeError.value = '';
+
+    try {
+        const overview = await HomeApi.getHomeOverview();
+        homeOrderStats.value = overview.orderStats;
+        homeTasks.value = overview.latestTasks;
+        homePosts.value = overview.hotPosts;
+
+        if (!overview.orderStats && !overview.latestTasks.length && !overview.hotPosts.length) {
+            homeError.value = '首页接口已接入，但后端当前没有返回可展示的数据。';
+        }
+    } catch (error) {
+        console.error('Home data load failed:', error);
+        homeError.value = '首页数据加载失败，当前显示静态占位内容。';
+    } finally {
+        homeLoading.value = false;
+    }
+};
+
+onMounted(() => {
+    void loadHomeData();
+});
+
+watch(hasSession, () => {
+    void loadHomeData();
+});
+
 const go = (route: string) => {
     appStore.hapticFeedback('light');
-    router.push(route);
+    void router.push(route);
 };
 </script>
 
@@ -408,6 +649,20 @@ const go = (route: string) => {
 .campus-home__section-head button {
     font-size: 13px;
     color: #5f78a8;
+}
+
+.campus-home__status {
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #17304f;
+    font-size: 13px;
+    box-shadow: 0 10px 26px rgba(23, 48, 79, 0.05);
+}
+
+.campus-home__status--muted {
+    color: #6a7487;
 }
 
 .campus-home__board-grid {
@@ -652,10 +907,15 @@ const go = (route: string) => {
 
 .dark-theme .campus-home__board-card,
 .dark-theme .campus-home__shortcut-card,
-.dark-theme .campus-home__post-card {
+.dark-theme .campus-home__post-card,
+.dark-theme .campus-home__status {
     background: rgba(17, 26, 43, 0.92);
     border-color: rgba(109, 145, 222, 0.14);
     box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+}
+
+.dark-theme .campus-home__status {
+    color: #dbe7ff;
 }
 
 .dark-theme .campus-home__board-icon,

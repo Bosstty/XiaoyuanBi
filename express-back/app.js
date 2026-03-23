@@ -3,7 +3,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const multer = require('multer');
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
 
