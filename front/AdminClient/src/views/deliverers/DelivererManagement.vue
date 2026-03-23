@@ -163,10 +163,7 @@
         <el-table-column label="认证信息" align="center" min-width="120">
           <template #default="{ row }">
             <div class="verify-info">
-              <el-tag
-                :type="getApplicationStatusType(row.application_status)"
-                size="small"
-              >
+              <el-tag :type="getApplicationStatusType(row.application_status)" size="small">
                 {{ getApplicationStatusText(row.application_status) }}
               </el-tag>
               <span class="verify-time" v-if="row.approval_time">

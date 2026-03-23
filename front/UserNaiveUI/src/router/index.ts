@@ -18,7 +18,7 @@ const routes: RouteRecordRaw[] = [
             {
                 path: 'pickup',
                 name: 'Pickup',
-                component: () => import('@/views/Pickup.vue'),
+                redirect: '/pickup/list',
                 meta: { title: '代取服务', level: 0 },
             },
             {
@@ -52,16 +52,34 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '任务大厅', level: 0 },
             },
             {
+                path: 'tasks/my',
+                name: 'MyTasks',
+                component: () => import('@/views/tasks/MyTasks.vue'),
+                meta: { title: '我的任务', requiresAuth: true, level: 1 },
+            },
+            {
                 path: 'forum',
                 name: 'Forum',
                 component: () => import('@/views/Forum.vue'),
                 meta: { title: '校园论坛', level: 0 },
             },
             {
+                path: 'forum/my',
+                name: 'MyPosts',
+                component: () => import('@/views/forum/MyPosts.vue'),
+                meta: { title: '我的帖子', requiresAuth: true, level: 1 },
+            },
+            {
                 path: 'profile',
                 name: 'Profile',
                 component: () => import('@/views/user/Profile.vue'),
-                meta: { title: '个人中心', level: 0 },
+                meta: { title: '我的', level: 0 },
+            },
+            {
+                path: 'wallet',
+                name: 'Wallet',
+                component: () => import('@/views/user/Wallet.vue'),
+                meta: { title: '钱包', requiresAuth: true, level: 1 },
             },
             {
                 path: 'chat',

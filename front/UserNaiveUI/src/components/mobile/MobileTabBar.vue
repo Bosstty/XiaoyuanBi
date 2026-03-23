@@ -1,5 +1,12 @@
 <template>
-    <div class="mobile-tab-bar" :class="{ 'has-safe-area': appStore.isIOS }">
+    <div
+        class="mobile-tab-bar"
+        :class="{
+            'has-safe-area': appStore.isIOS,
+            'dark-mode': appStore.currentTheme === 'dark',
+            'light-mode': appStore.currentTheme === 'light',
+        }"
+    >
         <div class="tab-bar-background" />
         <div class="tab-bar-content">
             <div
@@ -11,7 +18,7 @@
             >
                 <div class="tab-icon">
                     <NIcon :size="24">
-                        <component :is="tab.icon" />
+                        <component :is="activeTab === tab.name ? tab.activeIcon : tab.icon" />
                     </NIcon>
                     <div v-if="tab.badge" class="tab-badge">{{ tab.badge }}</div>
                 </div>
@@ -45,6 +52,7 @@ interface TabItem {
     icon: any;
     activeIcon: any;
     route: string;
+    matchBase: string;
     badge?: number | string;
 }
 
@@ -59,13 +67,15 @@ const tabs: TabItem[] = [
         icon: HomeOutline,
         activeIcon: Home,
         route: '/',
+        matchBase: '/',
     },
     {
         name: 'pickup',
-        label: '代取',
+        label: '订单',
         icon: BagHandleOutline,
         activeIcon: BagHandle,
-        route: '/pickup',
+        route: '/pickup/list',
+        matchBase: '/pickup',
         badge: 3, // 示例：有3个新订单
     },
     {
@@ -74,6 +84,7 @@ const tabs: TabItem[] = [
         icon: BriefcaseOutline,
         activeIcon: Briefcase,
         route: '/tasks',
+        matchBase: '/tasks',
     },
     {
         name: 'forum',
@@ -81,6 +92,7 @@ const tabs: TabItem[] = [
         icon: ChatbubblesOutline,
         activeIcon: Chatbubbles,
         route: '/forum',
+        matchBase: '/forum',
     },
     {
         name: 'profile',
@@ -88,25 +100,34 @@ const tabs: TabItem[] = [
         icon: PersonOutline,
         activeIcon: Person,
         route: '/profile',
+        matchBase: '/profile',
     },
 ];
 
+const isTabSectionActive = (tab: TabItem, path = route.path) => {
+    if (tab.matchBase === '/') {
+        return path === '/';
+    }
+
+    return path === tab.matchBase || path.startsWith(`${tab.matchBase}/`);
+};
+
 const activeTab = computed(() => {
-    const currentPath = route.path;
-    return (
-        tabs.find(
-            tab =>
-                currentPath === tab.route ||
-                (tab.route !== '/' && currentPath.startsWith(tab.route))
-        )?.name || 'home'
-    );
+    return tabs.find(tab => isTabSectionActive(tab))?.name || 'home';
 });
 
 const handleTabClick = (tab: TabItem) => {
-    if (route.path !== tab.route) {
-        appStore.hapticFeedback('light');
-        router.push(tab.route);
+    if (isTabSectionActive(tab)) {
+        if (route.path !== tab.route) {
+            appStore.hapticFeedback('light');
+            router.replace(tab.route);
+        }
+
+        return;
     }
+
+    appStore.hapticFeedback('light');
+    router.push(tab.route);
 };
 </script>
 
@@ -117,12 +138,12 @@ const handleTabClick = (tab: TabItem) => {
     left: 0;
     right: 0;
     z-index: 1000;
-    height: 80px;
+    height: 82px;
     background: transparent;
 }
 
 .mobile-tab-bar.has-safe-area {
-    height: calc(80px + var(--safe-area-bottom));
+    height: calc(82px + var(--safe-area-bottom));
     padding-bottom: var(--safe-area-bottom);
 }
 
@@ -132,18 +153,29 @@ const handleTabClick = (tab: TabItem) => {
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--n-card-color);
+    background: rgba(255, 255, 255, 0.94);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-top: 0.5px solid var(--n-border-color);
+    border-top: 1px solid rgba(47, 107, 255, 0.08);
+    box-shadow: 0 -10px 30px rgba(23, 48, 79, 0.05);
+}
+
+.tab-bar-background::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: transparent;
 }
 
 .tab-bar-content {
     display: flex;
-    height: 80px;
+    height: 82px;
     align-items: center;
     justify-content: space-around;
-    padding: 0 8px;
+    padding: 0 10px;
     position: relative;
 }
 
@@ -153,29 +185,28 @@ const handleTabClick = (tab: TabItem) => {
     align-items: center;
     justify-content: center;
     min-width: 60px;
-    padding: 8px 4px;
+    padding: 10px 6px 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    border-radius: 12px;
+    border-radius: 18px;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
 }
 
 .tab-item:active {
-    transform: scale(0.9);
-    background: var(--n-border-color);
+    transform: scale(0.96);
 }
 
 .tab-icon {
     position: relative;
-    margin-bottom: 4px;
-    color: var(--n-text-color-3);
+    margin-bottom: 5px;
+    color: #6c7892;
     transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .tab-item.active .tab-icon {
-    color: var(--n-primary-color);
-    transform: scale(1.1);
+    color: #2f6bff;
+    transform: translateY(-1px);
 }
 
 .tab-badge {
@@ -184,7 +215,7 @@ const handleTabClick = (tab: TabItem) => {
     right: -8px;
     min-width: 18px;
     height: 18px;
-    background: var(--n-error-color);
+    background: linear-gradient(135deg, #2f6bff 0%, #4bb8ff 100%);
     color: white;
     border-radius: 9px;
     display: flex;
@@ -199,40 +230,38 @@ const handleTabClick = (tab: TabItem) => {
 .tab-label {
     font-size: 11px;
     font-weight: 500;
-    color: var(--n-text-color-3);
+    color: #7c879d;
     transition: color 0.2s ease;
     text-align: center;
     line-height: 1;
 }
 
 .tab-item.active .tab-label {
-    color: var(--n-primary-color);
-    font-weight: 600;
+    color: #2f6bff;
+    font-weight: 700;
 }
 
-/* 深色模式适配 */
-.dark-theme .tab-bar-background {
-    background: rgba(28, 28, 30, 0.8);
+.mobile-tab-bar.dark-mode .tab-bar-background {
+    background: #232326;
+    border-top: none;
+    box-shadow: 0 -14px 36px rgba(0, 0, 0, 0.36);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
-.light-theme .tab-bar-background {
-    background: rgba(255, 255, 255, 0.8);
+.mobile-tab-bar.dark-mode .tab-bar-background::before {
+    background: rgba(82, 90, 110, 0.34);
 }
 
-/* 动画效果 */
-@keyframes tab-bounce {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.2);
-    }
-    100% {
-        transform: scale(1.1);
-    }
+.mobile-tab-bar.dark-mode .tab-icon {
+    color: #f5f5f5;
 }
 
-.tab-item.active .tab-icon {
-    animation: tab-bounce 0.3s ease;
+.mobile-tab-bar.dark-mode .tab-label {
+    color: #a1a1aa;
+}
+
+.mobile-tab-bar.dark-mode .tab-item.active .tab-label {
+    color: #ffffff;
 }
 </style>

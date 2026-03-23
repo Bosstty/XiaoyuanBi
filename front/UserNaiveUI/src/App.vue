@@ -20,12 +20,16 @@ const appStore = useAppStore();
 const isDarkMode = ref(false);
 
 // 监听主题变化
-watch(() => appStore.isDark, (newVal) => {
-    isDarkMode.value = newVal;
-}, { immediate: true });
+watch(
+    () => appStore.isDark,
+    newVal => {
+        isDarkMode.value = newVal;
+    },
+    { immediate: true }
+);
 
 // 主题配置 - 优化暗色模式
-const theme = computed(() => isDarkMode.value ? darkTheme : lightTheme);
+const theme = computed(() => (isDarkMode.value ? darkTheme : lightTheme));
 
 // iOS风格配色方案 - 优化版
 const themeOverrides = computed(() => {
@@ -91,9 +95,7 @@ const themeOverrides = computed(() => {
             fontWeightStrong: '600',
 
             // 阴影效果 - 优化暗色模式
-            boxShadow: isDark
-                ? '0 1px 3px rgba(0,0,0,0.5)'
-                : '0 1px 3px rgba(0,0,0,0.1)',
+            boxShadow: isDark ? '0 1px 3px rgba(0,0,0,0.5)' : '0 1px 3px rgba(0,0,0,0.1)',
         },
         Button: {
             borderRadiusMedium: '12px',
@@ -171,13 +173,18 @@ onMounted(() => {
         :theme-overrides="themeOverrides"
         :locale="zhCN"
         :date-locale="dateZhCN"
-        :class="appStore.currentTheme + '-theme'"
     >
         <NLoadingBarProvider>
             <NDialogProvider>
                 <NNotificationProvider>
                     <NMessageProvider>
-                        <div class="mobile-app" :class="{ 'is-ios': appStore.isIOS }">
+                        <div
+                            class="mobile-app"
+                            :class="[
+                                `${appStore.currentTheme}-theme`,
+                                { 'is-ios': appStore.isIOS },
+                            ]"
+                        >
                             <RouterView v-slot="{ Component }">
                                 <Transition name="page" mode="out-in">
                                     <component :is="Component" />

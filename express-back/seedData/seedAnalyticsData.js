@@ -2,7 +2,7 @@
  * 数据种子脚本 - 为分析功能生成测试数据（不删除原有数据）
  * 运行方式: node seedAnalyticsData.js
  */
-const { sequelize } = require('./src/config/database');
+const { sequelize } = require('../src/config/database');
 const {
     User,
     Deliverer,
@@ -11,7 +11,7 @@ const {
     Task,
     AuditLog,
     Message,
-} = require('./src/models');
+} = require('../src/models');
 const bcrypt = require('bcryptjs');
 
 async function seedAnalyticsData() {

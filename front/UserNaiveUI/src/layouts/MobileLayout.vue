@@ -1,35 +1,7 @@
 <template>
     <div class="mobile-layout" :class="{ 'has-tab-bar': showTabBar }">
-        <!-- 主导航栏 -->
-        <MobileNavBar
-            v-if="showNavBar && !hideNavBar"
-            :title="pageTitle"
-            :show-back="showBackButton"
-            :transparent="navBarTransparent"
-            :right-action="rightAction"
-            :right-icon="rightIcon"
-            @back="handleBack"
-            @right-action="handleRightAction"
-        >
-            <template v-if="$slots.navLeft" #left>
-                <slot name="navLeft" />
-            </template>
-            <template v-if="$slots.navCenter" #center>
-                <slot name="navCenter" />
-            </template>
-            <template v-if="$slots.navRight" #right>
-                <slot name="navRight" />
-            </template>
-        </MobileNavBar>
-
         <!-- 页面内容区域 -->
-        <main
-            class="page-content"
-            :class="{
-                'with-nav': showNavBar && !hideNavBar,
-                'no-nav': hideNavBar,
-            }"
-        >
+        <main class="page-content">
             <router-view v-slot="{ Component, route }">
                 <transition
                     :name="transitionName"
@@ -62,38 +34,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { MobileNavBar, MobileTabBar, MobileLoading } from '@/components/mobile';
+import { ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import { MobileTabBar, MobileLoading } from '@/components/mobile';
 import { useAppStore } from '@/stores';
 
 interface Props {
     showTabBar?: boolean;
-    showNavBar?: boolean;
-    navBarTransparent?: boolean;
     keepAlivePages?: string[];
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
     showTabBar: true,
-    showNavBar: true,
-    navBarTransparent: false,
     keepAlivePages: () => ['Home', 'PickupList', 'TaskList', 'ForumIndex'],
 });
 
 const route = useRoute();
-const router = useRouter();
 const appStore = useAppStore();
 
 // 路由动画状态
 const transitionName = ref('slide-left');
-const transitionMode = ref('out-in');
-const isNavigating = ref(false);
+const transitionMode = ref(''); // 空字符串让动画同时进行
 
 // 路由层级映射 - 用于判断动画方向
 const routeLevels: Record<string, number> = {
     '/': 0,
     '/pickup': 1,
+    '/pickup/list': 1,
     '/tasks': 1,
     '/forum': 1,
     '/profile': 1,
@@ -102,60 +69,82 @@ const routeLevels: Record<string, number> = {
     '/settings': 2,
 };
 
-// 计算页面标题
-const pageTitle = computed(() => {
-    return (route.meta.title as string) || '校园服务平台';
-});
+const mainTabs = [
+    { key: 'home', matchBase: '/', entryRoute: '/' },
+    { key: 'pickup', matchBase: '/pickup', entryRoute: '/pickup/list' },
+    { key: 'tasks', matchBase: '/tasks', entryRoute: '/tasks' },
+    { key: 'forum', matchBase: '/forum', entryRoute: '/forum' },
+    { key: 'profile', matchBase: '/profile', entryRoute: '/profile' },
+];
 
-// 计算是否隐藏导航栏
-const hideNavBar = computed(() => {
-    return route.meta.hideNavBar || false;
-});
+const getMainTab = (path: string) => {
+    return (
+        mainTabs.find(tab => {
+            if (tab.matchBase === '/') {
+                return path === '/';
+            }
 
-// 计算是否显示返回按钮
-const showBackButton = computed(() => {
-    const mainPages = ['/', '/pickup', '/tasks', '/forum', '/profile'];
-    return !mainPages.includes(route.path);
-});
-
-// 右侧操作配置
-const rightAction = computed(() => {
-    // 根据不同页面返回不同的右侧操作
-    if (route.path === '/profile') {
-        return () => router.push('/settings');
-    }
-    return undefined;
-});
-
-const rightIcon = computed(() => {
-    if (route.path === '/profile') {
-        return 'SettingsOutline';
-    }
-    return undefined;
-});
+            return path === tab.matchBase || path.startsWith(`${tab.matchBase}/`);
+        }) || null
+    );
+};
 
 // 监听路由变化，设置转场动画
 watch(
     () => route.path,
     (newPath, oldPath) => {
-        if (!oldPath || isNavigating.value) {
-            isNavigating.value = false;
+        if (!oldPath || newPath === oldPath) {
             return;
         }
 
-        const newLevel = getRouteLevel(newPath);
-        const oldLevel = getRouteLevel(oldPath);
+        const oldTab = getMainTab(oldPath);
+        const newTab = getMainTab(newPath);
 
-        // 判断是前进还是后退
-        if (newLevel > oldLevel) {
-            // 前进 - 新页面从右侧滑入
-            transitionName.value = 'slide-left';
-        } else if (newLevel < oldLevel) {
-            // 后退 - 新页面从左侧滑入
+        // 情况1：标签页切换（主导航栏点击）
+        if (oldTab && newTab && oldTab.key !== newTab.key) {
+            const currentIndex = mainTabs.findIndex(tab => tab.key === oldTab.key);
+            const targetIndex = mainTabs.findIndex(tab => tab.key === newTab.key);
+
+            if (targetIndex < currentIndex) {
+                transitionName.value = 'slide-right';
+            } else {
+                transitionName.value = 'slide-left';
+            }
+        }
+        // 情况2：从子页面返回到所属标签页
+        else if (newTab && !oldTab) {
             transitionName.value = 'slide-right';
-        } else {
-            // 同级页面 - 淡入淡出
-            transitionName.value = 'fade';
+        }
+        // 情况3：从标签页进入子页面
+        else if (oldTab && !newTab && oldPath.startsWith(newPath + '/')) {
+            transitionName.value = 'slide-left';
+        }
+        // 情况4：同标签下的子页面切换
+        else if (oldTab && newTab && oldTab.key === newTab.key) {
+            if (newPath === newTab.entryRoute && oldPath !== newTab.entryRoute) {
+                transitionName.value = 'slide-right';
+            } else if (newPath.startsWith(oldPath + '/')) {
+                // 进入子页面
+                transitionName.value = 'slide-left';
+            } else if (oldPath.startsWith(newPath + '/')) {
+                // 返回父页面
+                transitionName.value = 'slide-right';
+            } else {
+                transitionName.value = 'fade';
+            }
+        }
+        // 情况5：其他情况
+        else {
+            const newLevel = getRouteLevel(newPath);
+            const oldLevel = getRouteLevel(oldPath);
+
+            if (newLevel > oldLevel) {
+                transitionName.value = 'slide-left';
+            } else if (newLevel < oldLevel) {
+                transitionName.value = 'slide-right';
+            } else {
+                transitionName.value = 'fade';
+            }
         }
 
         // 触觉反馈
@@ -179,24 +168,6 @@ const getRouteLevel = (path: string) => {
     }
 
     return 2; // 默认层级
-};
-
-// 返回按钮处理
-const handleBack = () => {
-    isNavigating.value = true;
-
-    // 检查是否有历史记录
-    if (window.history.length > 1) {
-        router.back();
-    } else {
-        // 没有历史记录时返回首页
-        router.push('/');
-    }
-};
-
-// 右侧操作处理
-const handleRightAction = () => {
-    // 由具体页面处理
 };
 
 // 转场动画事件处理
@@ -245,20 +216,10 @@ const onLeave = (el: Element, done: () => void) => {
 
 .page-content {
     flex: 1;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     position: relative;
-}
-
-.page-content.with-nav {
-    padding-top: 44px;
-}
-
-.page-content.with-nav.is-ios {
-    padding-top: calc(44px + var(--status-bar-height, 44px));
-}
-
-.page-content.no-nav {
-    padding-top: 0;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* iOS 风格转场动画 */
@@ -363,8 +324,7 @@ const onLeave = (el: Element, done: () => void) => {
 .page-content > * {
     width: 100%;
     min-height: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: visible;
 }
 
 /* 深色模式适配 */

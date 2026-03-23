@@ -1,3 +1,6 @@
+@import './styles/index.css';
+@import './styles/auth.css';
+
 /**
  * 校园生活服务平台 - 基础样式
  * 全局重置 + 移动端适配
@@ -15,6 +18,13 @@
     padding: 0;
 }
 
+:root {
+    --font-ui: 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Noto Sans SC',
+        'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+    --font-display: 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Noto Sans SC',
+        'SF Pro Display', 'Microsoft YaHei', sans-serif;
+}
+
 html,
 body {
     height: 100%;
@@ -22,8 +32,7 @@ body {
     margin: 0;
     padding: 0;
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
-        'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-ui);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--n-body-color, var(--ios-bg-secondary, #F2F2F7));
@@ -49,6 +58,18 @@ body {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-app.light-theme {
+    background:
+        radial-gradient(circle at top, rgba(111, 171, 255, 0.16), transparent 30%),
+        linear-gradient(180deg, #eff5ff 0%, #f4f7fb 100%);
+}
+
+.mobile-app.dark-theme {
+    background:
+        radial-gradient(circle at top, rgba(47, 107, 255, 0.18), transparent 26%),
+        linear-gradient(180deg, #0b1220 0%, #101a2e 100%);
 }
 
 /* iOS 安全区域适配 */
@@ -83,6 +104,11 @@ body {
 .dark-theme ::-webkit-scrollbar-thumb,
 :root.dark ::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
+}
+
+.dark-theme ::-webkit-scrollbar-track,
+:root.dark ::-webkit-scrollbar-track {
+    background: rgba(8, 15, 28, 0.72);
 }
 
 .dark-theme ::-webkit-scrollbar-thumb:hover,
@@ -138,4 +164,13 @@ img {
 .dark-theme,
 :root.dark {
     color-scheme: dark;
+}
+
+html:has(.mobile-app.dark-theme),
+body:has(.mobile-app.dark-theme),
+#app:has(.mobile-app.dark-theme) {
+    background:
+        radial-gradient(circle at top, rgba(47, 107, 255, 0.18), transparent 26%),
+        linear-gradient(180deg, #0b1220 0%, #101a2e 100%);
+    color: #f3f7ff;
 }

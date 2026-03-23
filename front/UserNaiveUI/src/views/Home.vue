@@ -1,754 +1,680 @@
 <template>
-    <div class="mobile-home">
-        <!-- 动态背景 -->
-        <div class="home-bg"></div>
-
-        <!-- 欢迎横幅 -->
-        <div class="welcome-section">
-            <div class="welcome-card ios-card-glass">
-                <div class="welcome-content">
-                    <div class="welcome-icon">
-                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                            <circle cx="24" cy="24" r="24" fill="url(#gradient-welcome)"/>
-                            <path d="M14 18h20M14 24h16M14 30h12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-                            <defs>
-                                <linearGradient id="gradient-welcome" x1="0" y1="0" x2="48" y2="48">
-                                    <stop stop-color="#007AFF"/>
-                                    <stop offset="1" stop-color="#5856D6"/>
-                                </linearGradient>
-                            </defs>
-                        </svg>
-                    </div>
-                    <div class="welcome-text">
-                        <h1 class="welcome-title">哈尔滨学院</h1>
-                        <p class="welcome-desc">校园生活服务平台</p>
+    <div class="campus-home">
+        <section class="campus-home__hero">
+            <div class="campus-home__hero-top">
+                <div>
+                    <span class="campus-home__eyebrow">哈尔滨学院校园生活服务平台</span>
+                    <h1>今天想发订单，还是找任务？</h1>
+                    <p>把校园里的即时需求、技能协作和内容交流放进同一个 App。</p>
+                </div>
+                <div v-if="userStore.isAuthenticated" class="campus-home__identity">
+                    <NAvatar
+                        :size="42"
+                        round
+                        :src="userStore.userAvatar"
+                        fallback-src="/default-avatar.png"
+                    />
+                    <div>
+                        <strong>{{ userStore.userName }}</strong>
+                        <span>{{ userStore.user?.college || '校园用户' }}</span>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- 用户信息卡片 -->
-        <div v-if="userStore.isAuthenticated" class="user-section animate-fade-in">
-            <div class="ios-card user-card">
-                <div class="user-content">
-                    <div class="user-avatar-wrap">
-                        <NAvatar
-                            :size="56"
-                            :src="userStore.userAvatar"
-                            fallback-src="/default-avatar.png"
-                            round
-                        />
-                        <div class="user-level-badge">Lv.{{ userStore.user?.level || 1 }}</div>
+            <div class="campus-home__hero-grid">
+                <article class="campus-home__primary-card campus-home__primary-card--orders touch-feedback" @click="go('/pickup')">
+                    <div class="campus-home__primary-icon">
+                        <NIcon :size="30"><BagHandleOutline /></NIcon>
                     </div>
-                    <div class="user-info">
-                        <h3 class="user-name">{{ userStore.userName }}</h3>
-                        <p class="user-college">{{ userStore.user?.college || '未设置学院' }}</p>
-                        <div class="user-points">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                            </svg>
-                            <span>{{ userStore.user?.points || 0 }} 积分</span>
+                    <div class="campus-home__primary-copy">
+                        <span>即时履约</span>
+                        <h2>订单中心</h2>
+                        <p>快递代取、外卖代拿、药品代购、生活用品采购</p>
+                    </div>
+                    <div class="campus-home__metric-row">
+                        <div v-for="item in orderMetrics" :key="item.label" class="campus-home__metric">
+                            <strong>{{ item.value }}</strong>
+                            <span>{{ item.label }}</span>
                         </div>
                     </div>
-                    <NButton circle quaternary size="small" @click="router.push('/profile')">
-                        <template #icon>
-                            <NIcon :size="20"><ChevronForwardOutline /></NIcon>
-                        </template>
-                    </NButton>
-                </div>
-            </div>
-        </div>
+                </article>
 
-        <!-- 快捷操作 -->
-        <div class="quick-actions-section">
-            <h3 class="section-title">快捷服务</h3>
-            <div class="actions-grid">
-                <div
-                    v-for="(action, index) in quickActions"
-                    :key="action.id"
-                    class="action-item touch-feedback"
-                    :style="{ animationDelay: `${index * 80}ms` }"
-                    @click="handleActionClick(action)"
+                <article class="campus-home__primary-card campus-home__primary-card--tasks touch-feedback" @click="go('/tasks')">
+                    <div class="campus-home__primary-icon">
+                        <NIcon :size="30"><BriefcaseOutline /></NIcon>
+                    </div>
+                    <div class="campus-home__primary-copy">
+                        <span>校园协作</span>
+                        <h2>任务中心</h2>
+                        <p>学习、设计、技术、文案和生活互助都能在这里快速成交</p>
+                    </div>
+                    <div class="campus-home__metric-row">
+                        <div v-for="item in taskMetrics" :key="item.label" class="campus-home__metric">
+                            <strong>{{ item.value }}</strong>
+                            <span>{{ item.label }}</span>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="campus-home__section">
+            <div class="campus-home__section-head">
+                <h3>今日看板</h3>
+                <button type="button" @click="go('/pickup')">进入订单</button>
+            </div>
+            <div class="campus-home__board-grid">
+                <article v-for="card in dashboardCards" :key="card.title" class="campus-home__board-card">
+                    <div class="campus-home__board-icon" :style="{ background: card.tint }">
+                        <NIcon :size="20"><component :is="card.icon" /></NIcon>
+                    </div>
+                    <strong>{{ card.value }}</strong>
+                    <h4>{{ card.title }}</h4>
+                    <p>{{ card.description }}</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="campus-home__section">
+            <div class="campus-home__section-head">
+                <h3>快捷入口</h3>
+            </div>
+            <div class="campus-home__shortcut-grid">
+                <button
+                    v-for="shortcut in shortcuts"
+                    :key="shortcut.title"
+                    type="button"
+                    class="campus-home__shortcut-card touch-feedback"
+                    @click="go(shortcut.route)"
                 >
-                    <div class="action-icon" :style="{ background: action.gradient }">
-                        <NIcon size="24" color="white">
-                            <component :is="action.icon" />
-                        </NIcon>
+                    <div class="campus-home__shortcut-icon" :style="{ background: shortcut.tint }">
+                        <NIcon :size="20"><component :is="shortcut.icon" /></NIcon>
                     </div>
-                    <span class="action-label">{{ action.label }}</span>
-                </div>
+                    <strong>{{ shortcut.title }}</strong>
+                    <span>{{ shortcut.description }}</span>
+                </button>
             </div>
-        </div>
+        </section>
 
-        <!-- 平台服务列表 -->
-        <div class="services-section">
-            <h3 class="section-title">平台服务</h3>
-            <div class="services-list ios-card">
-                <div
-                    v-for="(service, index) in services"
-                    :key="service.id"
-                    class="service-item touch-feedback"
-                    :class="{ 'last-item': index === services.length - 1 }"
-                    @click="handleServiceClick(service)"
+        <section class="campus-home__section">
+            <div class="campus-home__section-head">
+                <h3>论坛精选</h3>
+                <button type="button" @click="go('/forum')">进入论坛</button>
+            </div>
+            <div class="campus-home__post-list">
+                <article
+                    v-for="post in featuredPosts"
+                    :key="post.id"
+                    class="campus-home__post-card touch-feedback"
+                    @click="go('/forum')"
                 >
-                    <div class="service-icon" :style="{ background: service.gradient }">
-                        <NIcon size="20" color="white">
-                            <component :is="service.icon" />
-                        </NIcon>
+                    <div class="campus-home__post-meta">
+                        <NTag size="small" :bordered="false" :type="post.tagType">{{ post.tag }}</NTag>
+                        <span>{{ post.time }}</span>
                     </div>
-                    <div class="service-content">
-                        <h4 class="service-title">{{ service.title }}</h4>
-                        <p class="service-desc">{{ service.description }}</p>
+                    <h4>{{ post.title }}</h4>
+                    <p>{{ post.excerpt }}</p>
+                    <div class="campus-home__post-footer">
+                        <span>{{ post.author }}</span>
+                        <span>{{ post.stats }}</span>
                     </div>
-                    <NIcon :size="20" class="service-arrow">
-                        <ChevronForwardOutline />
-                    </NIcon>
-                </div>
+                </article>
             </div>
-        </div>
+        </section>
 
-        <!-- 最近活动 -->
-        <div v-if="userStore.isAuthenticated" class="activities-section">
-            <div class="section-header">
-                <h3 class="section-title">最近活动</h3>
-                <NButton text size="small" type="primary">查看全部</NButton>
-            </div>
-            <div class="activities-list ios-card">
-                <div
-                    v-for="activity in recentActivities"
-                    :key="activity.id"
-                    class="activity-item"
-                >
-                    <div class="activity-icon" :style="{ background: activity.gradient }">
-                        <NIcon size="16" color="white">
-                            <component :is="activity.icon" />
-                        </NIcon>
-                    </div>
-                    <div class="activity-content">
-                        <span class="activity-title">{{ activity.title }}</span>
-                        <span class="activity-time">{{ formatTime(activity.time) }}</span>
-                    </div>
-                    <NTag :type="activity.statusType" size="small" :bordered="false">
-                        {{ activity.status }}
-                    </NTag>
-                </div>
-            </div>
-        </div>
-
-        <!-- 平台数据 -->
-        <div class="stats-section">
-            <h3 class="section-title">平台数据</h3>
-            <div class="stats-grid">
-                <div v-for="(stat, index) in platformStats" :key="stat.key" class="stat-card ios-card" :style="{ animationDelay: `${index * 100}ms` }">
-                    <div class="stat-value">{{ stat.value }}</div>
-                    <div class="stat-label">{{ stat.label }}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 未登录状态 -->
-        <div v-if="!userStore.isAuthenticated" class="auth-section animate-fade-in">
-            <div class="ios-card auth-card">
-                <div class="auth-content">
-                    <div class="auth-icon">
-                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                            <circle cx="24" cy="16" r="8" fill="var(--ios-gray3)"/>
-                            <path d="M12 40c0-6.627 5.373-12 12-12s12 5.373 12 12" fill="var(--ios-gray3)"/>
-                        </svg>
-                    </div>
-                    <h4>开启校园生活新体验</h4>
-                    <p>登录后享受更多便捷服务</p>
-                    <div class="auth-buttons">
-                        <NButton type="primary" size="large" block @click="router.push('/login')">
-                            立即登录
-                        </NButton>
-                        <NButton size="large" block quaternary @click="router.push('/register')">
-                            注册账号
-                        </NButton>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 底部安全区域 -->
-        <div class="bottom-safe-area"></div>
+        <div class="campus-home__safe-space"></div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, markRaw } from 'vue';
+import { markRaw } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NIcon, NAvatar, NTag } from 'naive-ui';
+import { NAvatar, NIcon, NTag } from 'naive-ui';
 import {
     BagHandleOutline,
-    DocumentTextOutline,
-    ChatbubblesOutline,
-    PersonOutline,
-    StarOutline,
-    CheckmarkCircleOutline,
+    BriefcaseOutline,
+    FlashOutline,
+    TrendingUpOutline,
     TimeOutline,
-    ChevronForwardOutline,
-    FastFoodOutline,
-    CartOutline,
-    CreateOutline,
-    HardwareChipOutline,
+    WalletOutline,
+    ReceiptOutline,
+    RocketOutline,
+    ChatbubblesOutline,
 } from '@vicons/ionicons5';
-import { useUserStore, useAppStore } from '@/stores';
+import { useAppStore, useUserStore } from '@/stores';
 
 const router = useRouter();
-const userStore = useUserStore();
 const appStore = useAppStore();
+const userStore = useUserStore();
 
-// 快捷操作 - 使用 markRaw 优化性能
-const quickActions = ref([
-    {
-        id: 1,
-        label: '代取快递',
-        icon: markRaw(BagHandleOutline),
-        gradient: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)',
-        route: '/pickup',
-    },
-    {
-        id: 2,
-        label: '外卖代取',
-        icon: markRaw(FastFoodOutline),
-        gradient: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)',
-        route: '/pickup?type=food',
-    },
-    {
-        id: 3,
-        label: '任务大厅',
-        icon: markRaw(DocumentTextOutline),
-        gradient: 'linear-gradient(135deg, #34C759 0%, #30D158 100%)',
-        route: '/tasks',
-    },
-    {
-        id: 4,
-        label: '校园论坛',
-        icon: markRaw(ChatbubblesOutline),
-        gradient: 'linear-gradient(135deg, #AF52DE 0%, #FF2D92 100%)',
-        route: '/forum',
-    },
-]);
+const orderMetrics = [
+    { label: '待接订单', value: '36' },
+    { label: '平均送达', value: '22m' },
+    { label: '今日完成', value: '128' },
+];
 
-// 平台服务
-const services = ref([
-    {
-        id: 1,
-        title: '代取服务',
-        description: '快递代取、外卖代取、药品代购',
-        icon: markRaw(BagHandleOutline),
-        gradient: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)',
-        route: '/pickup',
-    },
-    {
-        id: 2,
-        title: '任务大厅',
-        description: '学习辅导、设计制作、技术开发',
-        icon: markRaw(CreateOutline),
-        gradient: 'linear-gradient(135deg, #34C759 0%, #30D158 100%)',
-        route: '/tasks',
-    },
-    {
-        id: 3,
-        title: '技能市场',
-        description: '发布技能、接取任务、赚取积分',
-        icon: markRaw(HardwareChipOutline),
-        gradient: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)',
-        route: '/skills',
-    },
-    {
-        id: 4,
-        title: '校园论坛',
-        description: '学术交流、生活分享、二手交易',
-        icon: markRaw(ChatbubblesOutline),
-        gradient: 'linear-gradient(135deg, #AF52DE 0%, #FF2D92 100%)',
-        route: '/forum',
-    },
-    {
-        id: 5,
-        title: '二手市场',
-        description: '闲置物品买卖、免费转让',
-        icon: markRaw(CartOutline),
-        gradient: 'linear-gradient(135deg, #5AC8FA 0%, #007AFF 100%)',
-        route: '/market',
-    },
-]);
+const taskMetrics = [
+    { label: '新任务', value: '54' },
+    { label: '正在招募', value: '31' },
+    { label: '本周收入', value: '¥860' },
+];
 
-// 最近活动
-const recentActivities = ref([
+const dashboardCards = [
     {
-        id: 1,
-        title: '快递代取已完成',
-        time: new Date(Date.now() - 1800000).toISOString(),
-        status: '已完成',
-        statusType: 'success',
-        icon: markRaw(CheckmarkCircleOutline),
-        gradient: 'linear-gradient(135deg, #34C759 0%, #30D158 100%)',
+        title: '订单热度',
+        value: '南区宿舍',
+        description: '午间外卖和晚间快递需求最集中',
+        icon: markRaw(FlashOutline),
+        tint: 'linear-gradient(135deg, rgba(47,107,255,0.18), rgba(75,184,255,0.18))',
     },
     {
-        id: 2,
-        title: '新任务待接取',
-        time: new Date(Date.now() - 3600000).toISOString(),
-        status: '待接取',
-        statusType: 'warning',
+        title: '任务趋势',
+        value: '设计类 +18%',
+        description: '活动海报、社团招新和短视频需求上升',
+        icon: markRaw(TrendingUpOutline),
+        tint: 'linear-gradient(135deg, rgba(255,155,61,0.2), rgba(247,199,95,0.2))',
+    },
+    {
+        title: '响应时效',
+        value: '8 分钟',
+        description: '当前平台平均首次响应时间',
         icon: markRaw(TimeOutline),
-        gradient: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)',
+        tint: 'linear-gradient(135deg, rgba(25,179,107,0.18), rgba(75,184,255,0.12))',
     },
-]);
+];
 
-// 平台数据
-const platformStats = ref([
-    { key: 'users', label: '注册用户', value: '2,568' },
-    { key: 'orders', label: '完成订单', value: '8,742' },
-    { key: 'tasks', label: '发布任务', value: '3,291' },
-    { key: 'posts', label: '论坛帖子', value: '5,847' },
-]);
+const shortcuts = [
+    { title: '发布订单', description: '下单找人代取', route: '/pickup/create', icon: markRaw(ReceiptOutline), tint: '#eaf0ff' },
+    { title: '发布任务', description: '发起协作需求', route: '/tasks/create', icon: markRaw(RocketOutline), tint: '#eef9f3' },
+    { title: '论坛交流', description: '看文章与讨论', route: '/forum', icon: markRaw(ChatbubblesOutline), tint: '#fff3e8' },
+    { title: '钱包记录', description: '查看收益与支出', route: '/wallet', icon: markRaw(WalletOutline), tint: '#eef5fb' },
+];
 
-// 格式化时间
-const formatTime = (timeStr: string) => {
-    const diff = Date.now() - new Date(timeStr).getTime();
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
-    return `${Math.floor(diff / 86400000)}天前`;
-};
+const featuredPosts = [
+    {
+        id: 1,
+        tag: '校园动态',
+        tagType: 'info' as const,
+        time: '12 分钟前',
+        title: '图书馆自习区新开放夜间座位预约',
+        excerpt: '不少同学已经在讨论最适合复习的楼层和时间段，帖子热度持续上涨。',
+        author: '校园助手',
+        stats: '236 浏览 · 18 回复',
+    },
+    {
+        id: 2,
+        tag: '技能分享',
+        tagType: 'success' as const,
+        time: '1 小时前',
+        title: '接设计类任务前，怎么快速确认需求不翻车',
+        excerpt: '从需求澄清、交付节点到返工边界，适合做海报和视频任务的同学收藏。',
+        author: '视觉社成员',
+        stats: '189 浏览 · 26 点赞',
+    },
+    {
+        id: 3,
+        tag: '生活服务',
+        tagType: 'warning' as const,
+        time: '2 小时前',
+        title: '快递驿站高峰时段避雷时间表更新',
+        excerpt: '结合最近一周的排队情况，整理了早中晚三个时间段的真实取件体验。',
+        author: '宿舍区观察员',
+        stats: '302 浏览 · 41 回复',
+    },
+];
 
-// 处理操作点击
-const handleActionClick = (action: any) => {
+const go = (route: string) => {
     appStore.hapticFeedback('light');
-    router.push(action.route);
+    router.push(route);
 };
-
-// 处理服务点击
-const handleServiceClick = (service: any) => {
-    appStore.hapticFeedback('light');
-    router.push(service.route);
-};
-
-// 页面加载
-onMounted(async () => {
-    if (userStore.isAuthenticated) {
-        try {
-            await userStore.fetchUserProfile();
-            await userStore.fetchUserStats();
-        } catch (error) {
-            console.error('加载用户信息失败:', error);
-        }
-    }
-});
 </script>
 
 <style scoped>
-.mobile-home {
-    min-height: 100vh;
-    width: 100%;
-    background: var(--n-body-color, var(--ios-bg-secondary));
-    position: relative;
-    overflow-x: hidden;
+.campus-home {
+    min-height: 100%;
+    padding: 18px 16px 0;
+    background:
+        radial-gradient(circle at top left, rgba(75, 184, 255, 0.16), transparent 28%),
+        linear-gradient(180deg, #f4f7fb 0%, #eef3fb 100%);
 }
 
-/* 动态背景 */
-.home-bg {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 280px;
-    background: linear-gradient(180deg, var(--n-primary-color, #007AFF) 0%, #5856D6 100%);
-    border-radius: 0 0 32px 32px;
-    z-index: -1;
-}
-
-.dark .home-bg,
-:root.dark .home-bg {
-    background: linear-gradient(180deg, #0A84FF 0%, #5E5CE6 100%);
-}
-
-/* 欢迎区域 */
-.welcome-section {
-    padding: 16px;
-    padding-top: 48px;
-}
-
-.welcome-card {
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.dark .welcome-card,
-:root.dark .welcome-card {
-    background: rgba(44, 44, 46, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.welcome-content {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.welcome-icon {
-    flex-shrink: 0;
-}
-
-.welcome-text {
-    flex: 1;
-}
-
-.welcome-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: white;
-    margin: 0 0 4px 0;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.welcome-desc {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.85);
-    margin: 0;
-}
-
-/* 用户信息 */
-.user-section {
-    padding: 0 16px;
+.campus-home__hero {
+    padding: 20px;
+    border-radius: 32px;
+    background: linear-gradient(135deg, #2f6bff 0%, #4bb8ff 48%, #6fe3c1 100%);
+    box-shadow: 0 18px 42px rgba(47, 107, 255, 0.2);
+    color: #ffffff;
     margin-bottom: 24px;
 }
 
-.user-card {
-    background: var(--n-card-color, var(--ios-bg-primary));
-    border-radius: var(--ios-radius-lg);
-    box-shadow: var(--ios-shadow);
-}
-
-.user-content {
+.campus-home__hero-top {
     display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.user-avatar-wrap {
-    position: relative;
-}
-
-.user-level-badge {
-    position: absolute;
-    bottom: -2px;
-    right: -2px;
-    background: linear-gradient(135deg, #FF9500 0%, #FF3B30 100%);
-    color: white;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 8px;
-    border: 2px solid var(--n-card-color, var(--ios-bg-primary));
-}
-
-.user-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.user-name {
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--n-text-color-1, var(--ios-text-primary));
-    margin: 0 0 4px 0;
-}
-
-.user-college {
-    font-size: 13px;
-    color: var(--n-text-color-3, var(--ios-text-tertiary));
-    margin: 0 0 6px 0;
-}
-
-.user-points {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--n-warning-color, #FF9500);
-    font-weight: 500;
-}
-
-/* 快捷操作 */
-.quick-actions-section {
-    padding: 0 16px;
-    margin-bottom: 24px;
-}
-
-.actions-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-}
-
-.action-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 16px 8px;
-    background: var(--n-card-color, var(--ios-bg-primary));
-    border-radius: var(--ios-radius-md);
-    box-shadow: var(--ios-shadow-sm);
-    animation: ios-fade-in 0.4s ease-out backwards;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.action-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.action-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--n-text-color-1, var(--ios-text-primary));
-    text-align: center;
-}
-
-/* 平台服务 */
-.services-section {
-    padding: 0 16px;
-    margin-bottom: 24px;
-}
-
-.services-list {
-    padding: 0;
-    overflow: hidden;
-    background: var(--n-card-color, var(--ios-bg-primary));
-    border-radius: var(--ios-radius-lg);
-}
-
-.service-item {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px;
-    border-bottom: 0.5px solid var(--n-divider-color, var(--ios-divider));
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.service-item.last-item {
-    border-bottom: none;
-}
-
-.service-item:active {
-    background: var(--n-color-hover, var(--ios-gray6));
-}
-
-.dark .service-item:active,
-:root.dark .service-item:active {
-    background: var(--ios-gray5);
-}
-
-.service-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.service-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.service-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--n-text-color-1, var(--ios-text-primary));
-    margin: 0 0 4px 0;
-}
-
-.service-desc {
-    font-size: 13px;
-    color: var(--n-text-color-3, var(--ios-text-tertiary));
-    margin: 0;
-}
-
-.service-arrow {
-    color: var(--n-text-color-3, var(--ios-gray3));
-    flex-shrink: 0;
-}
-
-/* 最近活动 */
-.activities-section {
-    padding: 0 16px;
-    margin-bottom: 24px;
-}
-
-.section-header {
-    display: flex;
-    align-items: center;
     justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.campus-home__eyebrow {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    font-size: 12px;
     margin-bottom: 12px;
 }
 
-.activities-list {
-    padding: 0;
-    background: var(--n-card-color, var(--ios-bg-primary));
-    border-radius: var(--ios-radius-lg);
+.campus-home__hero h1 {
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 800;
+    margin-bottom: 10px;
 }
 
-.activity-item {
+.campus-home__hero p {
+    max-width: 520px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.campus-home__identity {
+    min-width: 122px;
+    height: fit-content;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    border-bottom: 0.5px solid var(--n-divider-color, var(--ios-divider));
+    gap: 10px;
+    padding: 12px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(10px);
 }
 
-.activity-item:last-child {
-    border-bottom: none;
+.campus-home__identity strong,
+.campus-home__identity span {
+    display: block;
 }
 
-.activity-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+.campus-home__identity strong {
+    font-size: 14px;
+}
+
+.campus-home__identity span {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.campus-home__hero-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.campus-home__primary-card {
+    padding: 18px;
+    border-radius: 26px;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #172033;
+}
+
+.campus-home__primary-card--orders {
+    background: linear-gradient(180deg, #ffffff 0%, #edf4ff 100%);
+}
+
+.campus-home__primary-card--tasks {
+    background: linear-gradient(180deg, #ffffff 0%, #effaf3 100%);
+}
+
+.campus-home__primary-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 8px 20px rgba(23, 48, 79, 0.08);
 }
 
-.activity-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.activity-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--n-text-color-1, var(--ios-text-primary));
-}
-
-.activity-time {
+.campus-home__primary-copy span {
+    display: inline-block;
     font-size: 12px;
-    color: var(--n-text-color-3, var(--ios-text-tertiary));
+    font-weight: 700;
+    color: #5b667a;
+    margin: 12px 0 6px;
 }
 
-/* 平台数据 */
-.stats-section {
-    padding: 0 16px;
+.campus-home__primary-copy h2 {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.campus-home__primary-copy p {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #5b667a;
+}
+
+.campus-home__metric-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.campus-home__metric {
+    padding: 10px 8px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.72);
+    text-align: center;
+}
+
+.campus-home__metric strong,
+.campus-home__metric span {
+    display: block;
+}
+
+.campus-home__metric strong {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.campus-home__metric span {
+    font-size: 11px;
+    color: #6f7890;
+    margin-top: 2px;
+}
+
+.campus-home__section {
     margin-bottom: 24px;
 }
 
-.stats-grid {
+.campus-home__section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding: 0 2px;
+}
+
+.campus-home__section-head h3 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #17304f;
+}
+
+.campus-home__section-head button {
+    font-size: 13px;
+    color: #5f78a8;
+}
+
+.campus-home__board-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
 }
 
-.stat-card {
-    text-align: center;
-    padding: 20px 12px;
-    background: var(--n-card-color, var(--ios-bg-primary));
-    border-radius: var(--ios-radius-lg);
-    animation: ios-fade-in 0.4s ease-out backwards;
+.campus-home__board-card {
+    padding: 18px 16px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(47, 107, 255, 0.06);
+    box-shadow: 0 10px 26px rgba(23, 48, 79, 0.05);
 }
 
-.stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--n-primary-color, #007AFF);
-    margin-bottom: 4px;
-}
-
-.stat-label {
-    font-size: 13px;
-    color: var(--n-text-color-3, var(--ios-text-tertiary));
-}
-
-/* 认证区域 */
-.auth-section {
-    padding: 0 16px;
-    margin-bottom: 24px;
-}
-
-.auth-card {
-    background: var(--n-card-color, var(--ios-bg-primary));
-    text-align: center;
-    padding: 32px 24px;
-    border-radius: var(--ios-radius-lg);
-}
-
-.auth-icon {
+.campus-home__board-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #17304f;
     margin-bottom: 16px;
 }
 
-.auth-content h4 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--n-text-color-1, var(--ios-text-primary));
-    margin: 0 0 8px 0;
+.campus-home__board-card strong {
+    display: block;
+    font-size: 20px;
+    font-weight: 800;
+    color: #17304f;
+    margin-bottom: 8px;
 }
 
-.auth-content p {
+.campus-home__board-card h4 {
     font-size: 14px;
-    color: var(--n-text-color-3, var(--ios-text-tertiary));
-    margin: 0 0 24px 0;
+    font-weight: 700;
+    color: #17304f;
+    margin-bottom: 6px;
 }
 
-.auth-buttons {
+.campus-home__board-card p {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #667287;
+}
+
+.campus-home__shortcut-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    gap: 12px;
+}
+
+.campus-home__shortcut-card {
+    padding: 16px 12px;
+    border-radius: 22px;
+    background: #ffffff;
+    border: 1px solid rgba(23, 48, 79, 0.05);
+    box-shadow: 0 10px 24px rgba(23, 48, 79, 0.05);
+    text-align: left;
+    min-height: 146px;
+    display: grid;
+    align-content: start;
+}
+
+.campus-home__shortcut-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #17304f;
+    margin-bottom: 16px;
+}
+
+.campus-home__shortcut-card strong,
+.campus-home__shortcut-card span {
+    display: block;
+}
+
+.campus-home__shortcut-card strong {
+    font-size: 14px;
+    font-weight: 800;
+    color: #17304f;
+    margin-bottom: 6px;
+}
+
+.campus-home__shortcut-card span {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #6a7487;
+}
+
+.campus-home__post-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-/* 底部安全区域 */
-.bottom-safe-area {
-    height: 100px;
+.campus-home__post-card {
+    padding: 18px;
+    border-radius: 24px;
+    background: #ffffff;
+    border: 1px solid rgba(23, 48, 79, 0.05);
+    box-shadow: 0 10px 26px rgba(23, 48, 79, 0.05);
 }
 
-/* 动画 */
-@keyframes ios-fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(16px);
+.campus-home__post-meta,
+.campus-home__post-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.campus-home__post-meta {
+    margin-bottom: 12px;
+}
+
+.campus-home__post-meta span,
+.campus-home__post-footer span {
+    font-size: 12px;
+    color: #7c879d;
+}
+
+.campus-home__post-card h4 {
+    font-size: 17px;
+    font-weight: 800;
+    color: #17304f;
+    margin-bottom: 8px;
+}
+
+.campus-home__post-card p {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #5b667a;
+    margin-bottom: 14px;
+}
+
+.campus-home__safe-space {
+    height: calc(108px + var(--safe-area-bottom, 0px));
+}
+
+@media (max-width: 768px) {
+    .campus-home__hero-top,
+    .campus-home__hero-grid,
+    .campus-home__board-grid {
+        grid-template-columns: 1fr;
+        display: grid;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+
+    .campus-home__hero-top {
+        gap: 14px;
+    }
+
+    .campus-home__identity {
+        min-width: 0;
+    }
+
+    .campus-home__shortcut-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-/* 小屏优化 */
 @media (max-width: 375px) {
-    .welcome-title {
-        font-size: 20px;
+    .campus-home {
+        padding-inline: 12px;
     }
 
-    .actions-grid {
-        gap: 8px;
+    .campus-home__hero {
+        padding: 18px;
     }
 
-    .action-item {
-        padding: 12px 4px;
+    .campus-home__hero h1 {
+        font-size: 24px;
     }
 
-    .action-icon {
-        width: 40px;
-        height: 40px;
+    .campus-home__shortcut-grid {
+        grid-template-columns: 1fr;
     }
+}
 
-    .action-label {
-        font-size: 11px;
-    }
+.dark-theme .campus-home {
+    background:
+        radial-gradient(circle at top, rgba(47, 107, 255, 0.18), transparent 28%),
+        linear-gradient(180deg, #0b1220 0%, #10192c 100%);
+}
+
+.dark-theme .campus-home__hero {
+    background: linear-gradient(135deg, #1d4fb5 0%, #2469d9 55%, #167d66 100%);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .campus-home__identity {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e8f0ff;
+}
+
+.dark-theme .campus-home__primary-card {
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
+}
+
+.dark-theme .campus-home__primary-card--orders {
+    background: linear-gradient(180deg, rgba(25, 46, 82, 0.96), rgba(18, 31, 56, 0.96));
+}
+
+.dark-theme .campus-home__primary-card--tasks {
+    background: linear-gradient(180deg, rgba(19, 46, 41, 0.96), rgba(15, 34, 31, 0.96));
+}
+
+.dark-theme .campus-home__primary-icon,
+.dark-theme .campus-home__metric {
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+}
+
+.dark-theme .campus-home__primary-copy span,
+.dark-theme .campus-home__primary-copy h2,
+.dark-theme .campus-home__primary-copy p,
+.dark-theme .campus-home__metric strong,
+.dark-theme .campus-home__metric span {
+    color: rgba(233, 240, 255, 0.92);
+}
+
+.dark-theme .campus-home__section-head h3,
+.dark-theme .campus-home__board-card strong,
+.dark-theme .campus-home__board-card h4,
+.dark-theme .campus-home__shortcut-card strong,
+.dark-theme .campus-home__post-card h4 {
+    color: #f3f7ff;
+}
+
+.dark-theme .campus-home__board-card p,
+.dark-theme .campus-home__shortcut-card span,
+.dark-theme .campus-home__post-card p,
+.dark-theme .campus-home__post-meta span,
+.dark-theme .campus-home__post-footer span,
+.dark-theme .campus-home__section-head button {
+    color: #aebbd1;
+}
+
+.dark-theme .campus-home__board-card,
+.dark-theme .campus-home__shortcut-card,
+.dark-theme .campus-home__post-card {
+    background: rgba(17, 26, 43, 0.92);
+    border-color: rgba(109, 145, 222, 0.14);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+}
+
+.dark-theme .campus-home__board-icon,
+.dark-theme .campus-home__shortcut-icon {
+    color: #d6e4ff;
+}
+
+.dark-theme .campus-home__shortcut-icon {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark-theme .campus-home__board-icon :deep(svg),
+.dark-theme .campus-home__shortcut-icon :deep(svg),
+.dark-theme .campus-home__primary-icon :deep(svg) {
+    color: inherit;
+    stroke: currentColor;
+}
+
+.dark-theme .campus-home__section-head button {
+    color: #86a6e8;
 }
 </style>
