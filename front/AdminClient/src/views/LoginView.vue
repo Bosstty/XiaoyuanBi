@@ -45,26 +45,7 @@
         <div class="form-section">
           <div class="form-header">
             <h2>欢迎回来</h2>
-            <p>请选择登录身份并输入对应账号信息</p>
-          </div>
-
-          <div class="login-type-switch">
-            <button
-              type="button"
-              class="type-chip"
-              :class="{ active: loginType === 'admin' }"
-              @click="switchLoginType('admin')"
-            >
-              管理员登录
-            </button>
-            <button
-              type="button"
-              class="type-chip"
-              :class="{ active: loginType === 'service' }"
-              @click="switchLoginType('service')"
-            >
-              客服登录
-            </button>
+            <p>请输入管理员账号信息</p>
           </div>
 
           <el-form
@@ -136,15 +117,13 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { authApi, serviceAuthApi } from '../api/index.js'
+import { authApi } from '../api/index.js'
 import { useAdminStore } from '@/stores/admin'
 import { School, DataBoard, TrendCharts, User, Lock, Unlock } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const adminStore = useAdminStore()
 const loginFormRef = ref()
-const loginType = ref('admin')
-
 const loginForm = reactive({
   username: '',
   password: '',
@@ -171,7 +150,7 @@ const handleLogin = async () => {
 
     loading.value = true
 
-    const response = await (loginType.value === 'service' ? serviceAuthApi.login : authApi.login)({
+    const response = await authApi.login({
       username: loginForm.username,
       password: loginForm.password,
     })
@@ -179,10 +158,10 @@ const handleLogin = async () => {
     if (response.success) {
       const normalizedUser = {
         ...response.data.user,
-        role: loginType.value,
+        role: 'admin',
       }
 
-      adminStore.setUserType(loginType.value)
+      adminStore.setUserType('admin')
       adminStore.setToken(response.data.token)
       adminStore.setAdmin(normalizedUser)
       localStorage.setItem('admin_user', JSON.stringify(normalizedUser))
@@ -192,7 +171,7 @@ const handleLogin = async () => {
       }
 
       ElMessage.success('登录成功')
-      router.push(loginType.value === 'service' ? '/service/chat' : '/dashboard')
+      router.push('/dashboard')
     } else {
       ElMessage.error(response.message || '登录失败')
     }
@@ -202,10 +181,6 @@ const handleLogin = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const switchLoginType = (type) => {
-  loginType.value = type
 }
 </script>
 
@@ -451,36 +426,6 @@ const switchLoginType = (type) => {
   font-size: 0.9rem;
   color: var(--text-secondary);
   margin: 0;
-}
-
-.login-type-switch {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.type-chip {
-  flex: 1;
-  height: 44px;
-  border-radius: 14px;
-  border: 1px solid rgba(99, 102, 241, 0.16);
-  background: rgba(255, 255, 255, 0.88);
-  color: #64748b;
-  font-size: 0.92rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.type-chip.active {
-  background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 10px 24px rgba(99, 102, 241, 0.22);
 }
 
 /* 输入框包装 */

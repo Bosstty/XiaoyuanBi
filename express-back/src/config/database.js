@@ -11,11 +11,21 @@ const sequelize = new Sequelize(
         port: process.env.DB_PORT || 3306,
         dialect: 'mysql',
         timezone: '+08:00',
+        dialectOptions: {
+            connectTimeout: 10000,
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 0,
+        },
         pool: {
             max: 10,
             min: 0,
             acquire: 30000,
             idle: 10000,
+            evict: 1000,
+        },
+        retry: {
+            max: 2,
+            match: [/ECONNRESET/i, /SequelizeConnection/i, /SequelizeConnectionAcquireTimeoutError/i],
         },
         logging: process.env.NODE_ENV === 'development' ? console.log : false,
         define: {

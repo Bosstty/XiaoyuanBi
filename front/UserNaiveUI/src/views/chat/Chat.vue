@@ -359,7 +359,9 @@ const pollCurrentConversation = async () => {
         }
 
         if (conversationRes.success) {
-            const latestConversations = Array.isArray(conversationRes.data) ? conversationRes.data : [];
+            const latestConversations = Array.isArray(conversationRes.data)
+                ? conversationRes.data
+                : [];
             conversations.value = latestConversations;
             const matchedConversation = latestConversations.find(
                 item => Number(item.id) === Number(currentConversation.value?.id)
@@ -423,11 +425,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="chat-page" :class="{ 'chat-page--conversation': currentConversation }">
-        <div
-            v-if="!currentConversation"
-            class="conversation-list"
-            :class="{ active: !currentConversation }"
-        >
+        <div class="conversation-list" :class="{ active: !currentConversation }">
             <div class="list-header">
                 <span>消息</span>
                 <button class="new-chat-btn" @click="startServiceConversation">联系客服</button>
@@ -476,93 +474,95 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <div v-if="currentConversation" class="chat-window">
-            <div class="chat-header">
-                <button class="back-btn" @click="currentConversation = null" aria-label="返回">
-                    <svg viewBox="0 0 24 24" class="back-icon" aria-hidden="true">
-                        <path
-                            d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
-                            fill="currentColor"
-                        />
-                    </svg>
-                </button>
-                <div class="chat-header-copy">
-                    <span class="title">{{ getOtherParty(currentConversation).name }}</span>
-                    <span class="role">{{ getOtherParty(currentConversation).role }}</span>
-                </div>
-            </div>
-
-            <div class="messages">
-                <div
-                    v-for="msg in messages"
-                    :key="msg.id"
-                    class="message"
-                    :class="{ mine: isMyMessage(msg) }"
-                >
-                    <div class="avatar" v-if="!isMyMessage(msg)">
-                        <span>
-                            {{ getOtherParty(currentConversation).name?.charAt(0) || '对' }}
-                        </span>
-                    </div>
-                    <div class="content">
-                        <div v-if="isImageMessage(msg)" class="image-card">
-                            <img
-                                :src="resolveChatImageSrc(msg.content)"
-                                alt="chat-image"
-                                class="chat-image"
-                                @click="openImagePreview(resolveChatImageSrc(msg.content))"
+        <transition name="conversation-slide">
+            <div v-if="currentConversation" class="chat-window">
+                <div class="chat-header">
+                    <button class="back-btn" @click="currentConversation = null" aria-label="返回">
+                        <svg viewBox="0 0 24 24" class="back-icon" aria-hidden="true">
+                            <path
+                                d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                                fill="currentColor"
                             />
-                        </div>
-                        <div v-else class="text">{{ msg.content }}</div>
-                        <div class="time">
-                            {{ formatMessageTime(msg.created_at || msg.createdAt) }}
-                        </div>
-                    </div>
-                    <div class="avatar" v-if="isMyMessage(msg)">
-                        <span>{{ userStore.user?.username?.charAt(0) || '我' }}</span>
+                        </svg>
+                    </button>
+                    <div class="chat-header-copy">
+                        <span class="title">{{ getOtherParty(currentConversation).name }}</span>
+                        <span class="role">{{ getOtherParty(currentConversation).role }}</span>
                     </div>
                 </div>
-            </div>
 
-            <div v-if="showActionPanel" class="action-panel">
-                <button type="button" class="action-card" @click="triggerImageUpload">
-                    <span class="action-icon">🖼</span>
-                    <span class="action-label">照片</span>
-                </button>
-            </div>
+                <div class="messages">
+                    <div
+                        v-for="msg in messages"
+                        :key="msg.id"
+                        class="message"
+                        :class="{ mine: isMyMessage(msg) }"
+                    >
+                        <div class="avatar" v-if="!isMyMessage(msg)">
+                            <span>
+                                {{ getOtherParty(currentConversation).name?.charAt(0) || '对' }}
+                            </span>
+                        </div>
+                        <div class="content">
+                            <div v-if="isImageMessage(msg)" class="image-card">
+                                <img
+                                    :src="resolveChatImageSrc(msg.content)"
+                                    alt="chat-image"
+                                    class="chat-image"
+                                    @click="openImagePreview(resolveChatImageSrc(msg.content))"
+                                />
+                            </div>
+                            <div v-else class="text">{{ msg.content }}</div>
+                            <div class="time">
+                                {{ formatMessageTime(msg.created_at || msg.createdAt) }}
+                            </div>
+                        </div>
+                        <div class="avatar" v-if="isMyMessage(msg)">
+                            <span>{{ userStore.user?.username?.charAt(0) || '我' }}</span>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="input-area">
-                <button
-                    type="button"
-                    class="image-btn"
-                    :disabled="uploading || sending"
-                    @click="toggleActionPanel"
-                >
-                    {{ uploading ? '…' : '+' }}
-                </button>
+                <div v-if="showActionPanel" class="action-panel">
+                    <button type="button" class="action-card" @click="triggerImageUpload">
+                        <span class="action-icon">🖼</span>
+                        <span class="action-label">照片</span>
+                    </button>
+                </div>
+
+                <div class="input-area">
+                    <button
+                        type="button"
+                        class="image-btn"
+                        :disabled="uploading || sending"
+                        @click="toggleActionPanel"
+                    >
+                        {{ uploading ? '…' : '+' }}
+                    </button>
+                    <input
+                        v-model="messageInput"
+                        type="text"
+                        placeholder="输入消息..."
+                        :disabled="sending || uploading"
+                        @keyup.enter="sendMessage"
+                    />
+                    <button
+                        @click="sendMessage"
+                        :disabled="sending || uploading || !messageInput.trim()"
+                    >
+                        发送
+                    </button>
+                </div>
+
                 <input
-                    v-model="messageInput"
-                    type="text"
-                    placeholder="输入消息..."
-                    :disabled="sending || uploading"
-                    @keyup.enter="sendMessage"
+                    ref="fileInputRef"
+                    type="file"
+                    accept="image/*"
+                    class="hidden-file-input"
+                    @change="handleImageSelected"
                 />
-                <button
-                    @click="sendMessage"
-                    :disabled="sending || uploading || !messageInput.trim()"
-                >
-                    发送
-                </button>
             </div>
-
-            <input
-                ref="fileInputRef"
-                type="file"
-                accept="image/*"
-                class="hidden-file-input"
-                @change="handleImageSelected"
-            />
-        </div>
+        </transition>
 
         <div v-if="previewImage" class="image-preview" @click="closeImagePreview">
             <button
@@ -587,7 +587,11 @@ onBeforeUnmount(() => {
             />
             <div class="preview-toolbar" @click.stop>
                 <button type="button" class="preview-action" @click="zoomOutPreview">-</button>
-                <button type="button" class="preview-action preview-action--label" @click="resetPreviewZoom">
+                <button
+                    type="button"
+                    class="preview-action preview-action--label"
+                    @click="resetPreviewZoom"
+                >
                     {{ Math.round(previewScale * 100) }}%
                 </button>
                 <button type="button" class="preview-action" @click="zoomInPreview">+</button>
@@ -598,7 +602,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .chat-page {
+    position: relative;
     min-height: calc(100vh - 82px);
+    overflow: hidden;
     background:
         radial-gradient(circle at top right, rgba(75, 184, 255, 0.1), transparent 28%),
         linear-gradient(180deg, #f5f7fb 0%, #eef4fb 100%);
@@ -760,13 +766,42 @@ onBeforeUnmount(() => {
 }
 
 .chat-window {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
     min-height: 100dvh;
     height: 100dvh;
     display: flex;
     flex-direction: column;
     background:
-        radial-gradient(circle at top center, rgba(255, 255, 255, 0.55), transparent 28%),
-        #e9eef6;
+        radial-gradient(circle at top center, rgba(255, 255, 255, 0.55), transparent 28%), #e9eef6;
+}
+
+.conversation-slide-enter-active,
+.conversation-slide-leave-active {
+    transition:
+        transform 0.32s cubic-bezier(0.22, 0.8, 0.24, 1),
+        opacity 0.32s ease;
+    will-change: transform, opacity;
+}
+
+.conversation-slide-enter-from,
+.conversation-slide-leave-to {
+    opacity: 0.98;
+    transform: translateX(100%);
+}
+
+.conversation-slide-enter-to,
+.conversation-slide-leave-from {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .conversation-slide-enter-active,
+    .conversation-slide-leave-active {
+        transition: none;
+    }
 }
 
 .chat-header {

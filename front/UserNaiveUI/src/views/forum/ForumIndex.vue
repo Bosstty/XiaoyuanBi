@@ -1,690 +1,570 @@
 <template>
-    <div class="forum-page">
-        <!-- 页面头部 -->
-        <div class="page-header">
-            <div class="header-content">
-                <h1 class="page-title">校园论坛</h1>
-                <p class="page-subtitle">分享交流，畅所欲言</p>
-            </div>
-            <NButton circle class="create-btn" type="primary" @click="router.push('/forum/create')">
-                <template #icon>
-                    <NIcon size="20"><AddOutline /></NIcon>
-                </template>
-            </NButton>
-        </div>
-
-        <!-- 板块标签 -->
-        <div class="section-tabs">
-            <div class="tabs-scroll hide-scrollbar">
-                <div
-                    v-for="section in sections"
-                    :key="section.id"
-                    class="tab-item"
-                    :class="{ active: currentSection === section.id }"
-                    @click="handleSectionChange(section.id)"
+    <div class="forum-index-page">
+        <header class="page-header">
+            <button type="button" class="back-btn" @click="router.back()" aria-label="返回">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor" />
+                </svg>
+            </button>
+            <div class="header-main">
+                <h1>{{ pageTitle }}</h1>
+                <NButton
+                    round
+                    type="primary"
+                    class="create-btn"
+                    @click="router.push('/forum/create')"
                 >
-                    <div class="tab-icon" :style="{ background: section.gradient }">
-                        <NIcon :size="14" color="white">
-                            <component :is="section.icon" />
-                        </NIcon>
-                    </div>
-                    <span class="tab-label">{{ section.name }}</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- 搜索栏 -->
-        <div class="search-bar">
-            <NInput
-                v-model:value="searchQuery"
-                placeholder="搜索帖子..."
-                size="large"
-                clearable
-                round
-            >
-                <template #prefix>
-                    <NIcon><SearchOutline /></NIcon>
-                </template>
-            </NInput>
-        </div>
-
-        <!-- 帖子列表 -->
-        <div class="posts-container">
-            <div v-if="loading" class="loading-state">
-                <NSpin size="large" />
-            </div>
-
-            <div v-else-if="filteredPosts.length > 0" class="posts-list">
-                <div
-                    v-for="(post, index) in filteredPosts"
-                    :key="post.id"
-                    class="post-card ios-card"
-                    :style="{ animationDelay: `${index * 60}ms` }"
-                    @click="handlePostClick(post)"
-                >
-                    <!-- 帖子头部 -->
-                    <div class="card-header">
-                        <div class="author-info">
-                            <NAvatar :size="36" round :src="post.author.avatar" />
-                            <div class="author-detail">
-                                <span class="author-name">{{ post.author.name }}</span>
-                                <span class="post-time">{{ formatTime(post.createdAt) }}</span>
-                            </div>
-                        </div>
-                        <div class="post-badges">
-                            <NTag v-if="post.isTop" type="warning" size="small" :bordered="false">置顶</NTag>
-                            <NTag v-if="post.isHot" type="error" size="small" :bordered="false">热门</NTag>
-                        </div>
-                    </div>
-
-                    <!-- 帖子内容 -->
-                    <div class="card-body">
-                        <h3 class="post-title">{{ post.title }}</h3>
-                        <p class="post-excerpt">{{ post.excerpt }}</p>
-
-                        <!-- 帖子图片 -->
-                        <div v-if="post.images && post.images.length > 0" class="post-images">
-                            <div
-                                v-for="(img, idx) in post.images.slice(0, 3)"
-                                :key="idx"
-                                class="post-image"
-                                :class="{ 'single': post.images.length === 1 }"
-                            >
-                                <img :src="img" alt="" />
-                            </div>
-                            <div v-if="post.images.length > 3" class="more-images">
-                                +{{ post.images.length - 3 }}
-                            </div>
-                        </div>
-
-                        <!-- 帖子话题 -->
-                        <div v-if="post.tags && post.tags.length > 0" class="post-tags">
-                            <span v-for="tag in post.tags" :key="tag" class="tag-item">#{{ tag }}</span>
-                        </div>
-                    </div>
-
-                    <!-- 帖子底部 -->
-                    <div class="card-footer">
-                        <div class="section-badge" :style="{ color: getSectionColor(post.sectionId) }">
-                            <NIcon :size="12">
-                                <component :is="getSectionIcon(post.sectionId)" />
-                            </NIcon>
-                            <span>{{ getSectionName(post.sectionId) }}</span>
-                        </div>
-                        <div class="post-stats">
-                            <div class="stat-item">
-                                <NIcon :size="14"><EyeOutline /></NIcon>
-                                <span>{{ post.views }}</span>
-                            </div>
-                            <div class="stat-item">
-                                <NIcon :size="14"><ChatbubbleOutline /></NIcon>
-                                <span>{{ post.replies }}</span>
-                            </div>
-                            <div class="stat-item">
-                                <NIcon :size="14" :class="{ 'liked': post.isLiked }"><HeartOutline /></NIcon>
-                                <span :class="{ 'liked': post.isLiked }">{{ post.likes }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 空状态 -->
-            <div v-else class="empty-state">
-                <div class="empty-icon">
-                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                        <circle cx="32" cy="24" r="8" fill="var(--ios-gray4)"/>
-                        <path d="M16 48c0-8.837 7.163-16 16-16s16 7.163 16 16" fill="var(--ios-gray4)"/>
-                    </svg>
-                </div>
-                <h4 class="empty-title">暂无帖子</h4>
-                <p class="empty-desc">快来发布第一个帖子吧</p>
-                <NButton type="primary" @click="router.push('/forum/create')">
-                    发布帖子
+                    添加帖子
                 </NButton>
             </div>
+        </header>
+
+        <section v-if="!lockedCategory" class="tab-wrap">
+            <button
+                v-for="section in sections"
+                :key="section.value"
+                type="button"
+                class="tab-btn"
+                :class="{ active: category === section.value }"
+                @click="handleCategoryChange(section.value)"
+            >
+                {{ section.shortLabel }}
+            </button>
+        </section>
+
+        <section class="toolbar">
+            <NInput
+                v-model:value="searchQuery"
+                clearable
+                round
+                class="search-input"
+                placeholder="搜索帖子标题或内容"
+                @keyup.enter="loadPosts"
+            >
+                <template #suffix>
+                    <button type="button" class="search-btn" @click="loadPosts">搜索</button>
+                </template>
+            </NInput>
+        </section>
+
+        <div v-if="loading" class="loading-wrap">
+            <NSpin size="large" />
         </div>
+
+        <section v-else-if="posts.length" class="card-list">
+            <article
+                v-for="post in posts"
+                :key="post.id"
+                class="forum-card"
+                @click="router.push(`/forum/${post.id}`)"
+            >
+                <div class="card-head">
+                    <div class="meta-type">
+                        <span class="type-bar"></span>
+                        <span>{{ getCategoryLabel(post.category) }}</span>
+                    </div>
+                    <span class="status-badge" :class="statusClass(post)">
+                        {{ statusText(post) }}
+                    </span>
+                </div>
+
+                <div class="card-body">
+                    <div class="body-main">
+                        <h3>{{ post.title }}</h3>
+                        <p class="summary">{{ post.summary || sliceContent(post.content) }}</p>
+                        <div class="time-row">
+                            <span class="time-icon">◷</span>
+                            <span>{{ formatTime(post.createdAt || post.created_at) }}</span>
+                        </div>
+                    </div>
+
+                    <div class="author-info">
+                        <div class="author-line">
+                            <div class="avatar">{{ getAuthorName(post).slice(0, 1) }}</div>
+                            <span>{{ getAuthorName(post) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer" @click.stop>
+                    <div class="stats-group">
+                        <div class="stat-item stat-item--accent">
+                            <span class="stat-label">点赞</span>
+                            <strong>{{ post.likeCount || post.like_count || 0 }}</strong>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">评论</span>
+                            <strong>{{ post.commentCount || post.comment_count || 0 }}</strong>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">浏览</span>
+                            <strong>{{ post.viewCount || post.view_count || 0 }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="action-group">
+                        <NButton round secondary class="ghost-btn" @click="handleLike(post.id)">
+                            点赞
+                        </NButton>
+                        <NButton round type="primary" @click="router.push(`/forum/${post.id}`)">
+                            详情
+                        </NButton>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <NEmpty v-else description="暂无帖子" class="empty-block" />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, markRaw } from 'vue';
-import { useRouter } from 'vue-router';
-import { NInput, NButton, NIcon, NTag, NAvatar, NSpin } from 'naive-ui';
-import {
-    SearchOutline,
-    AddOutline,
-    EyeOutline,
-    ChatbubbleOutline,
-    HeartOutline,
-    BookOutline,
-    LeafOutline,
-    NewspaperOutline,
-    PeopleOutline,
-    BulbOutline,
-    ChatbubblesOutline,
-} from '@vicons/ionicons5';
-import { useUserStore, useAppStore } from '@/stores';
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { NButton, NEmpty, NInput, NSpin, useMessage } from 'naive-ui';
+import type { ForumPost } from '@/types';
+import { forumApi } from '@/api';
 
+const route = useRoute();
 const router = useRouter();
-const userStore = useUserStore();
-const appStore = useAppStore();
+const message = useMessage();
 
-// 状态
-const searchQuery = ref('');
-const currentSection = ref('all');
 const loading = ref(false);
+const posts = ref<ForumPost[]>([]);
+const category = ref<string>((route.query.category as string) || 'all');
+const searchQuery = ref((route.query.search as string) || '');
 
-// 板块数据
-const sections = ref([
-    { id: 'all', name: '全部', icon: markRaw(ChatbubblesOutline), gradient: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)' },
-    { id: 'academic', name: '学术交流', icon: markRaw(BookOutline), gradient: 'linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%)' },
-    { id: 'life', name: '生活服务', icon: markRaw(LeafOutline), gradient: 'linear-gradient(135deg, #34C759 0%, #30D158 100%)' },
-    { id: 'news', name: '校园动态', icon: markRaw(NewspaperOutline), gradient: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)' },
-    { id: 'market', name: '二手市场', icon: markRaw(PeopleOutline), gradient: 'linear-gradient(135deg, #AF52DE 0%, #FF2D92 100%)' },
-    { id: 'skills', name: '技能分享', icon: markRaw(BulbOutline), gradient: 'linear-gradient(135deg, #5AC8FA 0%, #007AFF 100%)' },
-]);
+const sections = [
+    { label: '全部', shortLabel: '全部', value: 'all' },
+    { label: '学术交流', shortLabel: '学习', value: 'academic' },
+    { label: '技能分享', shortLabel: '设计', value: 'skill' },
+    { label: '校园动态', shortLabel: '技术', value: 'campus' },
+    { label: '任务互助', shortLabel: '文案', value: 'task' },
+    { label: '生活服务', shortLabel: '生活', value: 'life' },
+];
 
-// 模拟帖子数据
-const posts = ref([
-    {
-        id: 1,
-        sectionId: 'academic',
-        title: '期末高数复习资料分享',
-        excerpt: '整理了一些高数复习资料，希望对大家有帮助...',
-        author: { name: '学习达人', avatar: '' },
-        views: 234,
-        replies: 45,
-        likes: 89,
-        isLiked: false,
-        isTop: true,
-        isHot: false,
-        isGood: true,
-        tags: ['高数', '复习资料', '期末'],
-        images: [],
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    },
-    {
-        id: 2,
-        sectionId: 'life',
-        title: '校园食堂美食推荐',
-        excerpt: '强烈推荐二食堂的烤盘饭，味道超级棒！',
-        author: { name: '美食探索者', avatar: '' },
-        views: 567,
-        replies: 123,
-        likes: 234,
-        isLiked: true,
-        isTop: false,
-        isHot: true,
-        isGood: false,
-        tags: ['美食', '食堂推荐'],
-        images: [],
-        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-    },
-    {
-        id: 3,
-        sectionId: 'news',
-        title: '校园马拉松活动报名',
-        excerpt: '第一届校园马拉松开始报名了，大家快来参加！',
-        author: { name: '体育部', avatar: '' },
-        views: 890,
-        replies: 67,
-        likes: 156,
-        isLiked: false,
-        isTop: false,
-        isHot: true,
-        isGood: false,
-        tags: ['体育', '马拉松', '活动'],
-        images: [],
-        createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
-    },
-    {
-        id: 4,
-        sectionId: 'market',
-        title: '出二手电动车',
-        excerpt: '毕业季出电动车，续航能力强，证件齐全',
-        author: { name: '毕业学长', avatar: '' },
-        views: 345,
-        replies: 23,
-        likes: 45,
-        isLiked: false,
-        isTop: false,
-        isHot: false,
-        isGood: false,
-        tags: ['二手', '电动车', '毕业'],
-        images: [],
-        createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
-    },
-    {
-        id: 5,
-        sectionId: 'skills',
-        title: 'Python入门学习资源',
-        excerpt: '分享一些适合初学者的Python学习资源...',
-        author: { name: '程序小新手', avatar: '' },
-        views: 456,
-        replies: 78,
-        likes: 167,
-        isLiked: false,
-        isTop: false,
-        isHot: false,
-        isGood: true,
-        tags: ['Python', '学习', '编程'],
-        images: [],
-        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    },
-]);
-
-// 筛选帖子
-const filteredPosts = computed(() => {
-    let result = posts.value;
-
-    if (currentSection.value !== 'all') {
-        result = result.filter(p => p.sectionId === currentSection.value);
-    }
-
-    if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase();
-        result = result.filter(p =>
-            p.title.toLowerCase().includes(query) ||
-            p.excerpt.toLowerCase().includes(query) ||
-            p.tags?.some((t: string) => t.toLowerCase().includes(query))
-        );
-    }
-
-    return result;
+const lockedCategory = computed(() => {
+    const value = (route.query.category as string) || '';
+    return value && value !== 'all' ? value : '';
 });
 
-// 获取板块图标
-const getSectionIcon = (sectionId: string) => {
-    const map: Record<string, any> = {
-        academic: BookOutline,
-        life: LeafOutline,
-        news: NewspaperOutline,
-        market: PeopleOutline,
-        skills: BulbOutline,
-    };
-    return map[sectionId] || ChatbubblesOutline;
+const pageTitle = computed(() =>
+    lockedCategory.value ? getCategoryLabel(lockedCategory.value) : '全部论坛'
+);
+
+function getCategoryLabel(value?: string) {
+    return sections.find(section => section.value === value)?.label || '论坛';
+}
+
+const getAuthorName = (post: ForumPost) =>
+    post.author?.real_name || post.author?.username || '匿名用户';
+
+const formatTime = (value?: string) => {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(
+        2,
+        '0'
+    )}:${String(date.getMinutes()).padStart(2, '0')}`;
 };
 
-// 获取板块颜色
-const getSectionColor = (sectionId: string) => {
-    const map: Record<string, string> = {
-        academic: '#007AFF',
-        life: '#34C759',
-        news: '#FF9500',
-        market: '#AF52DE',
-        skills: '#5AC8FA',
-    };
-    return map[sectionId] || '#007AFF';
+const sliceContent = (value?: string) => {
+    if (!value) return '';
+    return value.length > 56 ? `${value.slice(0, 56)}...` : value;
 };
 
-// 获取板块名称
-const getSectionName = (sectionId: string) => {
-    const map: Record<string, string> = {
-        academic: '学术交流',
-        life: '生活服务',
-        news: '校园动态',
-        market: '二手市场',
-        skills: '技能分享',
-    };
-    return map[sectionId] || '论坛';
+const statusText = (post: ForumPost) => {
+    if (post.isHot || post.is_hot) return '热门';
+    if (post.isPinned || post.is_pinned) return '置顶';
+    return '讨论中';
 };
 
-// 格式化时间
-const formatTime = (date: Date) => {
-    const diff = Date.now() - date.getTime();
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
-    return `${Math.floor(diff / 86400000)}天前`;
+const statusClass = (post: ForumPost) => {
+    if (post.isHot || post.is_hot) return 'is-hot';
+    if (post.isPinned || post.is_pinned) return 'is-pinned';
+    return 'is-open';
 };
 
-// 切换板块
-const handleSectionChange = (id: string) => {
-    currentSection.value = id;
-    appStore.hapticFeedback('light');
-};
-
-// 点击帖子
-const handlePostClick = (post: any) => {
-    appStore.hapticFeedback('light');
-    router.push(`/forum/${post.id}`);
-};
-
-// 加载数据
-onMounted(() => {
+const loadPosts = async () => {
     loading.value = true;
-    setTimeout(() => {
+    try {
+        const effectiveCategory = lockedCategory.value || category.value;
+        const trimmedSearch = searchQuery.value.trim();
+        const nextQuery = {
+            ...(effectiveCategory && effectiveCategory !== 'all'
+                ? { category: effectiveCategory }
+                : {}),
+            ...(trimmedSearch ? { search: trimmedSearch } : {}),
+        };
+        const currentCategory = (route.query.category as string) || '';
+        const currentSearch = (route.query.search as string) || '';
+
+        if (
+            currentCategory !== (nextQuery.category || '') ||
+            currentSearch !== (nextQuery.search || '')
+        ) {
+            router.replace({
+                path: '/forum/index',
+                query: nextQuery,
+            });
+        }
+
+        const res = await forumApi.getPosts({
+            page: 1,
+            limit: 50,
+            category:
+                effectiveCategory && effectiveCategory !== 'all'
+                    ? (effectiveCategory as any)
+                    : undefined,
+            search: trimmedSearch || undefined,
+        });
+
+        if (!res.success) {
+            throw new Error(res.message || '获取帖子失败');
+        }
+
+        posts.value = res.data?.posts || [];
+    } catch (error: any) {
+        message.error(error?.message || '获取帖子失败');
+    } finally {
         loading.value = false;
-    }, 500);
-});
+    }
+};
+
+const handleCategoryChange = (value: string) => {
+    category.value = value;
+    void loadPosts();
+};
+
+const handleLike = async (postId: number) => {
+    try {
+        const res = await forumApi.likePost(postId);
+        if (!res.success) {
+            throw new Error(res.message || '点赞失败');
+        }
+
+        posts.value = posts.value.map(post =>
+            post.id === postId
+                ? {
+                      ...post,
+                      likeCount:
+                          res.data?.likeCount ?? (post.likeCount || post.like_count || 0) + 1,
+                      like_count:
+                          res.data?.likeCount ?? (post.likeCount || post.like_count || 0) + 1,
+                  }
+                : post
+        );
+    } catch (error: any) {
+        message.error(error?.message || '点赞失败');
+    }
+};
+
+watch(
+    () => [route.query.category, route.query.search],
+    () => {
+        category.value = (route.query.category as string) || 'all';
+        searchQuery.value = (route.query.search as string) || '';
+        void loadPosts();
+    },
+    { immediate: true }
+);
 </script>
 
 <style scoped>
-.forum-page {
+.forum-index-page {
     min-height: 100vh;
-    background: var(--ios-bg-secondary);
-    padding-bottom: 100px;
+    padding: 18px 16px 24px;
+    background: linear-gradient(180deg, #f7f9fc 0%, #edf2f8 100%);
+    color: #132946;
 }
 
-/* 页面头部 */
 .page-header {
-    background: linear-gradient(135deg, #AF52DE 0%, #FF2D92 100%);
-    padding: 52px 16px 24px;
-    border-radius: 0 0 24px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-}
-
-.dark .page-header {
-    background: linear-gradient(135deg, #BF5AF2 0%, #FF375F 100%);
-}
-
-.header-content {
-    flex: 1;
-}
-
-.page-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: white;
-    margin: 0 0 4px 0;
-}
-
-.page-subtitle {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.8);
-    margin: 0;
-}
-
-.create-btn {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-}
-
-/* 板块标签 */
-.section-tabs {
-    margin-top: -16px;
-    padding: 0 16px;
-    position: relative;
-    z-index: 10;
-}
-
-.tabs-scroll {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    -webkit-overflow-scrolling: touch;
-}
-
-.tab-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    background: var(--ios-bg-primary);
-    border-radius: 20px;
-    box-shadow: var(--ios-shadow-sm);
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: all 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.tab-item:active {
-    transform: scale(0.96);
-}
-
-.tab-item.active {
-    background: #AF52DE;
-    box-shadow: 0 4px 12px rgba(175, 82, 222, 0.3);
-}
-
-.tab-item.active .tab-label {
-    color: white;
-}
-
-.tab-icon {
-    width: 20px;
-    height: 20px;
-    border-radius: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.tab-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--ios-text-primary);
-}
-
-/* 搜索栏 */
-.search-bar {
-    padding: 16px;
-}
-
-/* 帖子列表 */
-.posts-container {
-    padding: 0 16px;
-}
-
-.posts-list {
-    display: flex;
-    flex-direction: column;
     gap: 12px;
-}
-
-.post-card {
-    padding: 0;
-    animation: ios-fade-in 0.4s ease-out backwards;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 14px 16px 0;
-}
-
-.author-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.author-detail {
-    display: flex;
-    flex-direction: column;
-}
-
-.author-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--ios-text-primary);
-}
-
-.post-time {
-    font-size: 12px;
-    color: var(--ios-text-tertiary);
-}
-
-.post-badges {
-    display: flex;
-    gap: 6px;
-}
-
-.card-body {
-    padding: 12px 16px;
-}
-
-.post-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--ios-text-primary);
-    margin: 0 0 8px 0;
-    line-height: 1.4;
-}
-
-.post-excerpt {
-    font-size: 14px;
-    color: var(--ios-text-secondary);
-    margin: 0 0 12px 0;
-    line-height: 1.5;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.post-images {
-    display: flex;
-    gap: 6px;
     margin-bottom: 12px;
 }
 
-.post-image {
-    width: 80px;
-    height: 80px;
-    border-radius: 8px;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-.post-image.single {
-    width: 160px;
-    height: 120px;
-}
-
-.post-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.more-images {
-    width: 80px;
-    height: 80px;
-    border-radius: 8px;
-    background: var(--ios-gray4);
+.back-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #132946;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--ios-text-secondary);
 }
 
-.post-tags {
+.header-main {
+    flex: 1;
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
 }
 
-.tag-item {
+.page-header h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+.create-btn {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 14px;
+    font-weight: 800;
+}
+
+.tab-wrap {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin-bottom: 14px;
+    padding-bottom: 2px;
+}
+
+.tab-btn {
+    flex-shrink: 0;
+    min-width: 56px;
+    height: 32px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 999px;
+    background: #eef2f7;
+    color: #8795ab;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, #4f8dff 0%, #2f6bff 100%);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(47, 107, 255, 0.24);
+}
+
+.toolbar {
+    margin-bottom: 16px;
+}
+
+.search-input :deep(.n-input-wrapper) {
+    min-height: 42px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(23, 48, 79, 0.04);
+}
+
+.search-btn {
+    border: none;
+    background: transparent;
+    color: #677a98;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.forum-card {
+    padding: 14px 16px 16px;
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(23, 48, 79, 0.08);
+}
+
+.card-head,
+.card-body,
+.card-footer,
+.meta-type,
+.author-line,
+.action-group {
+    display: flex;
+    align-items: center;
+}
+
+.card-head,
+.card-footer {
+    justify-content: space-between;
+}
+
+.meta-type {
+    gap: 8px;
+    color: #6f819e;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.type-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 999px;
+    background: #ff9b3d;
+}
+
+.status-badge {
+    min-width: 62px;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-badge.is-open {
+    background: #e5f6ec;
+    color: #17a05d;
+}
+
+.status-badge.is-hot {
+    background: #ffe7e0;
+    color: #ff6b4d;
+}
+
+.status-badge.is-pinned {
+    background: #fff4df;
+    color: #d99000;
+}
+
+.card-body {
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.body-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.body-main h3 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    line-height: 1.25;
+    font-weight: 900;
+    color: #132946;
+}
+
+.summary {
+    margin: 0 0 12px;
+    color: #6f819e;
+    line-height: 1.7;
+    font-size: 15px;
+}
+
+.time-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #8d9ab0;
+    font-size: 14px;
+}
+
+.time-icon {
+    font-size: 13px;
+}
+
+.author-info {
+    flex-shrink: 0;
+}
+
+.author-line {
+    gap: 8px;
+    color: #8d9ab0;
+    font-size: 14px;
+}
+
+.avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e7eefb 0%, #d5e0f7 100%);
+    color: #607390;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 12px;
-    color: var(--ios-blue);
-    background: rgba(0, 122, 255, 0.1);
-    padding: 4px 8px;
-    border-radius: 4px;
+    font-weight: 800;
 }
 
 .card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 16px;
-    border-top: 0.5px solid var(--ios-divider);
+    gap: 14px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #edf1f6;
 }
 
-.section-badge {
+.stats-group {
     display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.post-stats {
-    display: flex;
-    gap: 16px;
+    gap: 18px;
+    flex-wrap: wrap;
 }
 
 .stat-item {
     display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--ios-text-tertiary);
-}
-
-.stat-item .liked {
-    color: #FF2D92;
-}
-
-/* 空状态 */
-.empty-state {
-    display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-    text-align: center;
+    gap: 6px;
 }
 
-.empty-icon {
-    margin-bottom: 20px;
+.stat-label {
+    color: #8c98ad;
+    font-size: 12px;
 }
 
-.empty-title {
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--ios-text-primary);
-    margin: 0 0 8px 0;
+.stat-item strong {
+    color: #1d304d;
+    font-size: 15px;
+    font-weight: 900;
 }
 
-.empty-desc {
-    font-size: 14px;
-    color: var(--ios-text-tertiary);
-    margin: 0 0 24px 0;
+.stat-item--accent strong {
+    color: #2f6bff;
+    font-size: 18px;
 }
 
-/* 加载状态 */
-.loading-state {
+.action-group {
+    gap: 10px;
+}
+
+.ghost-btn {
+    background: #eef1f6;
+    color: #6f7f99;
+}
+
+.loading-wrap {
     display: flex;
     justify-content: center;
-    align-items: center;
-    padding: 60px 0;
+    padding: 90px 0;
 }
 
-/* 动画 */
-@keyframes ios-fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(16px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.empty-block {
+    padding-top: 80px;
 }
 
-/* 小屏优化 */
-@media (max-width: 375px) {
-    .page-title {
-        font-size: 24px;
+@media (max-width: 480px) {
+    .card-body,
+    .card-footer {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
-    .tab-item {
-        padding: 6px 12px;
+    .action-group {
+        width: 100%;
     }
 
-    .tab-label {
-        font-size: 12px;
+    .action-group :deep(.n-button) {
+        flex: 1;
     }
 }
 </style>

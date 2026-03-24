@@ -128,6 +128,7 @@ export interface CreatePickupOrderData {
     tip?: number;
     urgent?: boolean;
     fragile?: boolean;
+    is_anonymous?: boolean;
     images?: string[];
     notes?: string;
 }
@@ -223,17 +224,28 @@ export interface ForumPost {
     is_anonymous: boolean;
     is_pinned: boolean;
     is_hot: boolean;
+    isAnonymous?: boolean;
+    isPinned?: boolean;
+    isHot?: boolean;
     status: 'published' | 'draft' | 'pending_review' | 'rejected' | 'hidden';
     view_count: number;
     like_count: number;
     comment_count: number;
     share_count: number;
+    viewCount?: number;
+    likeCount?: number;
+    commentCount?: number;
+    shareCount?: number;
     last_comment_time?: string;
+    lastCommentTime?: string;
     reject_reason?: string;
+    rejectReason?: string;
     author?: User;
     comments?: ForumComment[];
     createdAt: string;
     updatedAt: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 // 创建论坛帖子数据
@@ -246,6 +258,7 @@ export interface CreateForumPostData {
     images?: string[];
     attachments?: string[];
     is_anonymous?: boolean;
+    status?: 'published' | 'draft' | 'pending_review';
 }
 
 // 论坛评论类型
@@ -258,12 +271,15 @@ export interface ForumComment {
     content: string;
     images?: string[];
     like_count: number;
+    likeCount?: number;
     status: 'published' | 'hidden';
     author?: User;
     replyToUser?: User;
     replies?: ForumComment[];
     createdAt: string;
     updatedAt: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 // 用户统计数据

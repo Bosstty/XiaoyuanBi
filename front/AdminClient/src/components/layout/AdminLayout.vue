@@ -263,20 +263,19 @@ const menuConfig = [
   { index: '/orders', title: '订单管理', icon: markRaw(Box), roles: ['admin'] },
   { index: '/tasks', title: '任务管理', icon: markRaw(Briefcase), roles: ['admin'] },
   { index: '/forum', title: '论坛管理', icon: markRaw(ChatDotRound), roles: ['admin'] },
-  { index: '/tickets', title: '工单管理', icon: markRaw(Tickets), roles: ['admin'] },
-  { index: '/analytics', title: '数据分析', icon: markRaw(TrendCharts), roles: ['admin'] },
-  { index: '/system', title: '系统设置', icon: markRaw(Setting), roles: ['admin'] },
-  { index: '/system/audit', title: '审计日志', icon: markRaw(Document), roles: ['admin'] },
   {
     index: '/service',
     title: '客服中心',
     icon: markRaw(Service),
-    roles: ['service'],
+    roles: ['admin', 'service'],
     children: [
       { index: '/service/chat', title: '在线客服', icon: markRaw(ChatLineRound) },
       { index: '/service/after-sales', title: '售后管理', icon: markRaw(ShoppingCart) },
     ],
   },
+  { index: '/analytics', title: '数据分析', icon: markRaw(TrendCharts), roles: ['admin'] },
+  { index: '/system', title: '系统设置', icon: markRaw(Setting), roles: ['admin'] },
+  { index: '/system/audit', title: '审计日志', icon: markRaw(Document), roles: ['admin'] },
 ]
 
 const activeMenu = computed(() => {

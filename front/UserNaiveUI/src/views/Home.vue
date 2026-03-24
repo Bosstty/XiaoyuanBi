@@ -288,7 +288,7 @@ const featuredPosts = computed<FeaturedPostCard[]>(() => {
         id: post.id,
         tag: mapPostCategory(post.category),
         tagType: mapPostTagType(post.category),
-        time: formatRelativeTime(post.createdAt),
+        time: formatRelativeTime(post.createdAt || post.created_at || ''),
         title: post.title,
         excerpt: post.summary || post.content?.slice(0, 72) || '暂无摘要',
         author: post.author?.username || post.author?.real_name || '匿名用户',

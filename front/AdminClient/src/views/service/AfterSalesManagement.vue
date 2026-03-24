@@ -3,12 +3,12 @@
     <!-- 页面头部 -->
     <DashboardFilterHeader
       v-model="dateRange"
-      title="售后管理"
-      subtitle="处理退款、投诉及售后服务"
+      title="工单管理"
+      subtitle="处理用户提交的工单、投诉及退款申请"
       filter-label="统计范围"
       filter-hint="默认展示最近30天，可按需调整"
       :action-icon="Download"
-      action-label="导出售后"
+      action-label="导出工单"
       @change="handleDateRangeChange"
       @action="handleExport"
     />
@@ -18,11 +18,11 @@
       <el-col :span="6">
         <el-card class="stat-card" shadow="never">
           <div class="stat-icon total">
-            <el-icon><ShoppingCart /></el-icon>
+            <el-icon><Tickets /></el-icon>
           </div>
           <div class="stat-content">
             <div class="stat-value">{{ stats.total }}</div>
-            <div class="stat-label">售后单总数</div>
+            <div class="stat-label">工单总数</div>
           </div>
         </el-card>
       </el-col>
@@ -40,11 +40,11 @@
       <el-col :span="6">
         <el-card class="stat-card" shadow="never">
           <div class="stat-icon danger">
-            <el-icon><Money /></el-icon>
+            <el-icon><Warning /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">¥{{ stats.refundAmount.toFixed(2) }}</div>
-            <div class="stat-label">待退款金额</div>
+            <div class="stat-value">{{ stats.processing }}</div>
+            <div class="stat-label">处理中</div>
           </div>
         </el-card>
       </el-col>
@@ -54,8 +54,8 @@
             <el-icon><CircleCheck /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ stats.completedToday }}</div>
-            <div class="stat-label">今日完成</div>
+            <div class="stat-value">{{ stats.resolved }}</div>
+            <div class="stat-label">已解决</div>
           </div>
         </el-card>
       </el-col>
@@ -88,7 +88,7 @@
             <el-option label="全部" value="" />
             <el-option label="待处理" value="pending" />
             <el-option label="处理中" value="processing" />
-            <el-option label="已完成" value="completed" />
+            <el-option label="已解决" value="resolved" />
             <el-option label="已关闭" value="closed" />
           </el-select>
         </el-form-item>
@@ -105,16 +105,16 @@
       </el-form>
     </el-card>
 
-    <!-- 售后单列表 -->
+    <!-- 工单列表 -->
     <el-card class="table-card" shadow="never">
-      <el-table v-loading="loading" :data="afterSalesList" stripe style="width: 100%">
+      <el-table v-loading="loading" :data="ticketList" stripe style="width: 100%">
         <el-table-column prop="ticket_no" label="工单编号" align="center" min-width="180">
           <template #default="{ row }">
             <span class="ticket-no">{{ row.ticket_no }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="type" label="类型" align="center" width="100">
+        <el-table-column prop="type" label="工单类型" align="center" width="100">
           <template #default="{ row }">
             <el-tag :type="getTypeTagType(row.type)" size="small">
               {{ getTypeText(row.type) }}
@@ -122,30 +122,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column
-          prop="title"
-          label="标题"
-          align="center"
-          show-overflow-tooltip
-          min-width="250"
-        >
+        <el-table-column prop="title" label="标题" align="center" show-overflow-tooltip min-width="200">
           <template #default="{ row }">
             <span>{{ row.title }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="user" label="发起人" align="center" width="160">
-          <template #default="{ row }">
-            <div class="user-cell">
-              <el-avatar :size="32" :src="row.user?.avatar">
-                {{ row.user?.username?.charAt(0) || 'U' }}
-              </el-avatar>
-              <span>{{ row.user?.real_name || row.user?.username || '用户' + row.user_id }}</span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="priority" label="优先级" align="center" width="100">
+        <el-table-column prop="priority" label="优先级" align="center" width="80">
           <template #default="{ row }">
             <el-tag :type="getPriorityTagType(row.priority)" size="small">
               {{ getPriorityText(row.priority) }}
@@ -155,16 +138,20 @@
 
         <el-table-column prop="status" label="状态" align="center" width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusTagType(row.status)">
+            <el-tag :type="getStatusTagType(row.status)" size="small">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="order_id" label="关联订单" align="center" width="100">
+        <el-table-column prop="user" label="提交用户" align="center" width="140">
           <template #default="{ row }">
-            <el-tag v-if="row.order_id" size="small" type="info">{{ row.order_id }}</el-tag>
-            <span v-else>-</span>
+            <div class="user-cell">
+              <el-avatar :size="32" :src="row.user?.avatar">
+                {{ row.user?.username?.charAt(0) || 'U' }}
+              </el-avatar>
+              <span>{{ row.user?.username || '-' }}</span>
+            </div>
           </template>
         </el-table-column>
 
@@ -174,24 +161,33 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" align="center" fixed="right">
+        <el-table-column label="操作" align="center" fixed="right" width="180">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button type="primary" size="small" text @click="viewDetail(row)">
                 详情
               </el-button>
-              <el-button type="warning" size="small" text @click="handleAction('transfer', row)">
-                转交
-              </el-button>
-              <el-button
-                type="danger"
-                size="small"
-                text
-                @click="handleAction('close', row)"
-                v-if="row.status !== 'closed'"
-              >
-                关闭
-              </el-button>
+              <el-dropdown @command="(cmd) => moderateTicket(cmd, row)">
+                <el-button type="primary" size="small" text>
+                  <el-icon><MoreFilled /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="process" v-if="row.status === 'pending'">
+                      <el-icon><Clock /></el-icon>
+                      开始处理
+                    </el-dropdown-item>
+                    <el-dropdown-item command="resolve">
+                      <el-icon><CircleCheck /></el-icon>
+                      标记已解决
+                    </el-dropdown-item>
+                    <el-dropdown-item command="close">
+                      <el-icon><Close /></el-icon>
+                      关闭工单
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </template>
         </el-table-column>
@@ -212,7 +208,7 @@
     </el-card>
 
     <!-- 详情抽屉 -->
-    <el-drawer v-model="detailDrawer.visible" title="售后单详情" size="600px">
+    <el-drawer v-model="detailDrawer.visible" title="工单详情" size="600px">
       <template v-if="detailDrawer.data">
         <!-- 状态头部 -->
         <div class="status-header" :class="detailDrawer.data.status">
@@ -234,41 +230,28 @@
           </p>
         </div>
 
-        <!-- 关联信息 -->
-        <div class="section" v-if="detailDrawer.data.order_id || detailDrawer.data.deliverer_id">
-          <h4>关联信息</h4>
-          <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="订单ID" v-if="detailDrawer.data.order_id">
-              {{ detailDrawer.data.order_id }}
-            </el-descriptions-item>
-            <el-descriptions-item label="配送员ID" v-if="detailDrawer.data.deliverer_id">
-              {{ detailDrawer.data.deliverer_id }}
-            </el-descriptions-item>
-            <el-descriptions-item label="服务ID" v-if="detailDrawer.data.service_id">
-              {{ detailDrawer.data.service_id }}
-            </el-descriptions-item>
-          </el-descriptions>
-        </div>
-
-        <!-- 发起人信息 -->
+        <!-- 用户信息 -->
         <div class="section">
-          <h4>发起人信息</h4>
+          <h4>提交用户</h4>
           <div class="user-card">
             <el-avatar :size="48" :src="detailDrawer.data.user?.avatar">
               {{ detailDrawer.data.user?.username?.charAt(0) || 'U' }}
             </el-avatar>
             <div class="info">
-              <div class="name">
-                {{
-                  detailDrawer.data.user?.real_name ||
-                  detailDrawer.data.user?.username ||
-                  '用户' + detailDrawer.data.user_id
-                }}
-              </div>
+              <div class="name">{{ detailDrawer.data.user?.username || '-' }}</div>
               <div class="contact">手机: {{ detailDrawer.data.user?.phone || '-' }}</div>
-              <div class="contact">用户ID: {{ detailDrawer.data.user_id }}</div>
             </div>
           </div>
+        </div>
+
+        <!-- 关联订单 -->
+        <div class="section" v-if="detailDrawer.data.order_id">
+          <h4>关联订单</h4>
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="订单ID">
+              {{ detailDrawer.data.order_id }}
+            </el-descriptions-item>
+          </el-descriptions>
         </div>
 
         <!-- 工单详情 -->
@@ -278,56 +261,43 @@
             <el-descriptions-item label="工单编号">
               {{ detailDrawer.data.ticket_no }}
             </el-descriptions-item>
-            <el-descriptions-item label="问题描述">
-              {{ detailDrawer.data.description }}
+            <el-descriptions-item label="工单类型">
+              {{ getTypeText(detailDrawer.data.type) }}
             </el-descriptions-item>
-            <el-descriptions-item label="申请时间">
+            <el-descriptions-item label="优先级">
+              {{ getPriorityText(detailDrawer.data.priority) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="标题">
+              {{ detailDrawer.data.title }}
+            </el-descriptions-item>
+            <el-descriptions-item label="问题描述">
+              {{ detailDrawer.data.description || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="创建时间">
               {{ formatDateTime(detailDrawer.data.created_at) }}
             </el-descriptions-item>
-            <el-descriptions-item label="处理时间" v-if="detailDrawer.data.processed_at">
-              {{ formatDateTime(detailDrawer.data.processed_at) }}
+            <el-descriptions-item label="处理时间" v-if="detailDrawer.data.resolved_at">
+              {{ formatDateTime(detailDrawer.data.resolved_at) }}
             </el-descriptions-item>
-            <el-descriptions-item label="处理备注" v-if="detailDrawer.data.process_note">
-              {{ detailDrawer.data.process_note }}
+            <el-descriptions-item label="解决方案" v-if="detailDrawer.data.solution">
+              {{ detailDrawer.data.solution }}
             </el-descriptions-item>
           </el-descriptions>
-        </div>
-
-        <!-- 凭证图片 -->
-        <div class="section" v-if="detailDrawer.data.images?.length">
-          <h4>凭证图片</h4>
-          <div class="image-list">
-            <el-image
-              v-for="(img, index) in detailDrawer.data.images"
-              :key="index"
-              :src="img"
-              :preview-src-list="detailDrawer.data.images"
-              fit="cover"
-              class="evidence-image"
-            />
-          </div>
         </div>
 
         <!-- 处理操作 -->
         <div
           class="section action-section"
-          v-if="detailDrawer.data.status !== 'completed' && detailDrawer.data.status !== 'closed'"
+          v-if="detailDrawer.data.status !== 'resolved' && detailDrawer.data.status !== 'closed'"
         >
           <h4>处理操作</h4>
           <el-form :model="handleForm" label-width="100px">
-            <el-form-item label="处理结果">
-              <el-radio-group v-model="handleForm.result">
-                <el-radio value="complete">完成</el-radio>
-                <el-radio value="close">关闭</el-radio>
-              </el-radio-group>
-            </el-form-item>
-
-            <el-form-item label="处理备注">
+            <el-form-item label="解决方案">
               <el-input
-                v-model="handleForm.note"
+                v-model="handleForm.solution"
                 type="textarea"
                 :rows="3"
-                placeholder="请输入处理备注"
+                placeholder="请输入解决方案"
               />
             </el-form-item>
 
@@ -335,39 +305,36 @@
               <el-button type="primary" @click="submitHandle" :loading="handleForm.loading">
                 提交处理
               </el-button>
+              <el-button
+                type="success"
+                v-if="detailDrawer.data.status !== 'closed'"
+                @click="moderateTicket('resolve', detailDrawer.data)"
+                :loading="handleForm.loading"
+              >
+                标记已解决
+              </el-button>
+              <el-button
+                type="danger"
+                v-if="detailDrawer.data.status !== 'resolved'"
+                @click="moderateTicket('close', detailDrawer.data)"
+              >
+                关闭工单
+              </el-button>
+            </el-form-item>
+
+            <!-- 退款和补偿按钮 -->
+            <el-form-item v-if="detailDrawer.data.order_id">
+              <el-button type="warning" @click="handleRefund">
+                退款
+              </el-button>
+              <el-button type="info" @click="handleCompensate">
+                补偿
+              </el-button>
             </el-form-item>
           </el-form>
         </div>
       </template>
     </el-drawer>
-
-    <!-- 转交工单对话框 -->
-    <el-dialog v-model="transferDialog.visible" title="转交管理员处理" width="500px">
-      <div class="transfer-info">
-        <el-alert type="warning" :closable="false" show-icon>
-          此工单将转交给管理员进行最终处理
-        </el-alert>
-      </div>
-      <el-form :model="transferDialog.form" label-width="100px" style="margin-top: 20px">
-        <el-form-item label="工单编号">
-          <el-input :value="transferDialog.data?.ticket_no" disabled />
-        </el-form-item>
-        <el-form-item label="转交说明">
-          <el-input
-            v-model="transferDialog.form.description"
-            type="textarea"
-            :rows="4"
-            placeholder="请填写转交说明，说明需要管理员处理的原因"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="transferDialog.visible = false">取消</el-button>
-        <el-button type="warning" @click="submitTransfer" :loading="transferDialog.loading">
-          确认转交
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -376,19 +343,21 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Download,
-  ShoppingCart,
+  Tickets,
   Clock,
-  Money,
+  Warning,
   CircleCheck,
   Search,
   RefreshLeft,
+  MoreFilled,
+  Close,
 } from '@element-plus/icons-vue'
-import { serviceTicketApi } from '@/api'
+import { serviceOrderApi, serviceTicketApi } from '@/api'
 import { exportCsvFile, normalizeExportValue } from '@/utils/export'
 import DashboardFilterHeader from '../dashboard/components/DashboardFilterHeader.vue'
 
 const loading = ref(false)
-const afterSalesList = ref([])
+const ticketList = ref([])
 const dateRange = ref([])
 
 const filters = reactive({
@@ -406,8 +375,8 @@ const pagination = reactive({
 const stats = reactive({
   total: 0,
   pending: 0,
-  refundAmount: 0,
-  completedToday: 0,
+  processing: 0,
+  resolved: 0,
 })
 
 const detailDrawer = reactive({
@@ -416,192 +385,150 @@ const detailDrawer = reactive({
 })
 
 const handleForm = reactive({
-  result: 'complete',
-  note: '',
+  solution: '',
   loading: false,
 })
 
-// 转交工单对话框
-const transferDialog = reactive({
-  visible: false,
-  loading: false,
-  data: null,
-  form: {
-    title: '',
-    description: '',
-    priority: 'medium',
-  },
-})
+const buildTicketParams = (includePagination = true) => {
+  const params = {}
 
-// 获取售后单列表（使用工单接口）
-const fetchAfterSales = async () => {
-  loading.value = true
+  if (includePagination) {
+    params.page = pagination.page
+    params.limit = pagination.pageSize
+  }
+
+  if (filters.type) params.type = filters.type
+  if (filters.priority) params.priority = filters.priority
+  if (filters.status) params.status = filters.status
+
+  if (dateRange.value?.length === 2) {
+    params.start_date = dateRange.value[0]
+    params.end_date = dateRange.value[1]
+  }
+
+  return params
+}
+
+const isDialogCancel = (error) => error === 'cancel' || error === 'close'
+
+const refreshPageData = async () => {
+  await fetchTickets()
+}
+
+const refreshDetailDrawer = async (ticketId) => {
+  if (!detailDrawer.visible || !detailDrawer.data || detailDrawer.data.id !== ticketId) {
+    return
+  }
+
   try {
-    const params = {
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-      ...filters,
-    }
-
-    if (dateRange.value?.length === 2) {
-      params.start_date = dateRange.value[0]
-      params.end_date = dateRange.value[1]
-    }
-
-    const response = await serviceTicketApi.getTickets(params)
-    if (response.success) {
-      const data = response.data
-      afterSalesList.value = data.tickets || data.list || data || []
-      pagination.total = data.pagination?.total || data.length || 0
+    const response = await serviceTicketApi.getTicketById(ticketId)
+    if (response.success && response.data) {
+      detailDrawer.data = { ...detailDrawer.data, ...response.data }
     }
   } catch (error) {
-    console.error('获取售后单列表失败:', error)
-    // 使用模拟数据
-    afterSalesList.value = [
-      {
-        id: 1,
-        ticket_no: 'TK1772246308549000',
-        type: 'complaint',
-        title: '配送员态度恶劣',
-        description: '配送员在送餐时语言不友好，甚至有辱骂行为，希望能严肃处理。',
-        priority: 'high',
-        status: 'pending',
-        order_id: 5,
-        user_id: 5,
-        created_at: '2026-02-28T02:38:28.000Z',
-        user: {
-          id: 5,
-          username: 'qianqi',
-          phone: '13873090096',
-          real_name: '钱七',
-        },
-      },
-      {
-        id: 2,
-        ticket_no: 'TK1772246308564001',
-        type: 'refund',
-        title: '订单退款申请',
-        description: '商品已损坏，申请全额退款。',
-        priority: 'medium',
-        status: 'processing',
-        order_id: 2,
-        user_id: 2,
-        created_at: '2026-02-27T10:20:00.000Z',
-        user: {
-          id: 2,
-          username: 'lisi',
-          phone: '13800000002',
-          real_name: '李四',
-        },
-      },
-    ]
-    pagination.total = 2
+    console.error('刷新工单详情失败:', error)
+  }
+}
+
+// 获取工单列表
+const fetchTickets = async () => {
+  loading.value = true
+  try {
+    const response = await serviceTicketApi.getTickets(buildTicketParams())
+    if (response.success) {
+      const data = response.data || []
+      ticketList.value = Array.isArray(data) ? data : []
+      pagination.total = response.pagination?.total || ticketList.value.length
+    }
+  } catch (error) {
+    console.error('获取工单列表失败:', error)
+    ElMessage.error('获取工单列表失败')
   } finally {
     loading.value = false
   }
 }
 
-// 获取统计数据（使用工单接口）
+// 获取统计数据
 const fetchStats = async () => {
   try {
-    // 获取工单总数
-    const totalRes = await serviceTicketApi.getTickets({ pageSize: 1 })
-    const totalCount = totalRes.pagination?.total || 0
+    const baseParams = buildTicketParams(false)
+    const [pendingRes, processingRes, resolvedRes, allRes] = await Promise.all([
+      serviceTicketApi.getTickets({ ...baseParams, status: 'pending', limit: 1 }),
+      serviceTicketApi.getTickets({ ...baseParams, status: 'processing', limit: 1 }),
+      serviceTicketApi.getTickets({ ...baseParams, status: 'resolved', limit: 1 }),
+      serviceTicketApi.getTickets({ ...baseParams, limit: 1 }),
+    ])
 
-    // 获取待处理工单数
-    const pendingRes = await serviceTicketApi.getTickets({ status: 'pending', pageSize: 1 })
-    const pendingCount = pendingRes.pagination?.total || 0
-
-    // 获取处理中工单数
-    const processingRes = await serviceTicketApi.getTickets({ status: 'processing', pageSize: 1 })
-    const processingCount = processingRes.pagination?.total || 0
-
-    // 获取已完成工单数
-    const completedRes = await serviceTicketApi.getTickets({ status: 'completed', pageSize: 1 })
-    const completedCount = completedRes.pagination?.total || 0
-
-    stats.total = totalCount
-    stats.pending = pendingCount + processingCount
-    // 模拟待退款金额
-    stats.refundAmount = stats.pending * 15
-    stats.completedToday = completedCount
+    stats.pending = pendingRes.pagination?.total || 0
+    stats.processing = processingRes.pagination?.total || 0
+    stats.resolved = resolvedRes.pagination?.total || 0
+    stats.total = allRes.pagination?.total || 0
   } catch (error) {
     console.error('获取统计数据失败:', error)
-    stats.total = 10
-    stats.pending = 3
-    stats.refundAmount = 85.5
-    stats.completedToday = 7
+    stats.total = 0
+    stats.pending = 0
+    stats.processing = 0
+    stats.resolved = 0
   }
 }
 
 // 搜索
 const handleSearch = () => {
   pagination.page = 1
-  fetchAfterSales()
+  refreshPageData()
 }
 
 // 重置
 const handleReset = () => {
-  Object.keys(filters).forEach((key) => {
-    filters[key] = ''
-  })
+  filters.type = ''
+  filters.priority = ''
+  filters.status = ''
   pagination.page = 1
-  fetchAfterSales()
-}
-
-// 刷新
-const refreshData = () => {
-  fetchAfterSales()
-  fetchStats()
+  refreshPageData()
 }
 
 const handleDateRangeChange = () => {
   pagination.page = 1
-  fetchAfterSales()
-  fetchStats()
+  refreshPageData()
 }
 
 const handleExport = async () => {
   try {
     const params = {
+      ...buildTicketParams(false),
       page: 1,
-      pageSize: Math.max(pagination.total || afterSalesList.value.length || 0, 1000),
-      ...filters,
-    }
-
-    if (dateRange.value?.length === 2) {
-      params.start_date = dateRange.value[0]
-      params.end_date = dateRange.value[1]
+      limit: Math.max(pagination.total || ticketList.value.length || 0, 1000),
     }
 
     const response = await serviceTicketApi.getTickets(params)
     if (!response.success) throw new Error(response.message || '导出失败')
 
-    const data = response.data
-    const list = data.tickets || data.list || data || []
+    const list = response.data || []
     const rows = list.map((ticket) => ({
-      售后单ID: ticket.id,
       工单编号: normalizeExportValue(ticket.ticket_no),
-      类型: getTypeText(ticket.type),
+      工单类型: getTypeText(ticket.type),
       标题: normalizeExportValue(ticket.title),
-      发起人: normalizeExportValue(ticket.user?.real_name || ticket.user?.username),
       优先级: getPriorityText(ticket.priority),
       状态: getStatusText(ticket.status),
-      关联订单: normalizeExportValue(ticket.order_id),
+      用户: normalizeExportValue(ticket.user?.username),
+      手机号: normalizeExportValue(ticket.user?.phone),
+      描述: normalizeExportValue(ticket.description),
       创建时间: normalizeExportValue(ticket.created_at),
-      处理时间: normalizeExportValue(ticket.processed_at),
+      解决时间: normalizeExportValue(ticket.resolved_at),
+      解决方案: normalizeExportValue(ticket.solution),
     }))
 
-    exportCsvFile(rows, '售后管理', dateRange.value)
-    ElMessage.success(`已导出 ${rows.length} 条售后数据`)
+    exportCsvFile(rows, '工单管理', dateRange.value)
+    ElMessage.success(`已导出 ${rows.length} 条工单数据`)
   } catch (error) {
-    console.error('导出售后失败:', error)
-    ElMessage.error(error.message || '导出售后失败')
+    console.error('导出失败:', error)
+    ElMessage.error(error.message || '导出失败')
   }
 }
 
 // 查看详情
 const viewDetail = async (row) => {
+  handleForm.solution = ''
   try {
     const response = await serviceTicketApi.getTicketById(row.id)
     if (response.success) {
@@ -616,141 +543,99 @@ const viewDetail = async (row) => {
   }
 }
 
-// 操作处理
-const handleAction = (command, row) => {
-  switch (command) {
-    case 'process':
-      handleProcess(row)
-      break
-    case 'complete':
-      handleComplete(row)
-      break
-    case 'close':
-      handleClose(row)
-      break
-    case 'transfer':
-      openTransferDialog(row)
-      break
-  }
-}
+// 处理工单
+const moderateTicket = async (command, ticket) => {
+  if (command === 'process') {
+    try {
+      const { value } = await ElMessageBox.prompt('请输入处理备注', '开始处理', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+      })
 
-// 开始处理（转为处理中）
-const handleProcess = async (row) => {
-  try {
-    await ElMessageBox.confirm('确定要开始处理此工单吗？', '确认操作', { type: 'info' })
+      const response = await serviceTicketApi.updateTicketStatus(ticket.id, {
+        status: 'processing',
+        solution: value,
+      })
 
-    const response = await serviceTicketApi.updateTicketStatus(row.id, {
-      status: 'processing',
-      content: '客服开始处理',
-    })
-
-    if (response.success) {
-      ElMessage.success('已开始处理')
-      fetchAfterSales()
-      fetchStats()
+      if (response.success) {
+        ElMessage.success('已开始处理')
+        await refreshPageData()
+        await refreshDetailDrawer(ticket.id)
+      }
+    } catch (error) {
+      if (!isDialogCancel(error)) {
+        ElMessage.error('操作失败')
+      }
     }
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('操作失败')
+  } else if (command === 'resolve') {
+    try {
+      const { value } = await ElMessageBox.prompt('请输入解决方案', '标记已解决', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+      })
+
+      const response = await serviceTicketApi.updateTicketStatus(ticket.id, {
+        status: 'resolved',
+        solution: value,
+      })
+
+      if (response.success) {
+        ElMessage.success('已标记为已解决')
+        await refreshPageData()
+        detailDrawer.visible = false
+      }
+    } catch (error) {
+      if (!isDialogCancel(error)) {
+        ElMessage.error('操作失败')
+      }
     }
-  }
-}
+  } else if (command === 'close') {
+    try {
+      await ElMessageBox.confirm('确定要关闭此工单吗？', '确认关闭', { type: 'warning' })
 
-// 关闭工单
-const handleClose = async (row) => {
-  try {
-    await ElMessageBox.confirm('确定要关闭此工单吗？', '确认关闭', { type: 'warning' })
+      const response = await serviceTicketApi.updateTicketStatus(ticket.id, {
+        status: 'closed',
+        solution: '工单已关闭',
+      })
 
-    const response = await serviceTicketApi.updateTicketStatus(row.id, {
-      status: 'closed',
-      content: '客服关闭工单',
-    })
-
-    if (response.success) {
-      ElMessage.success('工单已关闭')
-      fetchAfterSales()
-      fetchStats()
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('操作失败')
-    }
-  }
-}
-
-// 打开转交对话框
-const openTransferDialog = (row) => {
-  transferDialog.data = row
-  transferDialog.form = {
-    description: `工单编号: ${row.ticket_no}\n标题: ${row.title}\n类型: ${getTypeText(row.type)}\n优先级: ${getPriorityText(row.priority)}\n状态: ${getStatusText(row.status)}\n描述: ${row.description}`,
-    priority: 'high',
-  }
-  transferDialog.visible = true
-}
-
-// 提交转交（转给管理员处理）
-const submitTransfer = async () => {
-  transferDialog.loading = true
-  try {
-    // 更新工单状态为处理中，并提升优先级
-    await serviceTicketApi.updateTicketStatus(transferDialog.data.id, {
-      status: 'processing',
-      content: transferDialog.form.description + '\n\n客服转交：需要管理员介入处理',
-    })
-
-    ElMessage.success('已转交管理员处理')
-    transferDialog.visible = false
-    fetchAfterSales()
-    fetchStats()
-  } catch (error) {
-    ElMessage.error('转交失败: ' + (error.message || '请稍后重试'))
-  } finally {
-    transferDialog.loading = false
-  }
-}
-
-// 标记完成
-const handleComplete = async (row) => {
-  try {
-    await ElMessageBox.confirm('确定要将此工单标记为完成吗？', '确认操作', { type: 'info' })
-
-    const response = await serviceTicketApi.updateTicketStatus(row.id, {
-      status: 'completed',
-      content: '客服标记完成',
-    })
-    if (response.success) {
-      ElMessage.success('已标记完成')
-      fetchAfterSales()
-      fetchStats()
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('操作失败')
+      if (response.success) {
+        ElMessage.success('工单已关闭')
+        await refreshPageData()
+        detailDrawer.visible = false
+      }
+    } catch (error) {
+      if (!isDialogCancel(error)) {
+        ElMessage.error('操作失败')
+      }
     }
   }
 }
 
 // 提交处理
 const submitHandle = async () => {
+  if (!detailDrawer.data?.id) {
+    ElMessage.warning('未找到当前工单')
+    return
+  }
+
+  if (!handleForm.solution) {
+    ElMessage.warning('请输入解决方案')
+    return
+  }
+
   handleForm.loading = true
   try {
-    // 根据处理结果更新工单状态
-    const statusMap = {
-      approve: 'completed',
-      reject: 'closed',
-      compensate: 'processing',
-    }
-    const status = statusMap[handleForm.result] || 'processing'
-
-    await serviceTicketApi.updateTicketStatus(detailDrawer.data.id, {
-      status,
-      content: handleForm.note,
+    const response = await serviceTicketApi.updateTicketStatus(detailDrawer.data.id, {
+      status: 'resolved',
+      solution: handleForm.solution,
     })
 
-    ElMessage.success('处理成功')
-    detailDrawer.visible = false
-    fetchAfterSales()
-    fetchStats()
+    if (response.success) {
+      ElMessage.success('处理成功')
+      handleForm.solution = ''
+      detailDrawer.visible = false
+      await refreshPageData()
+    }
   } catch {
     ElMessage.error('处理失败')
   } finally {
@@ -758,33 +643,96 @@ const submitHandle = async () => {
   }
 }
 
+// 退款处理
+const handleRefund = async () => {
+  if (!detailDrawer.data.order_id) {
+    ElMessage.warning('该工单没有关联订单')
+    return
+  }
+
+  try {
+    const { value } = await ElMessageBox.prompt('请输入退款金额和原因（格式：金额|原因）', '退款处理', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPattern: /^\d+(\.\d+)?\|.+$/,
+      inputErrorMessage: '格式错误，请输入：金额|原因',
+    })
+
+    const [amount, reason] = value.split('|')
+
+    const response = await serviceOrderApi.processRefund(detailDrawer.data.order_id, {
+      amount: parseFloat(amount),
+      reason: reason.trim(),
+    })
+
+    if (response.success) {
+      ElMessage.success('退款处理成功')
+      await refreshPageData()
+      await refreshDetailDrawer(detailDrawer.data.id)
+    }
+  } catch (error) {
+      if (!isDialogCancel(error)) {
+      ElMessage.error(error.message || '退款处理失败')
+    }
+  }
+}
+
+// 补偿处理
+const handleCompensate = async () => {
+  if (!detailDrawer.data.order_id) {
+    ElMessage.warning('该工单没有关联订单')
+    return
+  }
+
+  try {
+    const { value } = await ElMessageBox.prompt('请输入补偿金额和原因（格式：金额|原因）', '补偿处理', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPattern: /^\d+(\.\d+)?\|.+$/,
+      inputErrorMessage: '格式错误，请输入：金额|原因',
+    })
+
+    const [amount, reason] = value.split('|')
+
+    const response = await serviceOrderApi.processCompensate(detailDrawer.data.order_id, {
+      amount: parseFloat(amount),
+      reason: reason.trim(),
+    })
+
+    if (response.success) {
+      ElMessage.success('补偿处理成功')
+      await refreshPageData()
+      await refreshDetailDrawer(detailDrawer.data.id)
+    }
+  } catch (error) {
+      if (!isDialogCancel(error)) {
+      ElMessage.error(error.message || '补偿处理失败')
+    }
+  }
+}
+
 // 分页
 const handleSizeChange = (newSize) => {
   pagination.pageSize = newSize
   pagination.page = 1
-  fetchAfterSales()
+  fetchTickets()
 }
 
 const handlePageChange = (newPage) => {
   pagination.page = newPage
-  fetchAfterSales()
+  fetchTickets()
 }
 
 // 工具函数
 const getTypeText = (type) => {
-  // 工单类型映射
   const texts = {
     complaint: '投诉',
     refund: '退款',
     dispute: '争议',
     suggestion: '建议',
     other: '其他',
-    express: '快递代取',
-    takeout: '外卖代取',
-    medicine: '药品代购',
-    shopping: '生活用品',
   }
-  return texts[type] || type || '待处理'
+  return texts[type] || type || '其他'
 }
 
 const getTypeTagType = (type) => {
@@ -794,10 +742,6 @@ const getTypeTagType = (type) => {
     dispute: 'warning',
     suggestion: 'success',
     other: 'info',
-    express: 'primary',
-    takeout: 'warning',
-    medicine: 'danger',
-    shopping: 'success',
   }
   return types[type] || 'info'
 }
@@ -826,26 +770,18 @@ const getStatusText = (status) => {
   const texts = {
     pending: '待处理',
     processing: '处理中',
-    completed: '已完成',
+    resolved: '已解决',
     closed: '已关闭',
-    accepted: '已接单',
-    picking: '取件中',
-    delivering: '配送中',
-    cancelled: '已取消',
   }
   return texts[status] || status
 }
 
 const getStatusTagType = (status) => {
   const types = {
-    pending: 'info',
-    processing: 'warning',
-    completed: 'success',
+    pending: 'warning',
+    processing: 'primary',
+    resolved: 'success',
     closed: 'info',
-    accepted: 'primary',
-    picking: 'warning',
-    delivering: 'warning',
-    cancelled: 'danger',
   }
   return types[status] || ''
 }
@@ -860,8 +796,7 @@ onMounted(() => {
   const start = new Date()
   start.setDate(start.getDate() - 30)
   dateRange.value = [start.toISOString().slice(0, 10), end.toISOString().slice(0, 10)]
-  fetchAfterSales()
-  fetchStats()
+  refreshPageData()
 })
 </script>
 
@@ -871,43 +806,9 @@ onMounted(() => {
   margin: 0 auto;
 }
 
-/* 页面头部 */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.page-header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  font-family: 'Fira Code', monospace;
-  color: var(--text-primary, #2c3e50);
-}
-
-.page-subtitle {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--text-secondary, #909399);
-}
-
-.page-header-right {
-  display: flex;
-  gap: 8px;
-}
-
 /* 统计卡片 */
 .stats-row {
+  display: none;
   margin-bottom: 24px;
 }
 
@@ -990,16 +891,9 @@ onMounted(() => {
   border: 1px solid var(--el-border-color-light, #e4e7ed);
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.ticket-no,
-.order-no {
+.ticket-no {
   font-weight: 600;
-  color: var(--primary);
+  color: var(--el-color-primary);
 }
 
 .user-cell {
@@ -1008,32 +902,11 @@ onMounted(() => {
   gap: 8px;
 }
 
-.reason-text {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.amount {
-  font-weight: 600;
-  color: #f56c6c;
-}
-
-.amount-large {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #f56c6c;
-}
-
 /* 分页 */
 .pagination-wrapper {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   margin-top: 20px;
-  padding: 12px 16px;
-  background: var(--bg-color, #f5f7fa);
-  border-radius: var(--radius-lg, 12px);
 }
 
 /* 详情抽屉 */
@@ -1050,36 +923,23 @@ onMounted(() => {
 
 .status-header.processing {
   background: #ecf5ff;
-  border: 1px solid var(--primary);
+  border: 1px solid var(--el-color-primary);
 }
 
-.status-header.completed,
-.status-header.refunded {
+.status-header.resolved {
   background: #f0f9eb;
   border: 1px solid #67c23a;
 }
 
-.status-header.rejected {
-  background: #fef0f0;
-  border: 1px solid #f56c6c;
+.status-header.closed {
+  background: #f4f4f5;
+  border: 1px solid #909399;
 }
 
 .status-info {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
-}
-
-.order-info {
-  color: #606266;
-}
-
-.order-info .label {
-  color: #909399;
-}
-
-.order-info .value {
-  font-weight: 500;
 }
 
 .section {
@@ -1111,50 +971,9 @@ onMounted(() => {
   color: #909399;
 }
 
-.image-list {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.evidence-image {
-  width: 100px;
-  height: 100px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
 .action-section {
   padding-top: 20px;
   border-top: 1px solid #e4e7ed;
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
-  .page-container {
-    padding: 12px;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
-  }
-
-  .pagination-wrapper {
-    justify-content: center;
-  }
-
-  .filter-form {
-    flex-direction: column;
-  }
-
-  .filter-form :deep(.el-form-item) {
-    width: 100%;
-  }
-
-  .filter-form :deep(.el-select),
-  .filter-form :deep(.el-input) {
-    width: 100% !important;
-  }
 }
 
 /* 操作按钮 */
@@ -1173,5 +992,29 @@ onMounted(() => {
 
 .ticket-meta span {
   margin-right: 16px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 12px;
+  }
+
+  .pagination-wrapper {
+    justify-content: center;
+  }
+
+  .filter-form {
+    flex-direction: column;
+  }
+
+  .filter-form :deep(.el-form-item) {
+    width: 100%;
+  }
+
+  .filter-form :deep(.el-select),
+  .filter-form :deep(.el-input) {
+    width: 100% !important;
+  }
 }
 </style>

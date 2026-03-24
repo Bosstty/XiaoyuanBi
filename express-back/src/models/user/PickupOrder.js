@@ -105,6 +105,7 @@ const PickupOrder = sequelize.define(
             defaultValue: false,
             comment: '是否易碎',
         },
+
         status: {
             type: DataTypes.ENUM(
                 'pending',

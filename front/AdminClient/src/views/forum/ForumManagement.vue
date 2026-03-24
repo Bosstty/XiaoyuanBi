@@ -112,12 +112,10 @@
         <el-table-column label="帖子标题" align="center" min-width="250">
           <template #default="{ row }">
             <div class="post-title-cell">
+              <el-tag v-if="row.isPinned" size="small" type="danger">置顶</el-tag>
+              <el-tag v-if="row.isHot" size="small" type="warning">热门</el-tag>
+              <el-tag v-if="row.isAnonymous" size="small" type="info">匿名</el-tag>
               <el-link @click="viewDetail(row.id)" type="primary">{{ row.title }}</el-link>
-              <div class="post-badges">
-                <el-tag v-if="row.is_pinned" size="small" type="danger">置顶</el-tag>
-                <el-tag v-if="row.is_hot" size="small" type="warning">热门</el-tag>
-                <el-tag v-if="row.is_anonymous" size="small" type="info">匿名</el-tag>
-              </div>
             </div>
           </template>
         </el-table-column>
@@ -138,9 +136,9 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="view_count" label="浏览" width="70" align="center" />
-        <el-table-column prop="like_count" label="点赞" width="70" align="center" />
-        <el-table-column prop="comment_count" label="评论" width="70" align="center" />
+        <el-table-column prop="viewCount" label="浏览" width="70" align="center" />
+        <el-table-column prop="likeCount" label="点赞" width="70" align="center" />
+        <el-table-column prop="commentCount" label="评论" width="70" align="center" />
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }">
             <el-tag :type="getStatusTagType(row.status)" size="small">
@@ -165,25 +163,25 @@
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="approve">
+                    <el-dropdown-item v-if="row.status === 'pending_review'" command="approve">
                       <el-icon><CircleCheck /></el-icon>
                       通过审核
                     </el-dropdown-item>
-                    <el-dropdown-item command="hide">
+                    <el-dropdown-item v-if="row.status === 'pending_review'" command="reject">
+                      <el-icon><Close /></el-icon>
+                      拒绝
+                    </el-dropdown-item>
+                    <el-dropdown-item v-if="row.status !== 'hidden'" command="hide">
                       <el-icon><Hide /></el-icon>
                       隐藏帖子
                     </el-dropdown-item>
+                    <el-dropdown-item v-if="row.status === 'hidden'" command="restore">
+                      <el-icon><View /></el-icon>
+                      恢复显示
+                    </el-dropdown-item>
                     <el-dropdown-item :command="'top'">
                       <el-icon><Top /></el-icon>
-                      {{ row.is_pinned ? '取消置顶' : '设为置顶' }}
-                    </el-dropdown-item>
-                    <el-dropdown-item command="highlight">
-                      <el-icon><Star /></el-icon>
-                      {{ row.is_highlighted ? '取消加精' : '设为加精' }}
-                    </el-dropdown-item>
-                    <el-dropdown-item command="delete" divided>
-                      <el-icon><Delete /></el-icon>
-                      删除帖子
+                      {{ row.isPinned ? '取消置顶' : '设为置顶' }}
                     </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -215,7 +213,6 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  ArrowLeft,
   Download,
   Search,
   RefreshRight,
@@ -226,9 +223,9 @@ import {
   MoreFilled,
   CircleCheck,
   Hide,
+  View,
   Top,
-  Delete,
-  Star,
+  Close,
 } from '@element-plus/icons-vue'
 import { forumManagementApi } from '@/api'
 import { exportCsvFile, normalizeExportValue } from '@/utils/export'
@@ -336,32 +333,32 @@ const viewDetail = (id) => {
 }
 
 const moderatePost = async (command, post) => {
-  if (command === 'delete') {
-    ElMessageBox.prompt('请输入删除原因', '确认删除', {
+  if (command === 'reject') {
+    ElMessageBox.prompt('请输入拒绝原因', '拒绝审核', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
-      inputPlaceholder: '请输入删除原因',
+      inputPlaceholder: '请输入拒绝原因',
     })
       .then(async ({ value }) => {
         if (!value) {
-          ElMessage.warning('请输入删除原因')
+          ElMessage.warning('请输入拒绝原因')
           return
         }
         try {
-          const response = await forumManagementApi.deletePost(post.id, value)
+          const response = await forumManagementApi.moderatePost(post.id, 'reject', value)
           if (response.success) {
-            ElMessage.success('删除成功')
+            ElMessage.success('已拒绝')
             fetchPosts()
           }
         } catch (error) {
-          ElMessage.error('删除失败: ' + error.message)
+          ElMessage.error('操作失败: ' + error.message)
         }
       })
       .catch(() => {})
   } else if (command === 'top') {
     // 置顶/取消置顶
-    const action = post.is_pinned ? 'unpin' : 'pin'
+    const action = post.isPinned ? 'unpin' : 'pin'
     try {
       const response = await forumManagementApi.moderatePost(post.id, action)
       if (response.success) {
@@ -390,6 +387,16 @@ const moderatePost = async (command, post) => {
         }
       })
       .catch(() => {})
+  } else if (command === 'restore') {
+    try {
+      const response = await forumManagementApi.moderatePost(post.id, 'restore')
+      if (response.success) {
+        ElMessage.success('已恢复显示')
+        fetchPosts()
+      }
+    } catch (error) {
+      ElMessage.error('恢复失败: ' + error.message)
+    }
   } else if (command === 'approve') {
     try {
       const response = await forumManagementApi.moderatePost(post.id, 'approve')
@@ -399,17 +406,6 @@ const moderatePost = async (command, post) => {
       }
     } catch (error) {
       ElMessage.error('审核失败: ' + error.message)
-    }
-  } else if (command === 'highlight') {
-    try {
-      const action = post.is_highlighted ? 'unhighlight' : 'highlight'
-      const response = await forumManagementApi.moderatePost(post.id, action)
-      if (response.success) {
-        ElMessage.success(action === 'highlight' ? '加精成功' : '取消加精成功')
-        fetchPosts()
-      }
-    } catch (error) {
-      ElMessage.error('操作失败: ' + error.message)
     }
   }
 }
@@ -442,13 +438,13 @@ const exportPosts = async () => {
       标题: normalizeExportValue(post.title),
       分类: getCategoryText(post.category),
       作者: normalizeExportValue(post.author?.real_name || post.author?.username),
-      浏览量: normalizeExportValue(post.view_count),
-      点赞数: normalizeExportValue(post.like_count),
-      评论数: normalizeExportValue(post.comment_count),
+      浏览量: normalizeExportValue(post.viewCount),
+      点赞数: normalizeExportValue(post.likeCount),
+      评论数: normalizeExportValue(post.commentCount),
       状态: getStatusText(post.status),
-      置顶: post.is_pinned ? '是' : '否',
-      热门: post.is_hot ? '是' : '否',
-      匿名: post.is_anonymous ? '是' : '否',
+      置顶: post.isPinned ? '是' : '否',
+      热门: post.isHot ? '是' : '否',
+      匿名: post.isAnonymous ? '是' : '否',
       发布时间: normalizeExportValue(post.createdAt),
     }))
 
@@ -496,8 +492,10 @@ const getCategoryTagType = (category) => {
 
 const getStatusText = (status) => {
   const statusMap = {
-    pending: '待审核',
+    draft: '草稿',
+    pending_review: '待审核',
     published: '已发布',
+    rejected: '已拒绝',
     hidden: '已隐藏',
     deleted: '已删除',
   }
@@ -506,8 +504,10 @@ const getStatusText = (status) => {
 
 const getStatusTagType = (status) => {
   const statusMap = {
-    pending: 'warning',
+    draft: 'info',
+    pending_review: 'warning',
     published: 'success',
+    rejected: 'danger',
     hidden: 'info',
     deleted: 'danger',
   }
@@ -663,8 +663,9 @@ onMounted(() => {
 
 .post-title-cell {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
 }
 
 .post-badges {

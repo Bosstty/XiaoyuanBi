@@ -3,6 +3,31 @@ const { responseUtils } = require('../../utils');
 const { Op } = require('sequelize');
 
 class ForumController {
+    // 获取各分类帖子数量
+    static async getCategoryStats(req, res) {
+        try {
+            const categories = ['academic', 'life', 'campus', 'task', 'skill'];
+            const counts = await ForumPost.count({
+                where: { status: 'published' },
+                group: ['category'],
+            });
+
+            const countMap = counts.reduce((result, item) => {
+                result[item.category] = Number(item.count) || 0;
+                return result;
+            }, {});
+
+            const stats = categories.map(category => ({
+                category,
+                count: countMap[category] || 0,
+            }));
+
+            res.json(responseUtils.success({ stats }));
+        } catch (error) {
+            console.error('获取论坛分类统计失败:', error);
+            return res.status(500).json(responseUtils.error('获取论坛分类统计失败'));
+        }
+    }
     // 创建帖子
     static async createPost(req, res) {
         try {
@@ -56,12 +81,12 @@ class ForumController {
 
             // 置顶筛选
             if (is_pinned !== undefined) {
-                where.is_pinned = is_pinned === 'true';
+                where.isPinned = is_pinned === 'true';
             }
 
             // 热门筛选
             if (is_hot !== undefined) {
-                where.is_hot = is_hot === 'true';
+                where.isHot = is_hot === 'true';
             }
 
             // 搜索功能
@@ -83,7 +108,7 @@ class ForumController {
                     },
                 ],
                 order: [
-                    ['is_pinned', 'DESC'], // 置顶优先
+                    ['isPinned', 'DESC'], // 置顶优先
                     [sort, order.toUpperCase()],
                 ],
                 offset: parseInt(offset),
@@ -134,12 +159,16 @@ class ForumController {
                 return res.status(404).json(responseUtils.error('帖子不存在'));
             }
 
+            // 非发布状态的帖子，只有作者本人可以查看
             if (post.status !== 'published') {
-                return res.status(403).json(responseUtils.error('帖子不可访问'));
+                const userId = req.user?.id;
+                if (!userId || post.author_id !== userId) {
+                    return res.status(403).json(responseUtils.error('帖子不可访问'));
+                }
             }
 
             // 增加浏览次数
-            await post.increment('view_count');
+            await post.increment('viewCount');
 
             res.json(responseUtils.success(post));
         } catch (error) {
@@ -223,9 +252,9 @@ class ForumController {
             }
 
             // 增加点赞数
-            await post.increment('like_count');
+            await post.increment('likeCount');
 
-            res.json(responseUtils.success({ like_count: post.like_count + 1 }, '点赞成功'));
+            res.json(responseUtils.success({ likeCount: post.likeCount + 1 }, '点赞成功'));
         } catch (error) {
             console.error('点赞失败:', error);
             return res.status(500).json(responseUtils.error('点赞失败'));
@@ -254,8 +283,8 @@ class ForumController {
 
             // 更新帖子评论数和最后评论时间
             await post.update({
-                comment_count: post.comment_count + 1,
-                last_comment_time: new Date(),
+                commentCount: post.commentCount + 1,
+                lastCommentTime: new Date(),
             });
 
             // 获取包含作者信息的评论详情
@@ -309,7 +338,7 @@ class ForumController {
                     },
                     {
                         model: ForumComment,
-                        as: 'parentComment',
+                        as: 'parent',
                         attributes: ['id', 'content'],
                         required: false,
                     },
@@ -348,9 +377,9 @@ class ForumController {
             }
 
             // 增加点赞数
-            await comment.increment('like_count');
+            await comment.increment('likeCount');
 
-            res.json(responseUtils.success({ like_count: comment.like_count + 1 }, '点赞成功'));
+            res.json(responseUtils.success({ likeCount: comment.likeCount + 1 }, '点赞成功'));
         } catch (error) {
             console.error('点赞评论失败:', error);
             return res.status(500).json(responseUtils.error('点赞评论失败'));
@@ -365,7 +394,7 @@ class ForumController {
             const posts = await ForumPost.findAll({
                 where: {
                     status: 'published',
-                    is_hot: true,
+                    isHot: true,
                 },
                 include: [
                     {
@@ -375,9 +404,9 @@ class ForumController {
                     },
                 ],
                 order: [
-                    ['like_count', 'DESC'],
-                    ['view_count', 'DESC'],
-                    ['created_at', 'DESC'],
+                    ['likeCount', 'DESC'],
+                    ['viewCount', 'DESC'],
+                    ['createdAt', 'DESC'],
                 ],
                 limit: parseInt(limit),
             });

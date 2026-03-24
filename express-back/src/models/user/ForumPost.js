@@ -49,17 +49,17 @@ const ForumPost = sequelize.define(
             allowNull: true,
             comment: '附件',
         },
-        is_anonymous: {
+        isAnonymous: {
             type: DataTypes.BOOLEAN,
             defaultValue: false,
             comment: '是否匿名',
         },
-        is_pinned: {
+        isPinned: {
             type: DataTypes.BOOLEAN,
             defaultValue: false,
             comment: '是否置顶',
         },
-        is_hot: {
+        isHot: {
             type: DataTypes.BOOLEAN,
             defaultValue: false,
             comment: '是否热门',
@@ -69,35 +69,35 @@ const ForumPost = sequelize.define(
             defaultValue: 'published',
             comment: '状态',
         },
-        view_count: {
+        viewCount: {
             type: DataTypes.INTEGER,
             defaultValue: 0,
             comment: '浏览次数',
         },
-        like_count: {
+        likeCount: {
             type: DataTypes.INTEGER,
             defaultValue: 0,
             comment: '点赞数',
         },
-        comment_count: {
+        commentCount: {
             type: DataTypes.INTEGER,
             defaultValue: 0,
             comment: '评论数',
         },
-        share_count: {
+        shareCount: {
             type: DataTypes.INTEGER,
             defaultValue: 0,
             comment: '分享数',
         },
-        last_comment_time: {
+        lastCommentTime: {
             type: DataTypes.DATE,
             allowNull: true,
             comment: '最后评论时间',
         },
-        reject_reason: {
+        rejectReason: {
             type: DataTypes.TEXT,
             allowNull: true,
-            comment: '拒绝原因',
+            comment: '拒绝/隐藏原因',
         },
     },
     {

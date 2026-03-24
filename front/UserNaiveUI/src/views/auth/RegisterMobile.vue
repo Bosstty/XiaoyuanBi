@@ -1,7 +1,12 @@
 <template>
     <div class="auth-shell auth-shell--register">
         <div class="auth-topbar">
-            <button type="button" class="auth-back touch-feedback" aria-label="返回" @click="goBack">
+            <button
+                type="button"
+                class="auth-back touch-feedback"
+                aria-label="返回"
+                @click="goBack"
+            >
                 <NIcon :size="20"><ChevronBackOutline /></NIcon>
             </button>
             <span>创建校园账户</span>
@@ -27,17 +32,37 @@
                     <div class="auth-field">
                         <label class="auth-label" for="student_id">学号</label>
                         <div class="auth-input-wrap" :class="{ 'has-error': !!errors.student_id }">
-                            <span class="auth-input-icon"><NIcon :size="18"><CardOutline /></NIcon></span>
-                            <input id="student_id" v-model="formData.student_id" class="auth-input" type="text" placeholder="请输入学号" @blur="validateField('student_id')" />
+                            <span class="auth-input-icon">
+                                <NIcon :size="18"><CardOutline /></NIcon>
+                            </span>
+                            <input
+                                id="student_id"
+                                v-model="formData.student_id"
+                                class="auth-input"
+                                type="text"
+                                placeholder="请输入学号"
+                                @blur="validateField('student_id')"
+                            />
                         </div>
-                        <div v-if="errors.student_id" class="auth-error">{{ errors.student_id }}</div>
+                        <div v-if="errors.student_id" class="auth-error">
+                            {{ errors.student_id }}
+                        </div>
                     </div>
 
                     <div class="auth-field">
                         <label class="auth-label" for="username">用户名</label>
                         <div class="auth-input-wrap" :class="{ 'has-error': !!errors.username }">
-                            <span class="auth-input-icon"><NIcon :size="18"><PersonOutline /></NIcon></span>
-                            <input id="username" v-model="formData.username" class="auth-input" type="text" placeholder="请输入用户名" @blur="validateField('username')" />
+                            <span class="auth-input-icon">
+                                <NIcon :size="18"><PersonOutline /></NIcon>
+                            </span>
+                            <input
+                                id="username"
+                                v-model="formData.username"
+                                class="auth-input"
+                                type="text"
+                                placeholder="请输入用户名"
+                                @blur="validateField('username')"
+                            />
                         </div>
                         <div v-if="errors.username" class="auth-error">{{ errors.username }}</div>
                     </div>
@@ -47,8 +72,17 @@
                     <div class="auth-field">
                         <label class="auth-label" for="real_name">真实姓名</label>
                         <div class="auth-input-wrap" :class="{ 'has-error': !!errors.real_name }">
-                            <span class="auth-input-icon"><NIcon :size="18"><PersonOutline /></NIcon></span>
-                            <input id="real_name" v-model="formData.real_name" class="auth-input" type="text" placeholder="请输入真实姓名" @blur="validateField('real_name')" />
+                            <span class="auth-input-icon">
+                                <NIcon :size="18"><PersonOutline /></NIcon>
+                            </span>
+                            <input
+                                id="real_name"
+                                v-model="formData.real_name"
+                                class="auth-input"
+                                type="text"
+                                placeholder="请输入真实姓名"
+                                @blur="validateField('real_name')"
+                            />
                         </div>
                         <div v-if="errors.real_name" class="auth-error">{{ errors.real_name }}</div>
                     </div>
@@ -56,8 +90,17 @@
                     <div class="auth-field">
                         <label class="auth-label" for="phone">手机号</label>
                         <div class="auth-input-wrap" :class="{ 'has-error': !!errors.phone }">
-                            <span class="auth-input-icon"><NIcon :size="18"><CallOutline /></NIcon></span>
-                            <input id="phone" v-model="formData.phone" class="auth-input" type="tel" placeholder="选填" @blur="validateField('phone')" />
+                            <span class="auth-input-icon">
+                                <NIcon :size="18"><CallOutline /></NIcon>
+                            </span>
+                            <input
+                                id="phone"
+                                v-model="formData.phone"
+                                class="auth-input"
+                                type="tel"
+                                placeholder="选填"
+                                @blur="validateField('phone')"
+                            />
                         </div>
                         <div v-if="errors.phone" class="auth-error">{{ errors.phone }}</div>
                     </div>
@@ -66,8 +109,17 @@
                 <div class="auth-field">
                     <label class="auth-label" for="email">邮箱</label>
                     <div class="auth-input-wrap" :class="{ 'has-error': !!errors.email }">
-                        <span class="auth-input-icon"><NIcon :size="18"><MailOutline /></NIcon></span>
-                        <input id="email" v-model="formData.email" class="auth-input" type="email" placeholder="请输入常用邮箱" @blur="validateField('email')" />
+                        <span class="auth-input-icon">
+                            <NIcon :size="18"><MailOutline /></NIcon>
+                        </span>
+                        <input
+                            id="email"
+                            v-model="formData.email"
+                            class="auth-input"
+                            type="email"
+                            placeholder="请输入常用邮箱"
+                            @blur="validateField('email')"
+                        />
                     </div>
                     <div v-if="errors.email" class="auth-error">{{ errors.email }}</div>
                 </div>
@@ -80,10 +132,19 @@
                     <div class="auth-field">
                         <label class="auth-label" for="college">学院</label>
                         <div class="auth-select-wrap" :class="{ 'has-error': !!errors.college }">
-                            <span class="auth-input-icon"><NIcon :size="18"><BusinessOutline /></NIcon></span>
-                            <select id="college" v-model="formData.college" class="auth-select" @change="validateField('college')">
+                            <span class="auth-input-icon">
+                                <NIcon :size="18"><BusinessOutline /></NIcon>
+                            </span>
+                            <select
+                                id="college"
+                                v-model="formData.college"
+                                class="auth-select"
+                                @change="validateField('college')"
+                            >
                                 <option value="" disabled>请选择学院</option>
-                                <option v-for="item in collegeOptions" :key="item" :value="item">{{ item }}</option>
+                                <option v-for="item in collegeOptions" :key="item" :value="item">
+                                    {{ item }}
+                                </option>
                             </select>
                         </div>
                         <div v-if="errors.college" class="auth-error">{{ errors.college }}</div>
@@ -92,10 +153,19 @@
                     <div class="auth-field">
                         <label class="auth-label" for="grade">年级</label>
                         <div class="auth-select-wrap" :class="{ 'has-error': !!errors.grade }">
-                            <span class="auth-input-icon"><NIcon :size="18"><CalendarOutline /></NIcon></span>
-                            <select id="grade" v-model="formData.grade" class="auth-select" @change="validateField('grade')">
+                            <span class="auth-input-icon">
+                                <NIcon :size="18"><CalendarOutline /></NIcon>
+                            </span>
+                            <select
+                                id="grade"
+                                v-model="formData.grade"
+                                class="auth-select"
+                                @change="validateField('grade')"
+                            >
                                 <option value="" disabled>请选择年级</option>
-                                <option v-for="item in gradeOptions" :key="item" :value="item">{{ item }}</option>
+                                <option v-for="item in gradeOptions" :key="item" :value="item">
+                                    {{ item }}
+                                </option>
                             </select>
                         </div>
                         <div v-if="errors.grade" class="auth-error">{{ errors.grade }}</div>
@@ -105,8 +175,17 @@
                 <div class="auth-field">
                     <label class="auth-label" for="major">专业</label>
                     <div class="auth-input-wrap" :class="{ 'has-error': !!errors.major }">
-                        <span class="auth-input-icon"><NIcon :size="18"><BookOutline /></NIcon></span>
-                        <input id="major" v-model="formData.major" class="auth-input" type="text" placeholder="请输入专业名称" @blur="validateField('major')" />
+                        <span class="auth-input-icon">
+                            <NIcon :size="18"><BookOutline /></NIcon>
+                        </span>
+                        <input
+                            id="major"
+                            v-model="formData.major"
+                            class="auth-input"
+                            type="text"
+                            placeholder="请输入专业名称"
+                            @blur="validateField('major')"
+                        />
                     </div>
                     <div v-if="errors.major" class="auth-error">{{ errors.major }}</div>
                 </div>
@@ -118,10 +197,22 @@
                 <div class="auth-field">
                     <label class="auth-label" for="password">密码</label>
                     <div class="auth-input-wrap" :class="{ 'has-error': !!errors.password }">
-                        <span class="auth-input-icon"><NIcon :size="18"><LockClosedOutline /></NIcon></span>
-                        <input id="password" v-model="formData.password" class="auth-input" :type="showPassword ? 'text' : 'password'" placeholder="至少 6 位，建议字母 + 数字" @blur="validateField('password')" />
+                        <span class="auth-input-icon">
+                            <NIcon :size="18"><LockClosedOutline /></NIcon>
+                        </span>
+                        <input
+                            id="password"
+                            v-model="formData.password"
+                            class="auth-input"
+                            :type="showPassword ? 'text' : 'password'"
+                            placeholder="至少 6 位，建议字母 + 数字"
+                            @blur="validateField('password')"
+                        />
                         <span class="auth-input-action" @click="showPassword = !showPassword">
-                            <NIcon :size="16"><EyeOffOutline v-if="showPassword" /><EyeOutline v-else /></NIcon>
+                            <NIcon :size="16">
+                                <EyeOffOutline v-if="showPassword" />
+                                <EyeOutline v-else />
+                            </NIcon>
                         </span>
                     </div>
                     <div v-if="errors.password" class="auth-error">{{ errors.password }}</div>
@@ -130,29 +221,58 @@
                 <div class="auth-field">
                     <label class="auth-label" for="confirm-password">确认密码</label>
                     <div class="auth-input-wrap" :class="{ 'has-error': !!errors.confirmPassword }">
-                        <span class="auth-input-icon"><NIcon :size="18"><ShieldCheckmarkOutline /></NIcon></span>
-                        <input id="confirm-password" v-model="formData.confirmPassword" class="auth-input" :type="showConfirmPassword ? 'text' : 'password'" placeholder="再次输入密码" @blur="validateField('confirmPassword')" @keydown.enter="handleRegister" />
-                        <span class="auth-input-action" @click="showConfirmPassword = !showConfirmPassword">
-                            <NIcon :size="16"><EyeOffOutline v-if="showConfirmPassword" /><EyeOutline v-else /></NIcon>
+                        <span class="auth-input-icon">
+                            <NIcon :size="18"><ShieldCheckmarkOutline /></NIcon>
+                        </span>
+                        <input
+                            id="confirm-password"
+                            v-model="formData.confirmPassword"
+                            class="auth-input"
+                            :type="showConfirmPassword ? 'text' : 'password'"
+                            placeholder="再次输入密码"
+                            @blur="validateField('confirmPassword')"
+                            @keydown.enter="handleRegister"
+                        />
+                        <span
+                            class="auth-input-action"
+                            @click="showConfirmPassword = !showConfirmPassword"
+                        >
+                            <NIcon :size="16">
+                                <EyeOffOutline v-if="showConfirmPassword" />
+                                <EyeOutline v-else />
+                            </NIcon>
                         </span>
                     </div>
-                    <div v-if="errors.confirmPassword" class="auth-error">{{ errors.confirmPassword }}</div>
+                    <div v-if="errors.confirmPassword" class="auth-error">
+                        {{ errors.confirmPassword }}
+                    </div>
                 </div>
 
                 <div class="auth-options">
                     <label class="auth-checkbox auth-agreement">
-                        <span class="auth-checkbox-box" :class="{ 'is-checked': formData.agreeToTerms }">
-                            <NIcon v-if="formData.agreeToTerms" :size="12"><CheckmarkOutline /></NIcon>
+                        <span
+                            class="auth-checkbox-box"
+                            :class="{ 'is-checked': formData.agreeToTerms }"
+                        >
+                            <NIcon v-if="formData.agreeToTerms" :size="12">
+                                <CheckmarkOutline />
+                            </NIcon>
                         </span>
                         <input v-model="formData.agreeToTerms" type="checkbox" hidden />
                         <span class="auth-agreement-text">
                             我已阅读并同意
-                            <button type="button" class="auth-link-btn" @click.stop>《用户协议》</button>
+                            <button type="button" class="auth-link-btn" @click.stop>
+                                《用户协议》
+                            </button>
                             和
-                            <button type="button" class="auth-link-btn" @click.stop>《隐私政策》</button>
+                            <button type="button" class="auth-link-btn" @click.stop>
+                                《隐私政策》
+                            </button>
                         </span>
                     </label>
-                    <div v-if="errors.agreeToTerms" class="auth-error">{{ errors.agreeToTerms }}</div>
+                    <div v-if="errors.agreeToTerms" class="auth-error">
+                        {{ errors.agreeToTerms }}
+                    </div>
                 </div>
 
                 <button
@@ -171,7 +291,9 @@
 
         <div class="auth-footer">
             <span class="auth-footer-text">已经有账户？</span>
-            <button type="button" class="auth-link-btn" @click="router.push('/login')">立即登录</button>
+            <button type="button" class="auth-link-btn" @click="router.push('/login')">
+                立即登录
+            </button>
         </div>
     </div>
 </template>
@@ -265,10 +387,13 @@ const validateField = (field: string) => {
             errors.real_name = formData.real_name.trim() ? '' : '请输入真实姓名';
             break;
         case 'email':
-            errors.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) ? '' : '请输入正确邮箱';
+            errors.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())
+                ? ''
+                : '请输入正确邮箱';
             break;
         case 'phone':
-            errors.phone = !formData.phone || /^1[3-9]\d{9}$/.test(formData.phone) ? '' : '手机号格式不正确';
+            errors.phone =
+                !formData.phone || /^1[3-9]\d{9}$/.test(formData.phone) ? '' : '手机号格式不正确';
             break;
         case 'college':
             errors.college = formData.college ? '' : '请选择学院';
@@ -286,7 +411,8 @@ const validateField = (field: string) => {
             }
             break;
         case 'confirmPassword':
-            errors.confirmPassword = formData.confirmPassword === formData.password ? '' : '两次输入的密码不一致';
+            errors.confirmPassword =
+                formData.confirmPassword === formData.password ? '' : '两次输入的密码不一致';
             break;
     }
 };

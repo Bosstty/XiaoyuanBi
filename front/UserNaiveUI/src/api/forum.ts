@@ -1,72 +1,114 @@
-import { apiClient } from './client'
-import type {
-  ForumPost,
-  CreateForumPostData,
-  ForumComment,
-  ForumPostFilters,
-  PaginatedResponse,
-  ApiResponse,
-} from '@/types'
+import { apiClient } from './client';
+import type { ApiResponse, CreateForumPostData, ForumComment, ForumPost } from '@/types';
+
+export interface ForumPagination {
+    current: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+}
+
+export interface ForumPostListResponse {
+    posts: ForumPost[];
+    pagination: ForumPagination;
+}
+
+export interface ForumCommentListResponse {
+    comments: ForumComment[];
+    pagination: ForumPagination;
+}
+
+export interface ForumPostQuery {
+    page?: number;
+    limit?: number;
+    category?: 'academic' | 'life' | 'campus' | 'task' | 'skill';
+    search?: string;
+    sort?: string;
+    order?: 'asc' | 'desc';
+    is_pinned?: boolean;
+    is_hot?: boolean;
+    status?: 'published' | 'draft' | 'pending_review' | 'rejected' | 'hidden';
+}
+
+export interface ForumCommentQuery {
+    page?: number;
+    limit?: number;
+    sort?: string;
+    order?: 'asc' | 'desc';
+}
+
+export interface ForumCategoryStat {
+    category: 'academic' | 'life' | 'campus' | 'task' | 'skill';
+    count: number;
+}
+
+export interface ForumCategoryStatsResponse {
+    stats: ForumCategoryStat[];
+}
 
 export class ForumApi {
-  // 获取帖子列表
-  static async getPosts(filters?: ForumPostFilters): Promise<ApiResponse<PaginatedResponse<ForumPost>>> {
-    return apiClient.get('/forum/posts', { params: filters })
-  }
+    static async getPosts(params?: ForumPostQuery): Promise<ApiResponse<ForumPostListResponse>> {
+        return apiClient.get('/forum', { params });
+    }
 
-  // 创建帖子
-  static async createPost(data: CreateForumPostData): Promise<ApiResponse<ForumPost>> {
-    return apiClient.post('/forum/posts', data)
-  }
+    static async getHotPosts(params?: { limit?: number }): Promise<ApiResponse<ForumPost[]>> {
+        return apiClient.get('/forum/hot', { params });
+    }
 
-  // 获取热门帖子
-  static async getHotPosts(filters?: ForumPostFilters): Promise<ApiResponse<PaginatedResponse<ForumPost>>> {
-    return apiClient.get('/forum/posts/hot', { params: filters })
-  }
+    static async getCategoryStats(): Promise<ApiResponse<ForumCategoryStatsResponse>> {
+        return apiClient.get('/forum/stats/categories');
+    }
 
-  // 获取帖子详情
-  static async getPost(id: number): Promise<ApiResponse<ForumPost>> {
-    return apiClient.get(`/forum/posts/${id}`)
-  }
+    static async getPost(id: number): Promise<ApiResponse<ForumPost>> {
+        return apiClient.get(`/forum/${id}`);
+    }
 
-  // 更新帖子
-  static async updatePost(id: number, data: Partial<CreateForumPostData>): Promise<ApiResponse<ForumPost>> {
-    return apiClient.put(`/forum/posts/${id}`, data)
-  }
+    static async createPost(data: CreateForumPostData): Promise<ApiResponse<ForumPost>> {
+        return apiClient.post('/forum', data);
+    }
 
-  // 删除帖子
-  static async deletePost(id: number): Promise<ApiResponse> {
-    return apiClient.delete(`/forum/posts/${id}`)
-  }
+    static async updatePost(
+        id: number,
+        data: Partial<CreateForumPostData>
+    ): Promise<ApiResponse<ForumPost>> {
+        return apiClient.put(`/forum/${id}`, data);
+    }
 
-  // 点赞帖子
-  static async likePost(id: number): Promise<ApiResponse<{ liked: boolean; like_count: number }>> {
-    return apiClient.post(`/forum/posts/${id}/like`)
-  }
+    static async deletePost(id: number): Promise<ApiResponse<null>> {
+        return apiClient.delete(`/forum/${id}`);
+    }
 
-  // 获取评论列表
-  static async getComments(
-    postId: number,
-    filters?: { page?: number; limit?: number }
-  ): Promise<ApiResponse<PaginatedResponse<ForumComment>>> {
-    return apiClient.get(`/forum/posts/${postId}/comments`, { params: filters })
-  }
+    static async likePost(id: number): Promise<ApiResponse<{ likeCount: number }>> {
+        return apiClient.post(`/forum/${id}/like`);
+    }
 
-  // 创建评论
-  static async createComment(
-    postId: number,
-    data: { content: string; parent_id?: number; reply_to_id?: number; images?: string[] }
-  ): Promise<ApiResponse<ForumComment>> {
-    return apiClient.post(`/forum/posts/${postId}/comments`, data)
-  }
+    static async getComments(
+        postId: number,
+        params?: ForumCommentQuery
+    ): Promise<ApiResponse<ForumCommentListResponse>> {
+        return apiClient.get(`/forum/${postId}/comments`, { params });
+    }
 
-  // 点赞评论
-  static async likeComment(commentId: number): Promise<ApiResponse<{ liked: boolean; like_count: number }>> {
-    return apiClient.post(`/forum/comments/${commentId}/like`)
-  }
+    static async createComment(
+        postId: number,
+        data: {
+            content: string;
+            parent_id?: number;
+            reply_to_id?: number;
+            images?: string[];
+            is_anonymous?: boolean;
+        }
+    ): Promise<ApiResponse<ForumComment>> {
+        return apiClient.post(`/forum/${postId}/comments`, data);
+    }
 
-  // 获取我的帖子
-  static async getMyPosts(filters?: ForumPostFilters): Promise<ApiResponse<PaginatedResponse<ForumPost>>> {
-    return apiClient.get('/forum/my/posts', { params: filters })
-  }
+    static async likeComment(commentId: number): Promise<ApiResponse<{ likeCount: number }>> {
+        return apiClient.post(`/forum/comments/${commentId}/like`);
+    }
+
+    static async getMyPosts(params?: ForumPostQuery): Promise<ApiResponse<ForumPostListResponse>> {
+        return apiClient.get('/forum/my/posts', { params });
+    }
 }
+
+export const forumApi = ForumApi;

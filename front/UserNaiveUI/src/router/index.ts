@@ -3,7 +3,6 @@ import type { RouteRecordRaw } from 'vue-router';
 import { useUserStore } from '@/stores';
 import MobileLayout from '@/layouts/MobileLayout.vue';
 
-// 路由配置
 const routes: RouteRecordRaw[] = [
     {
         path: '/',
@@ -82,10 +81,28 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '校园论坛', level: 0 },
             },
             {
+                path: 'forum/index',
+                name: 'ForumIndex',
+                component: () => import('@/views/forum/ForumIndex.vue'),
+                meta: { title: '论坛列表', level: 1, hideTabBar: true },
+            },
+            {
+                path: 'forum/create',
+                name: 'CreatePost',
+                component: () => import('@/views/forum/CreatePost.vue'),
+                meta: { title: '发布帖子', requiresAuth: true, level: 1, hideTabBar: true },
+            },
+            {
                 path: 'forum/my',
                 name: 'MyPosts',
                 component: () => import('@/views/forum/MyPosts.vue'),
-                meta: { title: '我的帖子', requiresAuth: true, level: 1 },
+                meta: { title: '我的帖子', requiresAuth: true, level: 1, hideTabBar: true },
+            },
+            {
+                path: 'forum/:id',
+                name: 'ForumPostDetail',
+                component: () => import('@/views/forum/PostDetail.vue'),
+                meta: { title: '帖子详情', level: 1, hideTabBar: true },
             },
             {
                 path: 'profile',
@@ -139,31 +156,26 @@ const routes: RouteRecordRaw[] = [
     },
 ];
 
-// 创建路由实例
 const router = createRouter({
     history: createWebHistory(),
     routes,
-    scrollBehavior(to, from, savedPosition) {
+    scrollBehavior(_to, _from, savedPosition) {
         if (savedPosition) {
             return savedPosition;
-        } else {
-            return { top: 0, behavior: 'smooth' };
         }
+
+        return { top: 0, behavior: 'smooth' };
     },
 });
 
-// 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
     const userStore = useUserStore();
 
-    // 设置页面标题
     if (to.meta.title) {
         document.title = `${to.meta.title} - 哈尔滨学院校园服务平台`;
     }
 
-    // 检查是否需要认证
     if (to.meta.requiresAuth && !userStore.isAuthenticated) {
-        console.log('  需要登录，重定向到登录页面');
         next({
             name: 'Login',
             query: { redirect: to.fullPath },
@@ -171,18 +183,12 @@ router.beforeEach((to, from, next) => {
         return;
     }
 
-    // 检查是否为访客页面（已登录用户不应该访问）
     if (to.meta.guest && userStore.isAuthenticated) {
-        console.log(' 已登录用户，重定向到首页');
         next({ name: 'Home' });
         return;
     }
 
     next();
-});
-
-router.afterEach((to, from) => {
-    console.log(` 路由跳转: ${from.path} -> ${to.path}`);
 });
 
 export default router;

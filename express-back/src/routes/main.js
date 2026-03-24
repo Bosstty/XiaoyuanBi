@@ -167,24 +167,29 @@ router.use('/api/admin', adminRoutes);
 // 客服端 API (Service Client)
 // ==============================
 const serviceRoutes = express.Router();
+const attachServiceContext = (req, res, next) => {
+    req.userRole = 'service';
+    req.serviceScopeId = 1;
+    next();
+};
 
 // 客服认证 - /api/service/auth/*
 serviceRoutes.use('/auth', require('./service/auth'));
 
 // 客服工单 - /api/service/tickets/*
-serviceRoutes.use('/tickets', require('./service/tickets'));
+serviceRoutes.use('/tickets', adminAuthMiddleware, attachServiceContext, require('./service/tickets'));
 
 // 客服聊天 - /api/service/chat/*
-serviceRoutes.use('/chat', require('./service/chat'));
+serviceRoutes.use('/chat', adminAuthMiddleware, attachServiceContext, require('./service/chat'));
 
 // 客服订单处理 - /api/service/orders/*
-serviceRoutes.use('/orders', require('./service/orders'));
+serviceRoutes.use('/orders', adminAuthMiddleware, attachServiceContext, require('./service/orders'));
 
 // 客服用户管理 - /api/service/users/*
-serviceRoutes.use('/users', require('./service/users'));
+serviceRoutes.use('/users', adminAuthMiddleware, attachServiceContext, require('./service/users'));
 
 // 客服配送员管理 - /api/service/deliverers/*
-serviceRoutes.use('/deliverers', require('./service/deliverers'));
+serviceRoutes.use('/deliverers', adminAuthMiddleware, attachServiceContext, require('./service/deliverers'));
 
 // 挂载客服端路由
 router.use('/api/service', serviceRoutes);

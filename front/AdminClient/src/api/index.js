@@ -275,7 +275,7 @@ export const forumManagementApi = {
   getPosts: (params) => apiClient.get('/admin/forum/posts', params),
   // 获取帖子详情
   getPostById: (id) => apiClient.get(`/admin/forum/posts/${id}`),
-  // 审核帖子 (action: approve/reject/hide/pin/unpin/highlight)
+  // 审核帖子 (action: approve/reject/hide/pin/unpin)
   moderatePost: (id, action, reason) =>
     apiClient.patch(`/admin/forum/posts/${id}/moderate`, { action, reason }),
   // 删除帖子
@@ -377,7 +377,7 @@ export const publicApi = {
   // 服务状态
   getServiceStatus: () => apiClient.get('/public/status'),
   // 文件上传
-  uploadFile: (formData) => apiClient.upload('/public/upload', formData),
+  uploadFile: (formData) => apiClient.upload('/public/upload/single', formData),
 }
 
 // =========================================

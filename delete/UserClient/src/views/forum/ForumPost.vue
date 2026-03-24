@@ -69,7 +69,12 @@
                 <van-button size="mini" @click="insertText('~~', '~~')" type="default" plain>
                   <s>S</s>
                 </van-button>
-                <van-button size="mini" @click="showEmojiPicker = !showEmojiPicker" type="default" plain>
+                <van-button
+                  size="mini"
+                  @click="showEmojiPicker = !showEmojiPicker"
+                  type="default"
+                  plain
+                >
                   😊
                 </van-button>
               </div>
@@ -138,9 +143,7 @@
             @keyup.enter="addTag"
           >
             <template #button>
-              <van-button size="small" @click="addTag" type="primary" plain>
-                添加
-              </van-button>
+              <van-button size="small" @click="addTag" type="primary" plain> 添加 </van-button>
             </template>
           </van-field>
 
@@ -204,7 +207,9 @@
                     </van-tag>
                     <div class="preview-meta">
                       <span class="preview-time">刚刚</span>
-                      <span class="preview-author">{{ postForm.is_anonymous ? '匿名用户' : '我' }}</span>
+                      <span class="preview-author">{{
+                        postForm.is_anonymous ? '匿名用户' : '我'
+                      }}</span>
                     </div>
                   </div>
                 </template>
@@ -292,12 +297,30 @@ const categories = [
   { id: 'life', name: '生活服务', icon: '🏠', description: '二手交易、失物招领' },
   { id: 'campus', name: '校园动态', icon: '🏫', description: '校园新闻、活动通知' },
   { id: 'task', name: '任务交流', icon: '💼', description: '任务讨论、经验分享' },
-  { id: 'skill', name: '技能分享', icon: '💡', description: '技能教学、知识分享' }
+  { id: 'skill', name: '技能分享', icon: '💡', description: '技能教学、知识分享' },
 ]
 
 const commonEmojis = [
-  '😊', '😂', '😍', '🤔', '😅', '😢', '😡', '👍', '👎', '❤️',
-  '🔥', '💯', '🎉', '👏', '🙏', '💪', '🤝', '✨', '⭐', '🌟'
+  '😊',
+  '😂',
+  '😍',
+  '🤔',
+  '😅',
+  '😢',
+  '😡',
+  '👍',
+  '👎',
+  '❤️',
+  '🔥',
+  '💯',
+  '🎉',
+  '👏',
+  '🙏',
+  '💪',
+  '🤝',
+  '✨',
+  '⭐',
+  '🌟',
 ]
 
 const postForm = ref({
@@ -307,15 +330,11 @@ const postForm = ref({
   images: [],
   tags: [],
   allow_comments: true,
-  is_anonymous: false
+  is_anonymous: false,
 })
 
 const isFormValid = computed(() => {
-  return (
-    postForm.value.category &&
-    postForm.value.title.trim() &&
-    postForm.value.content.trim()
-  )
+  return postForm.value.category && postForm.value.title.trim() && postForm.value.content.trim()
 })
 
 // 新增的方法
@@ -339,7 +358,7 @@ const onDeleteImage = (file, detail) => {
 }
 
 function getCategoryName(categoryId) {
-  const category = categories.find(cat => cat.id === categoryId)
+  const category = categories.find((cat) => cat.id === categoryId)
   return category ? category.name : categoryId
 }
 
@@ -349,7 +368,7 @@ function getSuggestedTags() {
     life: ['二手', '代购', '拼单', '失物', '招领', '租房'],
     campus: ['活动', '讲座', '比赛', '社团', '通知', '新闻'],
     task: ['兼职', '合作', '技能', '经验', '心得', '求助'],
-    skill: ['教程', '分享', '工具', '资源', '技巧', '学习']
+    skill: ['教程', '分享', '工具', '资源', '技巧', '学习'],
   }
   return tagsByCategory[postForm.value.category] || []
 }
@@ -363,7 +382,6 @@ function insertEmoji(emoji) {
   postForm.value.content += emoji
   showEmojiPicker.value = false
 }
-
 
 function addTag() {
   const tag = newTag.value.trim()
@@ -403,7 +421,7 @@ async function handleSubmit(values) {
   try {
     await forumStore.createPost({
       ...postForm.value,
-      status: 'published'
+      status: 'published',
     })
 
     showToast('发布成功')
@@ -418,7 +436,7 @@ async function saveDraft() {
   try {
     await forumStore.createPost({
       ...postForm.value,
-      status: 'draft'
+      status: 'draft',
     })
 
     showToast('保存草稿成功')

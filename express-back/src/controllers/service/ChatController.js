@@ -22,6 +22,7 @@ const hasConversationAccess = (conversation, userId, userRole = 'user') => {
 };
 
 const getSenderType = req => (req.userRole === 'service' ? 'service' : 'user');
+const getServiceScopeId = req => req.serviceScopeId || req.user?.id || DEFAULT_SERVICE_ID;
 
 const getReceiverType = (conversation, req) => {
     if (req.userRole === 'service') {
@@ -35,7 +36,49 @@ const getReceiverType = (conversation, req) => {
     return 'user';
 };
 
-const resolvePartnerInfo = async (conversation, currentUserId) => {
+const resolvePartnerInfo = async (conversation, currentUserId, currentUserRole = 'user') => {
+    if (currentUserRole === 'service') {
+        if (conversation.type === 'deliverer_service' && conversation.deliverer_id) {
+            const deliverer = await Deliverer.findByPk(conversation.deliverer_id, {
+                include: [
+                    {
+                        model: User,
+                        as: 'user',
+                        attributes: ['id', 'username', 'real_name', 'avatar'],
+                    },
+                ],
+            });
+
+            if (deliverer) {
+                return {
+                    id: deliverer.user?.id || deliverer.id,
+                    name:
+                        deliverer.user?.real_name ||
+                        deliverer.user?.username ||
+                        deliverer.real_name ||
+                        '配送员',
+                    avatar: deliverer.user?.avatar || null,
+                    role: '配送员',
+                };
+            }
+        }
+
+        if (conversation.user_id) {
+            const user = await User.findByPk(conversation.user_id, {
+                attributes: ['id', 'username', 'real_name', 'avatar'],
+            });
+
+            if (user) {
+                return {
+                    id: user.id,
+                    name: user.real_name || user.username || '用户',
+                    avatar: user.avatar || null,
+                    role: '用户',
+                };
+            }
+        }
+    }
+
     if (conversation.type === 'user_service' || conversation.type === 'deliverer_service') {
         return {
             id: DEFAULT_SERVICE_ID,
@@ -111,9 +154,13 @@ const resolvePartnerInfo = async (conversation, currentUserId) => {
     };
 };
 
-const decorateConversation = async (conversation, currentUserId) => {
+const decorateConversation = async (conversation, currentUserId, currentUserRole = 'user') => {
     const conversationData = conversation.toJSON();
-    conversationData.partner = await resolvePartnerInfo(conversationData, currentUserId);
+    conversationData.partner = await resolvePartnerInfo(
+        conversationData,
+        currentUserId,
+        currentUserRole
+    );
     return conversationData;
 };
 
@@ -222,7 +269,7 @@ class ServiceChatController {
                 });
             }
 
-            const data = await decorateConversation(conversation, currentUserId);
+            const data = await decorateConversation(conversation, currentUserId, req.userRole);
 
             res.status(201).json({
                 success: true,
@@ -242,7 +289,7 @@ class ServiceChatController {
     async getConversations(req, res) {
         try {
             const { page = 1, limit = 20 } = req.query;
-            const serviceId = req.user?.id || DEFAULT_SERVICE_ID;
+            const serviceId = getServiceScopeId(req);
 
             const { count, rows } = await ChatConversation.findAndCountAll({
                 where: {
@@ -257,7 +304,9 @@ class ServiceChatController {
             });
 
             const conversations = await Promise.all(
-                rows.map(async conversation => decorateConversation(conversation, serviceId))
+                rows.map(async conversation =>
+                    decorateConversation(conversation, serviceId, req.userRole)
+                )
             );
 
             res.json({
@@ -304,7 +353,7 @@ class ServiceChatController {
                 limit: 100,
             });
 
-            const data = await decorateConversation(conversation, currentUserId);
+            const data = await decorateConversation(conversation, currentUserId, req.userRole);
             data.messages = messages;
 
             res.json({
@@ -510,7 +559,7 @@ class ServiceChatController {
 
             const result = await Promise.all(
                 conversations.map(async conversation => {
-                    const data = await decorateConversation(conversation, userId);
+                    const data = await decorateConversation(conversation, userId, req.userRole);
                     data.unread_count = await ChatMessage.count({
                         where: {
                             conversation_id: conversation.id,

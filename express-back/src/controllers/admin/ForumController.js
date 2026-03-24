@@ -172,7 +172,7 @@ class ForumController {
         });
       }
 
-      const allowedActions = ['approve', 'reject', 'hide', 'pin', 'unpin', 'highlight'];
+      const allowedActions = ['approve', 'reject', 'hide', 'pin', 'unpin', 'restore'];
       if (!allowedActions.includes(action)) {
         return res.status(400).json({
           success: false,
@@ -204,7 +204,7 @@ class ForumController {
           break;
         case 'hide':
           post.status = 'hidden';
-          post.hideReason = reason;
+          post.rejectReason = reason;
           post.hiddenAt = new Date();
           post.hiddenBy = adminUser.id;
           break;
@@ -216,10 +216,11 @@ class ForumController {
         case 'unpin':
           post.isPinned = false;
           break;
-        case 'highlight':
-          post.isHighlighted = true;
-          post.highlightedAt = new Date();
-          post.highlightedBy = adminUser.id;
+        case 'restore':
+          post.status = 'published';
+          post.rejectReason = null;
+          post.hiddenAt = null;
+          post.hiddenBy = null;
           break;
       }
 
@@ -280,11 +281,10 @@ class ForumController {
       }
 
       // 软删除
-      post.status = 'deleted';
-      post.deleteReason = reason;
-      post.deletedAt = new Date();
-      post.deletedBy = adminUser.id;
-      post.isDeleted = true;
+      post.status = 'hidden';
+      post.rejectReason = reason;
+      post.hiddenAt = new Date();
+      post.hiddenBy = adminUser.id;
 
       await post.save();
 
@@ -413,11 +413,10 @@ class ForumController {
       }
 
       // 软删除
-      comment.status = 'deleted';
-      comment.deleteReason = reason;
-      comment.deletedAt = new Date();
-      comment.deletedBy = adminUser.id;
-      comment.isDeleted = true;
+      comment.status = 'hidden';
+      comment.rejectReason = reason;
+      comment.hiddenAt = new Date();
+      comment.hiddenBy = adminUser.id;
 
       await comment.save();
 
@@ -576,15 +575,15 @@ class ForumController {
       if (action === 'accept') {
         if (report.type === 'post' && report.post) {
           report.post.status = 'hidden';
-          report.post.hideReason = `举报处理: ${reason}`;
+          report.post.rejectReason = `举报处理: ${reason}`;
           report.post.hiddenBy = adminUser.id;
           report.post.hiddenAt = new Date();
           await report.post.save();
         } else if (report.type === 'comment' && report.comment) {
-          report.comment.status = 'deleted';
-          report.comment.deleteReason = `举报处理: ${reason}`;
-          report.comment.deletedBy = adminUser.id;
-          report.comment.deletedAt = new Date();
+          report.comment.status = 'hidden';
+          report.comment.rejectReason = `举报处理: ${reason}`;
+          report.comment.hiddenBy = adminUser.id;
+          report.comment.hiddenAt = new Date();
           await report.comment.save();
         }
 

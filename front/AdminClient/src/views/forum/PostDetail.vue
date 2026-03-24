@@ -35,24 +35,24 @@
                 <el-tag :type="getStatusTagType(post.status)" effect="light">
                   {{ getStatusText(post.status) }}
                 </el-tag>
-                <el-tag v-if="post.is_pinned" type="danger" effect="dark">置顶</el-tag>
-                <el-tag v-if="post.is_hot" type="warning" effect="dark">热门</el-tag>
-                <el-tag v-if="post.is_anonymous" type="info" effect="plain">匿名</el-tag>
+                <el-tag v-if="post.isPinned" type="danger" effect="dark">置顶</el-tag>
+                <el-tag v-if="post.isHot" type="warning" effect="dark">热门</el-tag>
+                <el-tag v-if="post.isAnonymous" type="info" effect="plain">匿名</el-tag>
               </div>
             </div>
           </div>
           <div class="summary-right">
             <div class="stats-display">
               <div class="stat-item">
-                <span class="stat-value">{{ post.view_count }}</span>
+                <span class="stat-value">{{ post.viewCount }}</span>
                 <span class="stat-label">浏览</span>
               </div>
               <div class="stat-item">
-                <span class="stat-value">{{ post.like_count }}</span>
+                <span class="stat-value">{{ post.likeCount }}</span>
                 <span class="stat-label">点赞</span>
               </div>
               <div class="stat-item">
-                <span class="stat-value">{{ post.comment_count }}</span>
+                <span class="stat-value">{{ post.commentCount }}</span>
                 <span class="stat-label">评论</span>
               </div>
             </div>
@@ -79,13 +79,13 @@
                 </el-tag>
               </el-descriptions-item>
               <el-descriptions-item label="是否置顶">
-                {{ post.is_pinned ? '是' : '否' }}
+                {{ post.isPinned ? '是' : '否' }}
               </el-descriptions-item>
               <el-descriptions-item label="是否热门">
-                {{ post.is_hot ? '是' : '否' }}
+                {{ post.isHot ? '是' : '否' }}
               </el-descriptions-item>
               <el-descriptions-item label="是否匿名">
-                {{ post.is_anonymous ? '是' : '否' }}
+                {{ post.isAnonymous ? '是' : '否' }}
               </el-descriptions-item>
               <el-descriptions-item label="举报次数">
                 <span :class="{ 'text-danger': post.reportCount > 0 }">{{ post.reportCount }}</span>
@@ -97,10 +97,10 @@
                 {{ formatDateTime(post.updatedAt) }}
               </el-descriptions-item>
               <el-descriptions-item label="最后评论时间" :span="2">
-                {{ post.last_comment_time ? formatDateTime(post.last_comment_time) : '暂无评论' }}
+                {{ post.lastCommentTime ? formatDateTime(post.lastCommentTime) : '暂无评论' }}
               </el-descriptions-item>
-              <el-descriptions-item v-if="post.reject_reason" label="拒绝原因" :span="2">
-                <span class="text-danger">{{ post.reject_reason }}</span>
+              <el-descriptions-item v-if="post.rejectReason" label="拒绝/隐藏原因" :span="2">
+                <span class="text-danger">{{ post.rejectReason }}</span>
               </el-descriptions-item>
             </el-descriptions>
           </el-card>
@@ -188,7 +188,7 @@
                 {{ post.author.username?.charAt(0) }}
               </el-avatar>
               <div class="author-details">
-                <div class="author-name">{{ post.author.real_name || post.author.username }}</div>
+                <div class="author-name">{{ post.author.realName || post.author.username }}</div>
                 <div class="author-meta">
                   <span
                     ><el-icon><User /></el-icon> 用户名: {{ post.author.username }}</span
@@ -197,7 +197,7 @@
                 <div class="author-meta">
                   <span
                     ><el-icon><Tickets /></el-icon> 学号:
-                    {{ post.author.student_id || '未填写' }}</span
+                    {{ post.author.studentId || '未填写' }}</span
                   >
                 </div>
                 <div class="author-meta">
@@ -231,7 +231,7 @@
                   </el-avatar>
                   <div class="comment-author">
                     <div class="author-name">
-                      {{ comment.author?.real_name || comment.author?.username || '匿名用户' }}
+                      {{ comment.author?.realName || comment.author?.username || '匿名用户' }}
                     </div>
                     <div class="comment-time">{{ formatDateTime(comment.created_at) }}</div>
                   </div>
@@ -333,25 +333,25 @@ const fetchPostDetail = async () => {
       tags: null,
       images: null,
       attachments: null,
-      is_anonymous: false,
-      is_pinned: false,
-      is_hot: false,
+      isAnonymous: false,
+      isPinned: false,
+      isHot: false,
       status: 'published',
-      view_count: 63,
-      like_count: 29,
-      comment_count: 0,
-      share_count: 0,
-      last_comment_time: null,
-      reject_reason: null,
+      viewCount: 63,
+      likeCount: 29,
+      commentCount: 0,
+      shareCount: 0,
+      lastCommentTime: null,
+      rejectReason: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       author: {
         id: 1,
         username: 'zhangsan',
-        real_name: '张三',
+        realName: '张三',
         avatar: null,
         phone: '13887113961',
-        student_id: '20240001',
+        studentId: '20240001',
       },
       comments: [],
       reportCount: 0,
