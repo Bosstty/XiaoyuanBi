@@ -6,7 +6,11 @@
                 <h1>校园论坛</h1>
                 <p>承接校园动态、经验分享、服务信息和技能文章，让内容成为交易与互助的补充场。</p>
             </div>
-            <button type="button" class="campus-forum__hero-btn touch-feedback" @click="go('/forum/create')">
+            <button
+                type="button"
+                class="campus-forum__hero-btn touch-feedback"
+                @click="go('/forum/create')"
+            >
                 发帖子
             </button>
         </section>
@@ -46,25 +50,42 @@
                 >
                     <div class="campus-forum__post-top">
                         <div class="campus-forum__post-tag">
-                            <NIcon :size="16"><component :is="getSectionIcon(post.sectionId)" /></NIcon>
+                            <NIcon :size="16">
+                                <component :is="getSectionIcon(post.sectionId)" />
+                            </NIcon>
                             <span>{{ getSectionName(post.sectionId) }}</span>
                         </div>
                         <div class="campus-forum__badge-group">
-                            <NTag v-if="post.isTop" size="small" type="warning" :bordered="false">置顶</NTag>
-                            <NTag v-if="post.isHot" size="small" type="error" :bordered="false">热门</NTag>
+                            <NTag v-if="post.isTop" size="small" type="warning" :bordered="false">
+                                置顶
+                            </NTag>
+                            <NTag v-if="post.isHot" size="small" type="error" :bordered="false">
+                                热门
+                            </NTag>
                         </div>
                     </div>
                     <h4>{{ post.title }}</h4>
                     <p>{{ post.excerpt }}</p>
                     <div class="campus-forum__post-footer">
                         <div class="campus-forum__author">
-                            <div class="campus-forum__author-avatar">{{ post.author.name.slice(0, 1) }}</div>
+                            <div class="campus-forum__author-avatar">
+                                {{ post.author.name.slice(0, 1) }}
+                            </div>
                             <span>{{ post.author.name }}</span>
                         </div>
                         <div class="campus-forum__post-stats">
-                            <span><NIcon :size="14"><EyeIcon /></NIcon>{{ post.views }}</span>
-                            <span><NIcon :size="14"><ChatIcon /></NIcon>{{ post.replies }}</span>
-                            <span><NIcon :size="14"><HeartIcon /></NIcon>{{ post.likes }}</span>
+                            <span>
+                                <NIcon :size="14"><EyeIcon /></NIcon>
+                                {{ post.views }}
+                            </span>
+                            <span>
+                                <NIcon :size="14"><ChatIcon /></NIcon>
+                                {{ post.replies }}
+                            </span>
+                            <span>
+                                <NIcon :size="14"><HeartIcon /></NIcon>
+                                {{ post.likes }}
+                            </span>
                         </div>
                     </div>
                 </article>
@@ -76,7 +97,11 @@
                 <h3>论坛热度</h3>
             </div>
             <div class="campus-forum__stats-grid">
-                <article v-for="stat in forumStats" :key="stat.key" class="campus-forum__stats-card">
+                <article
+                    v-for="stat in forumStats"
+                    :key="stat.key"
+                    class="campus-forum__stats-card"
+                >
                     <strong :style="{ color: stat.color }">{{ stat.value }}</strong>
                     <h4>{{ stat.label }}</h4>
                     <p>{{ stat.note }}</p>
@@ -89,7 +114,11 @@
                 <h3>最新动态</h3>
             </div>
             <div class="campus-forum__activity-list">
-                <article v-for="activity in recentActivities" :key="activity.id" class="campus-forum__activity-card">
+                <article
+                    v-for="activity in recentActivities"
+                    :key="activity.id"
+                    class="campus-forum__activity-card"
+                >
                     <div class="campus-forum__activity-icon">
                         <NIcon :size="18"><component :is="activity.icon" /></NIcon>
                     </div>
@@ -132,10 +161,46 @@ const router = useRouter();
 const appStore = useAppStore();
 
 const forumSections = [
-    { id: 1, name: '学术交流', description: '课程讨论、资料与学习心得', icon: StudyIcon, route: '/forum/index?section=academic', postCount: 1248, memberCount: 892, tint: 'linear-gradient(135deg, rgba(47,107,255,0.16), rgba(75,184,255,0.18))' },
-    { id: 2, name: '生活服务', description: '二手交易、失物招领、生活互助', icon: LifeIcon, route: '/forum/index?section=life', postCount: 856, memberCount: 1156, tint: 'linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))' },
-    { id: 3, name: '校园动态', description: '通知、活动、社团新鲜事', icon: NewsIcon, route: '/forum/index?section=news', postCount: 432, memberCount: 2341, tint: 'linear-gradient(135deg, rgba(25,179,107,0.18), rgba(75,184,255,0.12))' },
-    { id: 4, name: '技能分享', description: '技术经验、创作心得、方法论', icon: TechIcon, route: '/forum/index?section=tech', postCount: 674, memberCount: 587, tint: 'linear-gradient(135deg, rgba(111,95,255,0.14), rgba(75,184,255,0.12))' },
+    {
+        id: 1,
+        name: '学术交流',
+        description: '课程讨论、资料与学习心得',
+        icon: StudyIcon,
+        route: '/forum/index?section=academic',
+        postCount: 1248,
+        memberCount: 892,
+        tint: 'linear-gradient(135deg, rgba(47,107,255,0.16), rgba(75,184,255,0.18))',
+    },
+    {
+        id: 2,
+        name: '生活服务',
+        description: '二手交易、失物招领、生活互助',
+        icon: LifeIcon,
+        route: '/forum/index?section=life',
+        postCount: 856,
+        memberCount: 1156,
+        tint: 'linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))',
+    },
+    {
+        id: 3,
+        name: '校园动态',
+        description: '通知、活动、社团新鲜事',
+        icon: NewsIcon,
+        route: '/forum/index?section=news',
+        postCount: 432,
+        memberCount: 2341,
+        tint: 'linear-gradient(135deg, rgba(25,179,107,0.18), rgba(75,184,255,0.12))',
+    },
+    {
+        id: 4,
+        name: '技能分享',
+        description: '技术经验、创作心得、方法论',
+        icon: TechIcon,
+        route: '/forum/index?section=tech',
+        postCount: 674,
+        memberCount: 587,
+        tint: 'linear-gradient(135deg, rgba(111,95,255,0.14), rgba(75,184,255,0.12))',
+    },
 ];
 
 const hotPosts = ref([
@@ -178,16 +243,58 @@ const hotPosts = ref([
 ]);
 
 const forumStats = ref([
-    { key: 'posts', label: '总帖数', value: '3.2k', color: '#2F6BFF', note: '服务信息和经验帖持续增长' },
-    { key: 'members', label: '活跃用户', value: '1.8k', color: '#19B36B', note: '夜间和考试周互动更集中' },
-    { key: 'today', label: '今日发帖', value: '89', color: '#FF9B3D', note: '校园动态与技能分享最活跃' },
-    { key: 'hot', label: '热帖峰值', value: '236', color: '#17304F', note: '最高单帖互动仍有提升空间' },
+    {
+        key: 'posts',
+        label: '总帖数',
+        value: '3.2k',
+        color: '#2F6BFF',
+        note: '服务信息和经验帖持续增长',
+    },
+    {
+        key: 'members',
+        label: '活跃用户',
+        value: '1.8k',
+        color: '#19B36B',
+        note: '夜间和考试周互动更集中',
+    },
+    {
+        key: 'today',
+        label: '今日发帖',
+        value: '89',
+        color: '#FF9B3D',
+        note: '校园动态与技能分享最活跃',
+    },
+    {
+        key: 'hot',
+        label: '热帖峰值',
+        value: '236',
+        color: '#17304F',
+        note: '最高单帖互动仍有提升空间',
+    },
 ]);
 
 const recentActivities = ref([
-    { id: 1, title: '张同学发布了新帖子', description: '《期末复习资料分享》正在快速传播。', extra: '5 分钟前', icon: ForumIcon },
-    { id: 2, title: '生活服务板块出现热帖', description: '快递驿站高峰避雷帖已被大量收藏。', extra: '15 分钟前', icon: FlashIcon },
-    { id: 3, title: '校园动态更新', description: '社团节活动安排和报名链接已同步。', extra: '1 小时前', icon: NewsIcon },
+    {
+        id: 1,
+        title: '张同学发布了新帖子',
+        description: '《期末复习资料分享》正在快速传播。',
+        extra: '5 分钟前',
+        icon: ForumIcon,
+    },
+    {
+        id: 2,
+        title: '生活服务板块出现热帖',
+        description: '快递驿站高峰避雷帖已被大量收藏。',
+        extra: '15 分钟前',
+        icon: FlashIcon,
+    },
+    {
+        id: 3,
+        title: '校园动态更新',
+        description: '社团节活动安排和报名链接已同步。',
+        extra: '1 小时前',
+        icon: NewsIcon,
+    },
 ]);
 
 const getSectionIcon = (sectionId: number) => {

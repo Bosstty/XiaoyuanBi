@@ -11,37 +11,13 @@
     <!-- 搜索筛选 -->
     <el-card class="search-card" shadow="never">
       <el-form :model="searchForm" inline class="search-form">
-        <el-form-item label="用户名">
+        <el-form-item label="关键词搜索">
           <el-input
-            v-model="searchForm.username"
-            placeholder="请输入用户名"
+            v-model="searchForm.search"
+            placeholder="用户名/姓名/学号/邮箱"
             clearable
             prefix-icon="Search"
-            style="width: 160px"
-          />
-        </el-form-item>
-        <el-form-item label="学号">
-          <el-input
-            v-model="searchForm.student_id"
-            placeholder="请输入学号"
-            clearable
-            style="width: 140px"
-          />
-        </el-form-item>
-        <el-form-item label="姓名">
-          <el-input
-            v-model="searchForm.real_name"
-            placeholder="请输入姓名"
-            clearable
-            style="width: 120px"
-          />
-        </el-form-item>
-        <el-form-item label="手机号">
-          <el-input
-            v-model="searchForm.phone"
-            placeholder="请输入手机号"
-            clearable
-            style="width: 130px"
+            style="width: 200px"
           />
         </el-form-item>
         <el-form-item label="状态">
@@ -53,7 +29,7 @@
           >
             <el-option label="全部" value="" />
             <el-option label="正常" value="active" />
-            <el-option label="禁用" value="disabled" />
+            <el-option label="禁用" value="inactive" />
           </el-select>
         </el-form-item>
         <el-form-item label="学生认证">
@@ -67,6 +43,14 @@
             <el-option label="已认证" value="true" />
             <el-option label="未认证" value="false" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="学院">
+          <el-input
+            v-model="searchForm.college"
+            placeholder="请输入学院"
+            clearable
+            style="width: 140px"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">
@@ -151,9 +135,13 @@
                       <el-icon><Lock /></el-icon>
                       {{ row.status === 'active' ? '禁用' : '启用' }}
                     </el-dropdown-item>
-                    <el-dropdown-item command="delete" divided>
-                      <el-icon><Delete /></el-icon>
-                      删除
+                    <el-dropdown-item :command="row.student_verified ? 'unverify' : 'verify'">
+                      <el-icon><Tickets /></el-icon>
+                      {{ row.student_verified ? '取消认证' : '认证学生' }}
+                    </el-dropdown-item>
+                    <el-dropdown-item command="resetPassword" divided>
+                      <el-icon><Key /></el-icon>
+                      重置密码
                     </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -187,17 +175,21 @@
             已选择 <strong>{{ selectedUsers.length }}</strong> 个用户
           </div>
           <div class="batch-buttons">
-            <el-button type="warning" size="small" @click="handleBatchFreeze">
-              <el-icon><Lock /></el-icon>
-              批量冻结
-            </el-button>
-            <el-button type="success" size="small" @click="handleBatchUnfreeze">
+            <el-button type="success" size="small" @click="handleBatchAction('activate')">
               <el-icon><Unlock /></el-icon>
-              批量解冻
+              批量启用
             </el-button>
-            <el-button type="danger" size="small" @click="handleBatchDelete">
-              <el-icon><Delete /></el-icon>
-              批量删除
+            <el-button type="warning" size="small" @click="handleBatchAction('deactivate')">
+              <el-icon><Lock /></el-icon>
+              批量禁用
+            </el-button>
+            <el-button type="primary" size="small" @click="handleBatchAction('verify')">
+              <el-icon><Tickets /></el-icon>
+              批量认证
+            </el-button>
+            <el-button type="info" size="small" @click="handleBatchAction('unverify')">
+              <el-icon><Close /></el-icon>
+              批量取消认证
             </el-button>
           </div>
         </div>
@@ -215,9 +207,11 @@ import {
   Search,
   RefreshRight,
   Lock,
-  Delete,
   InfoFilled,
   Unlock,
+  Tickets,
+  Key,
+  Close,
 } from '@element-plus/icons-vue'
 import { userManagementApi } from '../../api/index.js'
 
@@ -228,12 +222,10 @@ const userList = ref([])
 const selectedUsers = ref([])
 
 const searchForm = reactive({
-  username: '',
-  student_id: '',
-  real_name: '',
-  phone: '',
+  search: '',
   status: '',
   student_verified: '',
+  college: '',
 })
 
 const pagination = reactive({
@@ -257,7 +249,7 @@ const fetchUsers = async () => {
 
     const params = {
       page: pagination.page,
-      pageSize: pagination.pageSize,
+      limit: pagination.pageSize,
       ...searchParams,
     }
 
@@ -307,13 +299,19 @@ const handleView = (user) => {
 const handleAction = async (command, user) => {
   switch (command) {
     case 'freeze':
-      await handleStatusChange(user, 'disabled')
+      await handleStatusChange(user, 'inactive')
       break
     case 'unfreeze':
       await handleStatusChange(user, 'active')
       break
-    case 'delete':
-      await handleDelete(user)
+    case 'verify':
+      await handleVerifyStudent(user, true)
+      break
+    case 'unverify':
+      await handleVerifyStudent(user, false)
+      break
+    case 'resetPassword':
+      await handleResetPassword(user)
       break
   }
 }
@@ -321,7 +319,7 @@ const handleAction = async (command, user) => {
 // 状态变更
 const handleStatusChange = async (user, status) => {
   try {
-    const action = status === 'frozen' ? '冻结' : '解冻'
+    const action = status === 'inactive' ? '禁用' : '启用'
     await ElMessageBox.confirm(`确定要${action}用户 "${user.username}" 吗？`, '确认操作', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
@@ -350,7 +348,10 @@ const handleResetPassword = async (user) => {
       type: 'warning',
     })
 
-    ElMessage.info('重置密码功能开发中...')
+    const response = await userManagementApi.resetUserPassword(user.id)
+    if (response.success) {
+      ElMessage.success('密码重置成功')
+    }
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('重置密码失败')
@@ -358,28 +359,29 @@ const handleResetPassword = async (user) => {
   }
 }
 
-// 删除用户
-const handleDelete = async (user) => {
+// 认证学生身份
+const handleVerifyStudent = async (user, verified) => {
   try {
+    const action = verified ? '认证' : '取消认证'
     await ElMessageBox.confirm(
-      `确定要删除用户 "${user.username}" 吗？此操作不可恢复！`,
-      '危险操作',
+      `确定要${action}用户 "${user.username}" 的学生身份吗？`,
+      '确认操作',
       {
-        confirmButtonText: '确定删除',
+        confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'error',
+        type: 'warning',
       },
     )
 
-    const response = await userManagementApi.deleteUser(user.id)
+    const response = await userManagementApi.verifyStudent(user.id, { verified })
     if (response.success) {
-      ElMessage.success('删除成功')
+      ElMessage.success(`${action}成功`)
       fetchUsers()
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('删除用户失败:', error)
-      ElMessage.error('删除失败')
+      console.error('认证失败:', error)
+      ElMessage.error('操作失败')
     }
   }
 }
@@ -390,28 +392,38 @@ const handleSelectionChange = (selection) => {
 }
 
 // 批量操作
-const handleBatchFreeze = async () => {
-  ElMessage.info('批量冻结功能开发中...')
-}
-
-const handleBatchUnfreeze = async () => {
-  ElMessage.info('批量解冻功能开发中...')
-}
-
-const handleBatchDelete = async () => {
+const handleBatchAction = async (action) => {
   try {
+    const actionText = {
+      activate: '启用',
+      deactivate: '禁用',
+      verify: '认证',
+      unverify: '取消认证',
+    }
+    const actionLabel = actionText[action] || action
+
     await ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedUsers.value.length} 个用户吗？此操作不可恢复！`,
-      '危险操作',
+      `确定要${actionLabel}选中的 ${selectedUsers.value.length} 个用户吗？`,
+      '确认操作',
       {
-        confirmButtonText: '确定删除',
+        confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'error',
+        type: 'warning',
       },
     )
-    ElMessage.info('批量删除功能开发中...')
+
+    const userIds = selectedUsers.value.map((u) => u.id)
+    const response = await userManagementApi.batchUpdateUsers({ user_ids: userIds, action })
+    if (response.success) {
+      ElMessage.success(`批量${actionLabel}成功`)
+      selectedUsers.value = []
+      fetchUsers()
+    }
   } catch (error) {
-    console.log(error)
+    if (error !== 'cancel') {
+      console.error('批量操作失败:', error)
+      ElMessage.error('操作失败')
+    }
   }
 }
 
@@ -449,8 +461,7 @@ const getUserTypeText = (role) => {
 const getStatusTagType = (status) => {
   const types = {
     active: 'success',
-    frozen: 'warning',
-    disabled: 'danger',
+    inactive: 'danger',
   }
   return types[status] || 'info'
 }
@@ -458,14 +469,20 @@ const getStatusTagType = (status) => {
 const getStatusText = (status) => {
   const texts = {
     active: '正常',
-    frozen: '冻结',
-    disabled: '禁用',
+    inactive: '禁用',
   }
   return texts[status] || '未知'
 }
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleString('zh-CN')
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return ''
+    return date.toLocaleString('zh-CN')
+  } catch {
+    return dateString
+  }
 }
 
 onMounted(() => {
@@ -590,11 +607,7 @@ onMounted(() => {
   background: var(--accent-success);
 }
 
-.status-dot.frozen {
-  background: var(--accent-warning);
-}
-
-.status-dot.disabled {
+.status-dot.inactive {
   background: var(--accent-danger);
 }
 

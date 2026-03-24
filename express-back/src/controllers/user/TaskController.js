@@ -7,7 +7,75 @@ class TaskController {
     static async createTask(req, res) {
         try {
             const userId = req.user.id;
-            const taskData = req.body;
+            const {
+                category,
+                title,
+                description,
+                requirements,
+                tags,
+                skills_required,
+                price,
+                location,
+                start_time,
+                deadline,
+                estimated_duration,
+                max_applicants,
+                urgent,
+                remote_work,
+                images,
+                attachments,
+            } = req.body;
+
+            const validCategories = ['study', 'design', 'tech', 'writing', 'life'];
+
+            if (!validCategories.includes(category)) {
+                return res.status(400).json(responseUtils.error('任务分类不正确'));
+            }
+
+            if (!title || !String(title).trim()) {
+                return res.status(400).json(responseUtils.error('任务标题不能为空'));
+            }
+
+            if (!description || !String(description).trim()) {
+                return res.status(400).json(responseUtils.error('任务描述不能为空'));
+            }
+
+            if (!price || Number(price) <= 0) {
+                return res.status(400).json(responseUtils.error('任务报酬必须大于0'));
+            }
+
+            if (!deadline) {
+                return res.status(400).json(responseUtils.error('截止时间不能为空'));
+            }
+
+            const deadlineDate = new Date(deadline);
+            if (Number.isNaN(deadlineDate.getTime())) {
+                return res.status(400).json(responseUtils.error('截止时间格式不正确'));
+            }
+
+            if (deadlineDate <= new Date()) {
+                return res.status(400).json(responseUtils.error('截止时间必须晚于当前时间'));
+            }
+
+            let startTimeDate = null;
+            if (start_time) {
+                startTimeDate = new Date(start_time);
+                if (Number.isNaN(startTimeDate.getTime())) {
+                    return res.status(400).json(responseUtils.error('开始时间格式不正确'));
+                }
+
+                if (startTimeDate > deadlineDate) {
+                    return res.status(400).json(responseUtils.error('开始时间不能晚于截止时间'));
+                }
+            }
+
+            if (max_applicants !== undefined && Number(max_applicants) < 1) {
+                return res.status(400).json(responseUtils.error('最大申请人数不能小于1'));
+            }
+
+            if (estimated_duration !== undefined && Number(estimated_duration) < 1) {
+                return res.status(400).json(responseUtils.error('预计时长不能小于1小时'));
+            }
 
             // 生成任务号
             const taskNo = orderUtils.generateOrderNo('TK');
@@ -15,7 +83,23 @@ class TaskController {
             const task = await Task.create({
                 task_no: taskNo,
                 publisher_id: userId,
-                ...taskData,
+                category,
+                title: String(title).trim(),
+                description: String(description).trim(),
+                requirements: requirements ? String(requirements).trim() : null,
+                tags: Array.isArray(tags) ? tags : null,
+                skills_required: Array.isArray(skills_required) ? skills_required : null,
+                price: Number(price),
+                location: location ? String(location).trim() : null,
+                start_time: startTimeDate || null,
+                deadline: deadlineDate,
+                estimated_duration: estimated_duration ? Number(estimated_duration) : null,
+                max_applicants: max_applicants ? Number(max_applicants) : 1,
+                urgent: Boolean(urgent),
+                remote_work: Boolean(remote_work),
+                images: Array.isArray(images) ? images : null,
+                attachments: Array.isArray(attachments) ? attachments : null,
+                status: 'pending', // 任务创建后需要管理员审核
             });
 
             // 获取包含发布者信息的任务详情
@@ -39,6 +123,7 @@ class TaskController {
     // 获取任务列表
     static async getTasks(req, res) {
         try {
+            const userId = req.user.id;
             const {
                 page = 1,
                 limit = 10,
@@ -85,8 +170,37 @@ class TaskController {
                 limit: parseInt(limit),
             });
 
+            const taskIds = rows.map(task => task.id);
+            let applicationMap = new Map();
+
+            if (taskIds.length) {
+                const myApplications = await TaskApplication.findAll({
+                    where: {
+                        task_id: { [Op.in]: taskIds },
+                        applicant_id: userId,
+                    },
+                    attributes: ['task_id', 'status'],
+                    raw: true,
+                });
+
+                applicationMap = new Map(
+                    myApplications.map(application => [
+                        Number(application.task_id),
+                        application.status,
+                    ])
+                );
+            }
+
+            const tasksWithApplication = rows.map(task => {
+                const plainTask = task.toJSON();
+                const applicationStatus = applicationMap.get(Number(task.id)) || null;
+                plainTask.has_applied = Boolean(applicationStatus);
+                plainTask.current_user_application_status = applicationStatus;
+                return plainTask;
+            });
+
             const result = {
-                tasks: rows,
+                tasks: tasksWithApplication,
                 pagination: {
                     current: parseInt(page),
                     pageSize: parseInt(limit),
@@ -102,10 +216,55 @@ class TaskController {
         }
     }
 
+    // 获取已发布任务分类统计
+    static async getPublishedCategoryStats(req, res) {
+        try {
+            const categories = ['study', 'design', 'tech', 'writing', 'life'];
+
+            const rows = await Task.findAll({
+                where: {
+                    status: 'published',
+                },
+                attributes: [
+                    'category',
+                    [Task.sequelize.fn('COUNT', Task.sequelize.col('id')), 'count'],
+                ],
+                group: ['category'],
+                raw: true,
+            });
+
+            const stats = categories.reduce((acc, category) => {
+                acc[category] = 0;
+                return acc;
+            }, {});
+
+            rows.forEach(row => {
+                if (categories.includes(row.category)) {
+                    stats[row.category] = Number(row.count) || 0;
+                }
+            });
+
+            res.json(
+                responseUtils.success(
+                    {
+                        status: 'published',
+                        categories: stats,
+                        total: Object.values(stats).reduce((sum, count) => sum + count, 0),
+                    },
+                    '获取任务分类统计成功'
+                )
+            );
+        } catch (error) {
+            console.error('获取任务分类统计失败:', error);
+            return res.status(500).json(responseUtils.error('获取任务分类统计失败'));
+        }
+    }
+
     // 获取任务详情
     static async getTaskById(req, res) {
         try {
             const { id } = req.params;
+            const userId = req.user.id;
 
             const task = await Task.findByPk(id, {
                 include: [
@@ -138,7 +297,20 @@ class TaskController {
             // 增加浏览次数
             await task.increment('view_count');
 
-            res.json(responseUtils.success(task));
+            const currentUserApplication = await TaskApplication.findOne({
+                where: {
+                    task_id: id,
+                    applicant_id: userId,
+                },
+                attributes: ['id', 'status', 'message', 'created_at', 'createdAt'],
+            });
+
+            const taskData = task.toJSON();
+            taskData.has_applied = Boolean(currentUserApplication?.status);
+            taskData.current_user_application_status = currentUserApplication?.status || null;
+            taskData.current_user_application = currentUserApplication || null;
+
+            res.json(responseUtils.success(taskData));
         } catch (error) {
             console.error('获取任务详情失败:', error);
             return res.status(500).json(responseUtils.error('获取任务详情失败'));
@@ -428,17 +600,73 @@ class TaskController {
     static async getMyTasks(req, res) {
         try {
             const userId = req.user.id;
-            const { type = 'all', page = 1, limit = 10 } = req.query;
+            const { type = 'all', status, page = 1, limit = 10 } = req.query;
 
             const offset = (page - 1) * limit;
             let where = {};
+            const validStatuses = ['published', 'in_progress', 'completed', 'cancelled', 'expired'];
+
+            if (status && !validStatuses.includes(status)) {
+                return res.status(400).json(responseUtils.error('任务状态参数不正确'));
+            }
+
+            const publishedTasks = await Task.findAll({
+                where: { publisher_id: userId },
+                attributes: ['id'],
+                raw: true,
+            });
+            const assignedTasks = await Task.findAll({
+                where: { assignee_id: userId },
+                attributes: ['id'],
+                raw: true,
+            });
+            const appliedTaskApplications = await TaskApplication.findAll({
+                where: {
+                    applicant_id: userId,
+                    status: {
+                        [Op.in]: ['pending', 'accepted'],
+                    },
+                },
+                include: [
+                    {
+                        model: Task,
+                        as: 'task',
+                        attributes: ['id', 'status'],
+                        required: true,
+                        where: status ? { status } : undefined,
+                    },
+                ],
+                attributes: ['task_id'],
+            });
+
+            const publishedTaskIds = publishedTasks.map(item => Number(item.id));
+            const assignedTaskIds = assignedTasks.map(item => Number(item.id));
+            const appliedTaskIds = [
+                ...new Set(
+                    appliedTaskApplications.map(item => Number(item.task?.id || item.task_id))
+                ),
+            ];
 
             if (type === 'published') {
-                where.publisher_id = userId;
+                where.id = {
+                    [Op.in]: publishedTaskIds.length ? publishedTaskIds : [-1],
+                };
             } else if (type === 'assigned') {
-                where.assignee_id = userId;
+                const allAssignedIds = [...new Set([...assignedTaskIds, ...appliedTaskIds])];
+                where.id = {
+                    [Op.in]: allAssignedIds.length ? allAssignedIds : [-1],
+                };
             } else {
-                where[Op.or] = [{ publisher_id: userId }, { assignee_id: userId }];
+                const allTaskIds = [
+                    ...new Set([...publishedTaskIds, ...assignedTaskIds, ...appliedTaskIds]),
+                ];
+                where.id = {
+                    [Op.in]: allTaskIds.length ? allTaskIds : [-1],
+                };
+            }
+
+            if (status && type !== 'assigned') {
+                where.status = status;
             }
 
             const { count, rows } = await Task.findAndCountAll({

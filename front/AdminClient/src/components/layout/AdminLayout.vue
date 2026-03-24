@@ -201,6 +201,7 @@ import {
   SuccessFilled,
   InfoFilled,
   Document,
+  Check,
 } from '@element-plus/icons-vue'
 import { useAdminStore } from '@/stores/admin'
 
@@ -249,7 +250,16 @@ const iconMap = {
 const menuConfig = [
   { index: '/dashboard', title: '数据看板', icon: markRaw(DataBoard), roles: ['admin', 'service'] },
   { index: '/users', title: '用户管理', icon: markRaw(User), roles: ['admin'] },
-  { index: '/deliverers', title: '配送员管理', icon: markRaw(Van), roles: ['admin'] },
+  {
+    index: '/deliverers',
+    title: '配送员管理',
+    icon: markRaw(Van),
+    roles: ['admin'],
+    children: [
+      { index: '/deliverers', title: '配送员列表', icon: markRaw(Van) },
+      { index: '/deliverers/verification', title: '配送员审核', icon: markRaw(Check) },
+    ],
+  },
   { index: '/orders', title: '订单管理', icon: markRaw(Box), roles: ['admin'] },
   { index: '/tasks', title: '任务管理', icon: markRaw(Briefcase), roles: ['admin'] },
   { index: '/forum', title: '论坛管理', icon: markRaw(ChatDotRound), roles: ['admin'] },

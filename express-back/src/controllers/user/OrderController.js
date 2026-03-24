@@ -30,6 +30,24 @@ class UserOrderController {
                 notes,
             } = req.body;
 
+            const minimumPriceMap = {
+                express: 2,
+                food: 3,
+                medicine: 5,
+                daily: 3,
+            };
+
+            const minimumPrice = minimumPriceMap[type];
+            if (!minimumPrice) {
+                return res.status(400).json(responseUtils.error('订单类型不正确'));
+            }
+
+            if (Number(price) < minimumPrice) {
+                return res
+                    .status(400)
+                    .json(responseUtils.error(`该类型订单金额不能低于${minimumPrice}元`));
+            }
+
             // 异常行为检测
             await SecurityService.detectAnomalousActivity(userId, 'create_order', {
                 amount: price,

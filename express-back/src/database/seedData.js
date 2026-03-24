@@ -79,7 +79,7 @@ async function seedData() {
                 student_verified: true,
             });
             users.push(user);
-            console.log(`  ✅ 用户: ${data.username}`);
+            console.log(`    用户: ${data.username}`);
         }
 
         // 2. 创建测试配送员
@@ -103,7 +103,7 @@ async function seedData() {
                 rating: (4 + Math.random()).toFixed(2),
             });
             deliverers.push(deliverer);
-            console.log(`  ✅ 配送员: ${deliverer.username}`);
+            console.log(`    配送员: ${deliverer.username}`);
         }
 
         // 3. 创建测试订单
@@ -139,7 +139,7 @@ async function seedData() {
                 status: status,
                 payment_status: status === 'completed' ? 'paid' : 'unpaid',
             });
-            console.log(`  ✅ 订单: ${order.order_no} (${order.status})`);
+            console.log(`    订单: ${order.order_no} (${order.status})`);
         }
 
         // 4. 创建测试任务
@@ -168,7 +168,7 @@ async function seedData() {
                 status: 'published',
                 view_count: Math.floor(Math.random() * 100),
             });
-            console.log(`  ✅ 任务: ${task.title} (¥${task.price})`);
+            console.log(`    任务: ${task.title} (¥${task.price})`);
         }
 
         // 5. 创建测试论坛帖子
@@ -195,7 +195,7 @@ async function seedData() {
                 view_count: Math.floor(Math.random() * 500),
                 like_count: Math.floor(Math.random() * 50),
             });
-            console.log(`  ✅ 帖子: ${post.title}`);
+            console.log(`    帖子: ${post.title}`);
         }
 
         // 6. 创建客服账号
@@ -215,7 +215,7 @@ async function seedData() {
                 role: 'service',
                 status: 'active',
             });
-            console.log(`  ✅ 客服: ${username}`);
+            console.log(`    客服: ${username}`);
         }
 
         console.log('\n✨ 测试数据生成完成！');

@@ -1,365 +1,215 @@
 <template>
-    <div class="pickup-detail-page">
-        <!-- 导航栏 -->
-        <div class="nav-header">
-            <MobileNavBar
-                title="订单详情"
-                show-back
-                @back="router.back()"
-            >
-                <template #right>
-                    <NButton
-                        text
-                        @click="showShareModal = true"
-                    >
-                        <NIcon size="20">
-                            <ShareIcon />
-                        </NIcon>
-                    </NButton>
-                </template>
-            </MobileNavBar>
-        </div>
+    <div class="campus-detail" :class="{ 'is-dark': appStore.isDark }">
+        <header class="campus-nav-sticky">
+            <div class="nav-main">
+                <button type="button" class="back-icon-btn touch-feedback" @click="router.back()">
+                    <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+                        <path
+                            d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                </button>
+                <div class="title-block">
+                    <strong>订单详情</strong>
+                    <span>{{ getTypeLabel(order?.type) }}</span>
+                </div>
+            </div>
+        </header>
 
-        <!-- 页面内容 -->
-        <div v-if="loading" class="loading-container">
-            <MobileLoading type="default" text="加载中..." />
-        </div>
+        <main class="order-viewport">
+            <div v-if="loading" class="loading-wrap">
+                <MobileLoading type="default" text="加载中..." />
+            </div>
 
-        <div v-else-if="order" class="detail-container">
-            <!-- 订单状态 -->
-            <div class="section">
-                <MobileCard>
-                    <div class="status-section">
-                        <div class="status-icon" :style="{ backgroundColor: getStatusColor() + '20' }">
-                            <NIcon size="48" :color="getStatusColor()">
-                                <component :is="getStatusIcon()" />
-                            </NIcon>
+            <div v-else-if="order" class="detail-stack">
+                <article class="order-node">
+                    <div class="node-top">
+                        <div class="node-tag-group" :data-type="order.type">
+                            <i class="v-line"></i>
+                            <span class="v-text">{{ getTypeLabel(order.type) }}</span>
                         </div>
-                        <div class="status-info">
-                            <h2 class="status-title">{{ getStatusTitle() }}</h2>
-                            <p class="status-desc">{{ getStatusDescription() }}</p>
-                            <div v-if="order.estimatedTime" class="estimated-time">
-                                预计完成时间：{{ formatDateTime(order.estimatedTime) }}
+                        <NTag size="small" :bordered="false" :type="getStatusTagType(order.status)">
+                            {{ getStatusLabel(order.status) }}
+                        </NTag>
+                    </div>
+
+                    <h1 class="node-title">{{ order.title }}</h1>
+                    <p v-if="order.description" class="node-desc">{{ order.description }}</p>
+
+                    <div class="location-map">
+                        <div class="map-line"></div>
+                        <div class="map-point">
+                            <span class="dot-p"></span>
+                            <span class="label-p">取</span>
+                            <span class="text-p">{{ order.pickup_location }}</span>
+                        </div>
+                        <div class="map-point">
+                            <span class="dot-d"></span>
+                            <span class="label-p">送</span>
+                            <span class="text-p">{{ order.delivery_location }}</span>
+                        </div>
+                    </div>
+
+                    <div class="node-details">
+                        <div class="detail-item">
+                            <label>订单编号</label>
+                            <span>{{ order.order_no }}</span>
+                        </div>
+                        <div class="detail-item price-accent">
+                            <label>{{ isPublisher ? '应付' : '金额' }}</label>
+                            <span class="val">¥{{ formatAmount(order.price, order.tip) }}</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-grid">
+                        <div class="detail-box">
+                            <label>联系人</label>
+                            <span>{{ order.contact_name }}</span>
+                        </div>
+                        <div class="detail-box">
+                            <label>联系电话</label>
+                            <span>{{ order.contact_phone }}</span>
+                        </div>
+                        <div class="detail-box">
+                            <label>创建时间</label>
+                            <span>{{ formatDateTime(order.createdAt) }}</span>
+                        </div>
+                        <div class="detail-box">
+                            <label>支付状态</label>
+                            <span>{{ getPaymentLabel(order.payment_status) }}</span>
+                        </div>
+                        <div v-if="order.pickup_code" class="detail-box">
+                            <label>取件码</label>
+                            <span>{{ order.pickup_code }}</span>
+                        </div>
+                        <div v-if="order.delivery_time" class="detail-box">
+                            <label>期望送达</label>
+                            <span>{{ formatDateTime(order.delivery_time) }}</span>
+                        </div>
+                    </div>
+
+                    <div v-if="optionTags.length" class="chip-row">
+                        <span v-for="tag in optionTags" :key="tag" class="info-chip">
+                            {{ tag }}
+                        </span>
+                    </div>
+
+                    <div v-if="timelineItems.length" class="timeline-panel">
+                        <div
+                            v-for="item in timelineItems"
+                            :key="item.key"
+                            class="timeline-item"
+                            :class="{ active: item.active, done: item.done }"
+                        >
+                            <span class="timeline-dot"></span>
+                            <div class="timeline-content">
+                                <strong>{{ item.title }}</strong>
+                                <p>{{ item.text }}</p>
+                                <span v-if="item.time">{{ item.time }}</span>
                             </div>
                         </div>
                     </div>
-                </MobileCard>
-            </div>
 
-            <!-- 订单信息 -->
-            <div class="section">
-                <h3 class="section-title">订单信息</h3>
-                <MobileCard>
-                    <div class="order-info">
-                        <div class="order-header">
-                            <div class="order-type">
-                                <NIcon size="20" :color="getTypeColor()">
-                                    <component :is="getTypeIcon()" />
-                                </NIcon>
-                                <span class="type-label">{{ getTypeLabel() }}</span>
+                    <div class="node-footer">
+                        <div class="user-info">
+                            <div class="u-avatar">
+                                <svg viewBox="0 0 24 24" class="u-svg">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                                        fill="currentColor"
+                                    />
+                                </svg>
                             </div>
-                            <NTag :type="getStatusType()" size="small">
-                                {{ getStatusLabel() }}
-                            </NTag>
+                            <span>{{ counterpartLabel }}: {{ counterpartName }}</span>
                         </div>
 
-                        <h4 class="order-title">{{ order.title }}</h4>
-                        <p class="order-description">{{ order.description }}</p>
-
-                        <div class="order-details">
-                            <div class="detail-item">
-                                <span class="detail-label">订单编号</span>
-                                <span class="detail-value">{{ order.orderNumber }}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">创建时间</span>
-                                <span class="detail-value">{{ formatDateTime(order.createdAt) }}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">期望完成时间</span>
-                                <span class="detail-value">{{ formatDateTime(order.expectedTime) }}</span>
-                            </div>
-                            <div v-if="order.contact" class="detail-item">
-                                <span class="detail-label">联系方式</span>
-                                <span class="detail-value">{{ order.contact }}</span>
-                            </div>
-                            <div v-if="order.remarks" class="detail-item">
-                                <span class="detail-label">备注</span>
-                                <span class="detail-value">{{ order.remarks }}</span>
-                            </div>
-                        </div>
-
-                        <!-- 特殊字段显示 -->
-                        <div v-if="order.type === 'express'" class="special-fields">
-                            <div class="detail-item" v-if="order.pickupCode">
-                                <span class="detail-label">取件码</span>
-                                <span class="detail-value pickup-code">{{ order.pickupCode }}</span>
-                            </div>
-                            <div class="detail-item" v-if="order.expressCompany">
-                                <span class="detail-label">快递公司</span>
-                                <span class="detail-value">{{ getExpressCompanyLabel(order.expressCompany) }}</span>
-                            </div>
-                        </div>
-
-                        <div v-if="order.type === 'food'" class="special-fields">
-                            <div class="detail-item" v-if="order.weight">
-                                <span class="detail-label">重量</span>
-                                <span class="detail-value">{{ getWeightLabel(order.weight) }}</span>
-                            </div>
-                            <div class="detail-item" v-if="order.needKeepWarm">
-                                <span class="detail-label">保温要求</span>
-                                <span class="detail-value">需要保温</span>
-                            </div>
-                        </div>
-
-                        <div v-if="order.type === 'medicine'" class="special-fields">
-                            <div class="detail-item" v-if="order.prescriptionImages?.length">
-                                <span class="detail-label">处方照片</span>
-                                <div class="prescription-images">
-                                    <div
-                                        v-for="(image, index) in order.prescriptionImages"
-                                        :key="index"
-                                        class="prescription-image"
-                                        @click="previewImage(image)"
-                                    >
-                                        <img :src="image" :alt="`处方照片${index + 1}`" />
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="detail-item" v-if="order.purchaseAmount">
-                                <span class="detail-label">代购金额</span>
-                                <span class="detail-value">¥{{ order.purchaseAmount }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </MobileCard>
-            </div>
-
-            <!-- 地址信息 -->
-            <div class="section">
-                <h3 class="section-title">地址信息</h3>
-                <MobileCard>
-                    <div class="address-info">
-                        <div class="address-item">
-                            <div class="address-icon pickup">
-                                <NIcon size="16">
-                                    <LocationIcon />
-                                </NIcon>
-                            </div>
-                            <div class="address-content">
-                                <div class="address-label">取货地点</div>
-                                <div class="address-value">{{ order.pickupLocation }}</div>
-                            </div>
-                        </div>
-                        <div class="address-line"></div>
-                        <div class="address-item">
-                            <div class="address-icon delivery">
-                                <NIcon size="16">
-                                    <LocationIcon />
-                                </NIcon>
-                            </div>
-                            <div class="address-content">
-                                <div class="address-label">送达地点</div>
-                                <div class="address-value">{{ order.deliveryLocation }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </MobileCard>
-            </div>
-
-            <!-- 费用明细 -->
-            <div class="section">
-                <h3 class="section-title">费用明细</h3>
-                <MobileCard>
-                    <div class="fee-details">
-                        <div class="fee-item">
-                            <span class="fee-label">服务费</span>
-                            <span class="fee-value">¥{{ order.fee }}</span>
-                        </div>
-                        <div class="fee-item">
-                            <span class="fee-label">平台费</span>
-                            <span class="fee-value">¥{{ platformFee }}</span>
-                        </div>
-                        <div v-if="order.type === 'medicine' && order.purchaseAmount" class="fee-item">
-                            <span class="fee-label">代购金额</span>
-                            <span class="fee-value">¥{{ order.purchaseAmount }}</span>
-                        </div>
-                        <div class="fee-divider"></div>
-                        <div class="fee-item total">
-                            <span class="fee-label">总计</span>
-                            <span class="fee-value">¥{{ totalFee }}</span>
-                        </div>
-                    </div>
-                </MobileCard>
-            </div>
-
-            <!-- 用户信息 -->
-            <div class="section">
-                <h3 class="section-title">{{ order.isMyOrder ? '接单人信息' : '发布人信息' }}</h3>
-                <MobileCard>
-                    <div class="user-info">
-                        <div class="user-avatar">
-                            <img :src="targetUser.avatar || '/default-avatar.png'" :alt="targetUser.name" />
-                        </div>
-                        <div class="user-details">
-                            <h4 class="user-name">{{ targetUser.name }}</h4>
-                            <div class="user-meta">
-                                <div class="user-rating">
-                                    <NIcon size="14" color="var(--n-warning-color)">
-                                        <StarIcon />
-                                    </NIcon>
-                                    <span>{{ targetUser.rating || '暂无评分' }}</span>
-                                </div>
-                                <div class="user-orders">
-                                    完成订单：{{ targetUser.completedOrders || 0 }}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="user-actions">
-                            <NButton size="small" @click="contactUser">
-                                <NIcon size="14">
-                                    <ChatIcon />
-                                </NIcon>
+                        <div class="actions-group" @click.stop>
+                            <NButton
+                                v-if="canCancel"
+                                size="tiny"
+                                tertiary
+                                round
+                                :loading="cancelling"
+                                @click="handleCancel"
+                            >
+                                取消
+                            </NButton>
+                            <NButton
+                                v-if="canConfirm"
+                                size="tiny"
+                                type="primary"
+                                round
+                                :loading="confirming"
+                                @click="handleConfirm"
+                            >
+                                确认送达
+                            </NButton>
+                            <NButton
+                                v-if="canRate"
+                                size="tiny"
+                                type="primary"
+                                quaternary
+                                @click="showRatingModal = true"
+                            >
+                                评价
+                            </NButton>
+                            <NButton
+                                v-if="counterpartUserId"
+                                size="tiny"
+                                round
+                                quaternary
+                                @click="handleChat"
+                            >
+                                聊一聊
+                            </NButton>
+                            <NButton
+                                v-if="counterpartPhone"
+                                tag="a"
+                                :href="`tel:${counterpartPhone}`"
+                                size="tiny"
+                                round
+                                quaternary
+                            >
                                 联系
                             </NButton>
                         </div>
                     </div>
-                </MobileCard>
+                </article>
             </div>
 
-            <!-- 订单进度 -->
-            <div v-if="order.status !== 'pending'" class="section">
-                <h3 class="section-title">订单进度</h3>
-                <MobileCard>
-                    <div class="progress-timeline">
-                        <div
-                            v-for="(step, index) in orderSteps"
-                            :key="index"
-                            class="timeline-item"
-                            :class="{ active: step.active, completed: step.completed }"
-                        >
-                            <div class="timeline-dot">
-                                <NIcon v-if="step.completed" size="12">
-                                    <CheckIcon />
-                                </NIcon>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="timeline-title">{{ step.title }}</div>
-                                <div v-if="step.time" class="timeline-time">{{ step.time }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </MobileCard>
+            <div v-else class="error-wrap">
+                <MobileEmpty
+                    type="error"
+                    title="订单不存在"
+                    description="该订单可能已被删除或您没有权限查看"
+                    :show-action="true"
+                    action-text="返回列表"
+                    @action="router.push('/pickup/my')"
+                />
             </div>
+        </main>
 
-            <!-- 操作按钮 -->
-            <div class="action-section">
-                <div v-if="order.status === 'pending' && !order.isMyOrder" class="action-buttons">
-                    <NButton
-                        type="primary"
-                        size="large"
-                        block
-                        :loading="accepting"
-                        @click="acceptOrder"
-                    >
-                        接受订单
-                    </NButton>
-                </div>
-
-                <div v-else-if="order.status === 'processing'" class="action-buttons">
-                    <NButton
-                        v-if="order.isMyOrder"
-                        type="warning"
-                        size="large"
-                        block
-                        :loading="cancelling"
-                        @click="cancelOrder"
-                    >
-                        取消订单
-                    </NButton>
-                    <NButton
-                        v-else
-                        type="primary"
-                        size="large"
-                        block
-                        :loading="completing"
-                        @click="completeOrder"
-                    >
-                        完成订单
-                    </NButton>
-                </div>
-
-                <div v-else-if="order.status === 'completed' && !order.isMyOrder" class="action-buttons">
-                    <NButton
-                        type="primary"
-                        size="large"
-                        block
-                        @click="showRateModal = true"
-                    >
-                        评价订单
-                    </NButton>
-                </div>
-            </div>
-        </div>
-
-        <!-- 错误状态 -->
-        <div v-else class="error-container">
-            <MobileEmpty
-                type="error"
-                title="订单不存在"
-                description="该订单可能已被删除或您没有权限查看"
-                :show-action="true"
-                action-text="返回列表"
-                @action="router.push('/pickup/list')"
-            />
-        </div>
-
-        <!-- 分享弹窗 -->
-        <MobileModal
-            v-model:show="showShareModal"
-            title="分享订单"
-            @confirm="shareOrder"
-        >
-            <div class="share-options">
-                <div class="share-option" @click="shareToWeChat">
-                    <NIcon size="24" color="#09bb07">
-                        <LogoWechat />
-                    </NIcon>
-                    <span>微信</span>
-                </div>
-                <div class="share-option" @click="copyLink">
-                    <NIcon size="24" color="var(--n-primary-color)">
-                        <LinkIcon />
-                    </NIcon>
-                    <span>复制链接</span>
-                </div>
-            </div>
-        </MobileModal>
-
-        <!-- 评价弹窗 -->
-        <MobileModal
-            v-model:show="showRateModal"
-            title="评价订单"
-            @confirm="submitRating"
-        >
+        <MobileModal v-model:show="showRatingModal" title="评价订单" @confirm="submitRating">
             <div class="rating-form">
                 <div class="rating-stars">
-                    <div
+                    <button
                         v-for="star in 5"
                         :key="star"
+                        type="button"
                         class="rating-star"
                         :class="{ active: star <= rating }"
                         @click="rating = star"
                     >
-                        <NIcon size="24">
-                            <StarIcon />
+                        <NIcon size="22">
+                            <StarOutline />
                         </NIcon>
-                    </div>
+                    </button>
                 </div>
                 <NInput
                     v-model:value="ratingComment"
                     type="textarea"
-                    placeholder="请输入评价内容..."
+                    placeholder="请输入评价内容"
                     :rows="3"
                     maxlength="200"
                     show-count
@@ -370,374 +220,280 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import {
-    NButton,
-    NIcon,
-    NTag,
-    NInput,
-    useMessage,
-} from 'naive-ui';
-import {
-    LocationOutline as LocationIcon,
-    ShareOutline as ShareIcon,
-    ChatbubbleOutline as ChatIcon,
-    CheckmarkOutline as CheckIcon,
-    StarOutline as StarIcon,
-    LinkOutline as LinkIcon,
-    BagHandleOutline as BagIcon,
-    FastFoodOutline as FoodIcon,
-    MedkitOutline as MedIcon,
-    ShirtOutline as ShopIcon,
-    TimeOutline as TimeIcon,
-    CheckmarkCircleOutline as CompletedIcon,
-    SyncOutline as ProcessingIcon,
-    ClockOutline as PendingIcon,
-    LogoWechat,
-} from '@vicons/ionicons5';
-import { MobileNavBar, MobileCard, MobileLoading, MobileEmpty, MobileModal } from '@/components/mobile';
-import { useUserStore, useAppStore } from '@/stores';
+import { computed, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { NButton, NIcon, NInput, NTag, useDialog, useMessage } from 'naive-ui';
+import { StarOutline } from '@vicons/ionicons5';
+import { PickupApi, chatApi } from '@/api';
+import { MobileEmpty, MobileLoading, MobileModal } from '@/components/mobile';
+import { useAppStore, useUserStore } from '@/stores';
+import type { PickupOrder } from '@/types';
 
 const router = useRouter();
 const route = useRoute();
-const userStore = useUserStore();
-const appStore = useAppStore();
+const dialog = useDialog();
 const message = useMessage();
+const appStore = useAppStore();
+const userStore = useUserStore();
 
-// 数据状态
 const loading = ref(true);
-const accepting = ref(false);
 const cancelling = ref(false);
-const completing = ref(false);
-const showShareModal = ref(false);
-const showRateModal = ref(false);
-const rating = ref(0);
+const confirming = ref(false);
+const showRatingModal = ref(false);
+const rating = ref(5);
 const ratingComment = ref('');
+const order = ref<PickupOrder | null>(null);
 
-// 订单数据
-const order = ref(null);
+const isPublisher = computed(() => order.value?.user_id === userStore.user?.id);
 
-// 模拟订单数据
-const mockOrder = {
-    id: 1,
-    orderNumber: 'PK20240930001',
-    type: 'express',
-    title: '快递代取 - 菜鸟驿站',
-    description: '帮忙取一个包裹，取件码：1234，重量较轻，比较急用',
-    pickupLocation: '菜鸟驿站 · 宿舍楼下',
-    deliveryLocation: '宿舍D栋 · 302室',
-    fee: 3,
-    status: 'processing',
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    expectedTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-    estimatedTime: new Date(Date.now() + 1 * 60 * 60 * 1000),
-    contact: '15800000001',
-    remarks: '请小心轻放，内有易碎物品',
-    pickupCode: '1234',
-    expressCompany: 'sf',
-    isMyOrder: false, // 是否是我发布的订单
-    publisher: {
-        id: 2,
-        name: '张同学',
-        avatar: '',
-        rating: 4.8,
-        completedOrders: 156,
-    },
-    accepter: {
-        id: 3,
-        name: '李代取',
-        avatar: '',
-        rating: 4.9,
-        completedOrders: 289,
-    },
-};
-
-// 计算属性
-const targetUser = computed(() => {
-    if (!order.value) return {};
-    return order.value.isMyOrder ? order.value.accepter : order.value.publisher;
+const optionTags = computed(() => {
+    if (!order.value) return [];
+    const tags: string[] = [];
+    if (order.value.urgent) tags.push('加急订单');
+    if (order.value.fragile) tags.push('易碎物品');
+    return tags;
 });
 
-const platformFee = computed(() => {
-    if (!order.value) return '0.00';
-    return (order.value.fee * 0.1).toFixed(2);
+const counterpartLabel = computed(() => (isPublisher.value ? '配送员' : '发布人'));
+const counterpartName = computed(() => {
+    if (!order.value) return '--';
+    if (isPublisher.value) {
+        return order.value.deliverer?.username || order.value.deliverer?.real_name || '暂未接单';
+    }
+    return order.value.user?.username || order.value.user?.real_name || '匿名用户';
+});
+const counterpartPhone = computed(() => {
+    if (!order.value) return '';
+    return isPublisher.value ? order.value.deliverer?.phone || '' : order.value.user?.phone || '';
+});
+const counterpartUserId = computed(() => {
+    if (!order.value) return null;
+    if (isPublisher.value) {
+        return order.value.deliverer?.id || order.value.deliverer_id || null;
+    }
+    return order.value.user?.id || order.value.user_id || null;
 });
 
-const totalFee = computed(() => {
-    if (!order.value) return '0.00';
-    const serviceFee = order.value.fee || 0;
-    const platform = parseFloat(platformFee.value);
-    const purchase = order.value.type === 'medicine' ? (order.value.purchaseAmount || 0) : 0;
-    return (serviceFee + platform + purchase).toFixed(2);
-});
+const canCancel = computed(() =>
+    Boolean(
+        order.value && isPublisher.value && ['pending', 'accepted'].includes(order.value.status)
+    )
+);
+const canConfirm = computed(() =>
+    Boolean(order.value && isPublisher.value && order.value.status === 'delivering')
+);
+const canRate = computed(() =>
+    Boolean(
+        order.value &&
+        isPublisher.value &&
+        order.value.status === 'completed' &&
+        !order.value.rating
+    )
+);
 
-const orderSteps = computed(() => {
+const timelineItems = computed(() => {
     if (!order.value) return [];
 
-    const steps = [
-        {
-            title: '订单创建',
-            time: formatDateTime(order.value.createdAt),
-            completed: true,
-            active: false,
-        },
-        {
-            title: '订单接受',
-            time: order.value.status !== 'pending' ? formatDateTime(new Date(order.value.createdAt.getTime() + 30 * 60 * 1000)) : null,
-            completed: order.value.status !== 'pending',
-            active: order.value.status === 'processing',
-        },
-        {
-            title: '正在处理',
-            time: order.value.status === 'processing' ? formatDateTime(new Date()) : null,
-            completed: order.value.status === 'completed',
-            active: order.value.status === 'processing',
-        },
-        {
-            title: '订单完成',
-            time: order.value.status === 'completed' ? formatDateTime(new Date()) : null,
-            completed: order.value.status === 'completed',
-            active: false,
-        },
-    ];
+    const current = order.value.status;
+    const acceptedDone = ['accepted', 'picking', 'delivering', 'completed'].includes(current);
+    const pickingDone = ['picking', 'delivering', 'completed'].includes(current);
+    const deliveringDone = ['delivering', 'completed'].includes(current);
 
-    return steps;
+    return [
+        {
+            key: 'created',
+            title: '订单创建',
+            text: '需求已提交，等待后续处理。',
+            time: formatDateTime(order.value.createdAt),
+            active: current === 'pending',
+            done: true,
+        },
+        {
+            key: 'accepted',
+            title: '订单接单',
+            text: current === 'cancelled' ? '订单未进入接单流程。' : '配送员已接单，准备开始处理。',
+            time: formatDateTime(order.value.accept_time),
+            active: current === 'accepted',
+            done: acceptedDone,
+        },
+        {
+            key: 'picking',
+            title: '取货处理中',
+            text: '订单正在取货或代购。',
+            time: formatDateTime(order.value.pickup_complete_time),
+            active: current === 'picking',
+            done: pickingDone,
+        },
+        {
+            key: 'delivering',
+            title: current === 'cancelled' ? '订单终止' : '配送送达',
+            text:
+                current === 'cancelled'
+                    ? order.value.cancel_reason || '订单已取消。'
+                    : current === 'completed'
+                      ? '订单已送达完成。'
+                      : '订单正在配送途中。',
+            time:
+                current === 'cancelled'
+                    ? formatDateTime(order.value.cancel_time)
+                    : formatDateTime(order.value.delivery_complete_time),
+            active: current === 'delivering' || current === 'cancelled',
+            done: deliveringDone || current === 'cancelled',
+        },
+    ].filter(item => item.done || item.active || item.key === 'created');
 });
 
-// 方法
-const getStatusIcon = () => {
-    const iconMap = {
-        pending: PendingIcon,
-        processing: ProcessingIcon,
-        completed: CompletedIcon,
-        cancelled: TimeIcon,
-    };
-    return iconMap[order.value?.status] || PendingIcon;
-};
-
-const getStatusColor = () => {
-    const colorMap = {
-        pending: 'var(--n-warning-color)',
-        processing: 'var(--n-info-color)',
-        completed: 'var(--n-success-color)',
-        cancelled: 'var(--n-error-color)',
-    };
-    return colorMap[order.value?.status] || 'var(--n-warning-color)';
-};
-
-const getStatusTitle = () => {
-    const titleMap = {
-        pending: '等待接单',
-        processing: '订单进行中',
-        completed: '订单已完成',
-        cancelled: '订单已取消',
-    };
-    return titleMap[order.value?.status] || '未知状态';
-};
-
-const getStatusDescription = () => {
-    const descMap = {
-        pending: '订单等待其他用户接受',
-        processing: '订单正在处理中，请耐心等待',
-        completed: '订单已成功完成，感谢您的使用',
-        cancelled: '订单已被取消',
-    };
-    return descMap[order.value?.status] || '';
-};
-
-const getTypeIcon = () => {
-    const iconMap = {
-        express: BagIcon,
-        food: FoodIcon,
-        medicine: MedIcon,
-        daily: ShopIcon,
-    };
-    return iconMap[order.value?.type] || BagIcon;
-};
-
-const getTypeColor = () => {
-    const colorMap = {
-        express: 'var(--n-primary-color)',
-        food: 'var(--n-warning-color)',
-        medicine: 'var(--n-error-color)',
-        daily: 'var(--n-success-color)',
-    };
-    return colorMap[order.value?.type] || 'var(--n-primary-color)';
-};
-
-const getTypeLabel = () => {
-    const labelMap = {
+const getTypeLabel = (type?: PickupOrder['type']) => {
+    const map = {
         express: '快递代取',
         food: '外卖代取',
         medicine: '药品代购',
-        daily: '生活用品',
+        daily: '生活代购',
     };
-    return labelMap[order.value?.type] || '代取服务';
+    return type ? map[type] || '订单' : '订单';
 };
 
-const getStatusType = () => {
-    const typeMap = {
-        pending: 'warning',
-        processing: 'info',
-        completed: 'success',
-        cancelled: 'error',
-    };
-    return typeMap[order.value?.status] || 'default';
-};
-
-const getStatusLabel = () => {
-    const labelMap = {
-        pending: '等待接单',
-        processing: '进行中',
+const getStatusLabel = (status: PickupOrder['status']) => {
+    const map = {
+        pending: '待接单',
+        accepted: '已接单',
+        picking: '取货中',
+        delivering: '配送中',
         completed: '已完成',
         cancelled: '已取消',
     };
-    return labelMap[order.value?.status] || '未知状态';
+    return map[status] || status;
 };
 
-const getExpressCompanyLabel = (company: string) => {
-    const companyMap = {
-        sf: '顺丰速运',
-        zt: '中通快递',
-        yt: '圆通速递',
-        st: '申通快递',
-        yd: '韵达速递',
-        cn: '菜鸟驿站',
+const getStatusTagType = (status: PickupOrder['status']) => {
+    const map = {
+        pending: 'warning',
+        accepted: 'info',
+        picking: 'info',
+        delivering: 'info',
+        completed: 'success',
+        cancelled: 'default',
+    } as const;
+    return map[status] || 'default';
+};
+
+const getPaymentLabel = (status: PickupOrder['payment_status']) => {
+    const map = {
+        unpaid: '未支付',
+        paid: '已支付',
+        refunded: '已退款',
     };
-    return companyMap[company] || company;
+    return map[status] || status;
 };
 
-const getWeightLabel = (weight: string) => {
-    const weightMap = {
-        light: '轻量 (< 1kg)',
-        medium: '中等 (1-3kg)',
-        heavy: '较重 (3-5kg)',
-        'very-heavy': '很重 (> 5kg)',
-    };
-    return weightMap[weight] || weight;
+const formatAmount = (price?: string | number, tip?: string | number) =>
+    (Number(price || 0) + Number(tip || 0)).toFixed(2);
+
+const formatDateTime = (value?: string | null) => {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+        date.getDate()
+    ).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(
+        date.getMinutes()
+    ).padStart(2, '0')}`;
 };
 
-const formatDateTime = (date: Date) => {
-    if (!date) return '';
-    return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-};
-
-const previewImage = (imageUrl: string) => {
-    // TODO: 实现图片预览功能
-    console.log('预览图片:', imageUrl);
-};
-
-const contactUser = () => {
-    message.info('联系功能开发中...');
-    appStore.hapticFeedback('light');
-};
-
-const acceptOrder = async () => {
-    accepting.value = true;
-    try {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        order.value.status = 'processing';
-        order.value.accepter = {
-            id: userStore.user?.id,
-            name: userStore.user?.name,
-            avatar: userStore.user?.avatar,
-            rating: 4.9,
-            completedOrders: 28,
-        };
-        message.success('接单成功！');
-        appStore.hapticFeedback('medium');
-    } catch (error) {
-        message.error('接单失败');
-    } finally {
-        accepting.value = false;
-    }
-};
-
-const cancelOrder = async () => {
-    cancelling.value = true;
-    try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        order.value.status = 'cancelled';
-        message.success('订单已取消');
-        appStore.hapticFeedback('medium');
-    } catch (error) {
-        message.error('取消失败');
-    } finally {
-        cancelling.value = false;
-    }
-};
-
-const completeOrder = async () => {
-    completing.value = true;
-    try {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        order.value.status = 'completed';
-        message.success('订单完成！');
-        appStore.hapticFeedback('medium');
-    } catch (error) {
-        message.error('操作失败');
-    } finally {
-        completing.value = false;
-    }
-};
-
-const shareOrder = () => {
-    showShareModal.value = false;
-};
-
-const shareToWeChat = () => {
-    message.info('微信分享功能开发中...');
-    showShareModal.value = false;
-};
-
-const copyLink = () => {
-    const link = `${window.location.origin}/pickup/${order.value.id}`;
-    navigator.clipboard.writeText(link).then(() => {
-        message.success('链接已复制到剪贴板');
-    }).catch(() => {
-        message.error('复制失败');
-    });
-    showShareModal.value = false;
-};
-
-const submitRating = () => {
-    if (rating.value === 0) {
-        message.warning('请选择评分');
-        return;
-    }
-
-    message.success('评价提交成功');
-    showRateModal.value = false;
-    rating.value = 0;
-    ratingComment.value = '';
-};
-
-// 获取订单详情
 const fetchOrderDetail = async () => {
     loading.value = true;
     try {
-        const orderId = route.params.id;
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // 这里应该调用真实的API
-        // const response = await pickupApi.getOrderDetail(orderId);
-        // order.value = response.data;
-
-        // 模拟数据
-        order.value = mockOrder;
-    } catch (error) {
-        console.error('获取订单详情失败:', error);
+        const response = await PickupApi.getOrder(Number(route.params.id));
+        if (!response.success) {
+            throw new Error(response.message || '获取订单详情失败');
+        }
+        order.value = response.data || null;
+    } catch (error: any) {
+        message.error(error?.message || '获取订单详情失败');
         order.value = null;
     } finally {
         loading.value = false;
+    }
+};
+
+const handleChat = async () => {
+    if (!order.value || !counterpartUserId.value) return;
+
+    try {
+        const response = await chatApi.createConversation({
+            peer_user_id: Number(counterpartUserId.value),
+            order_id: order.value.id,
+            initial_message: `想沟通订单「${order.value.title}」的配送细节。`,
+        });
+        appStore.hapticFeedback('light');
+        router.push({
+            path: '/chat',
+            query: response.data?.id ? { conversationId: String(response.data.id) } : {},
+        });
+    } catch (error: any) {
+        message.error(error?.message || '打开聊天失败');
+    }
+};
+
+const handleCancel = () => {
+    if (!order.value) return;
+    dialog.warning({
+        title: '取消订单',
+        content: '确认取消这笔订单吗？',
+        positiveText: '确认',
+        negativeText: '再想想',
+        async onPositiveClick() {
+            cancelling.value = true;
+            try {
+                const response = await PickupApi.cancelOrder(order.value!.id);
+                if (!response.success) {
+                    throw new Error(response.message || '取消订单失败');
+                }
+                order.value = response.data || order.value;
+                message.success('订单已取消');
+                appStore.hapticFeedback('medium');
+            } catch (error: any) {
+                message.error(error?.message || '取消订单失败');
+            } finally {
+                cancelling.value = false;
+            }
+        },
+    });
+};
+
+const handleConfirm = async () => {
+    if (!order.value) return;
+    confirming.value = true;
+    try {
+        const response = await PickupApi.confirmOrder(order.value.id);
+        if (!response.success) {
+            throw new Error(response.message || '确认完成失败');
+        }
+        order.value = response.data || order.value;
+        message.success('订单已确认完成');
+        appStore.hapticFeedback('medium');
+    } catch (error: any) {
+        message.error(error?.message || '确认完成失败');
+    } finally {
+        confirming.value = false;
+    }
+};
+
+const submitRating = async () => {
+    if (!order.value) return;
+    try {
+        const response = await PickupApi.rateOrder(order.value.id, {
+            rating: rating.value,
+            comment: ratingComment.value || undefined,
+        });
+        if (!response.success) {
+            throw new Error(response.message || '评价失败');
+        }
+        order.value = response.data || order.value;
+        showRatingModal.value = false;
+        message.success('评价成功');
+    } catch (error: any) {
+        message.error(error?.message || '评价失败');
     }
 };
 
@@ -747,432 +503,362 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.pickup-detail-page {
-    background: var(--n-body-color);
+.campus-detail {
+    --primary: #3b82f6;
+    --cyan: #06b6d4;
+    --grad: linear-gradient(135deg, var(--primary) 0%, var(--cyan) 100%);
+    --surface: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #94a3b8;
     min-height: 100vh;
+    background-color: var(--surface);
+    color: var(--text);
 }
 
-.nav-header {
+.campus-detail.is-dark {
+    --surface: #0f172a;
+    --card: #1e293b;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+}
+
+.campus-nav-sticky {
     position: sticky;
     top: 0;
     z-index: 100;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.02);
 }
 
-.loading-container {
-    padding: 100px 0;
-    text-align: center;
-}
-
-.error-container {
-    padding: 100px 20px;
-}
-
-.detail-container {
-    padding: 16px;
-    padding-bottom: 100px;
-}
-
-.section {
-    margin-bottom: 24px;
-}
-
-.section-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 12px 4px;
-}
-
-/* 状态区域 */
-.status-section {
+.nav-main {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 4px;
+    padding: 12px 16px 10px;
 }
 
-.status-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 16px;
+.back-icon-btn {
+    border: none;
+    background: none;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    color: var(--text);
+    margin-right: 8px;
 }
 
-.status-info {
-    flex: 1;
+.icon-svg {
+    width: 24px;
+    height: 24px;
 }
 
-.status-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 4px 0;
-}
-
-.status-desc {
-    font-size: 14px;
-    color: var(--n-text-color-2);
-    margin: 0 0 8px 0;
-    line-height: 1.4;
-}
-
-.estimated-time {
-    font-size: 13px;
-    color: var(--n-primary-color);
-    font-weight: 500;
-}
-
-/* 订单信息 */
-.order-info {
-    padding: 4px;
-}
-
-.order-header {
+.title-block {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
+    flex-direction: column;
+    gap: 2px;
 }
 
-.order-type {
+.title-block strong {
+    font-size: 19px;
+    line-height: 1.2;
+}
+
+.title-block span {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.order-viewport {
+    padding: 16px;
+}
+
+.loading-wrap,
+.error-wrap {
+    padding: 72px 0;
+}
+
+.detail-stack {
     display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.type-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--n-text-color-1);
-}
-
-.order-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 8px 0;
-    line-height: 1.4;
-}
-
-.order-description {
-    font-size: 14px;
-    color: var(--n-text-color-2);
-    margin: 0 0 16px 0;
-    line-height: 1.5;
-}
-
-.order-details,
-.special-fields {
-    border-top: 1px solid var(--n-border-color);
-    padding-top: 16px;
-    margin-top: 16px;
-}
-
-.detail-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 8px 0;
+    flex-direction: column;
     gap: 16px;
 }
 
-.detail-label {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-    flex-shrink: 0;
-    min-width: 80px;
+.order-node {
+    background: var(--card);
+    border-radius: 28px;
+    padding: 24px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+    animation: slide-up 0.45s ease-out both;
 }
 
-.detail-value {
+.node-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.node-tag-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
     font-size: 14px;
-    color: var(--n-text-color-1);
-    text-align: right;
+    font-weight: 700;
+}
+
+.v-line {
+    width: 4px;
+    height: 18px;
+    border-radius: 99px;
+    background: var(--primary);
+}
+
+.node-tag-group[data-type='food'] .v-line {
+    background: #f97316;
+}
+
+.node-tag-group[data-type='medicine'] .v-line {
+    background: #10b981;
+}
+
+.node-tag-group[data-type='daily'] .v-line {
+    background: #8b5cf6;
+}
+
+.node-title {
+    margin: 18px 0 0;
+    font-size: 22px;
+    line-height: 1.45;
+    font-weight: 800;
+}
+
+.node-desc {
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.location-map {
+    position: relative;
+    margin-top: 20px;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--surface) 86%, var(--card));
+    padding: 18px 18px 18px 20px;
+}
+
+.map-line {
+    position: absolute;
+    left: 25px;
+    top: 33px;
+    bottom: 33px;
+    width: 2px;
+    background: rgba(148, 163, 184, 0.22);
+}
+
+.map-point {
+    position: relative;
+    display: grid;
+    grid-template-columns: 18px 18px 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.map-point + .map-point {
+    margin-top: 14px;
+}
+
+.dot-p,
+.dot-d {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--primary);
+    z-index: 1;
+}
+
+.dot-d {
+    border-color: #f97316;
+}
+
+.label-p {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.text-p {
+    font-size: 15px;
+    line-height: 1.5;
+    font-weight: 700;
+}
+
+.node-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 20px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid color-mix(in srgb, var(--muted) 16%, transparent);
+}
+
+.detail-item,
+.detail-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.detail-item label,
+.detail-box label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.detail-item span,
+.detail-box span {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.5;
     word-break: break-all;
 }
 
-.pickup-code {
-    font-family: monospace;
-    font-weight: 600;
-    color: var(--n-primary-color);
+.price-accent .val {
+    color: var(--primary);
+    font-size: 17px;
 }
 
-/* 处方照片 */
-.prescription-images {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.prescription-image {
-    width: 60px;
-    height: 60px;
-    border-radius: 8px;
-    overflow: hidden;
-    cursor: pointer;
-    border: 1px solid var(--n-border-color);
-}
-
-.prescription-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-/* 地址信息 */
-.address-info {
-    padding: 4px;
-}
-
-.address-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px 0;
-}
-
-.address-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.address-icon.pickup {
-    background: var(--n-primary-color-suppl);
-    color: var(--n-primary-color);
-}
-
-.address-icon.delivery {
-    background: var(--n-success-color-suppl);
-    color: var(--n-success-color);
-}
-
-.address-content {
-    flex: 1;
-}
-
-.address-label {
-    font-size: 13px;
-    color: var(--n-text-color-3);
-    margin-bottom: 4px;
-}
-
-.address-value {
-    font-size: 14px;
-    color: var(--n-text-color-1);
-    line-height: 1.4;
-}
-
-.address-line {
-    width: 2px;
-    height: 16px;
-    background: var(--n-border-color);
-    margin: 8px 0 8px 15px;
-}
-
-/* 费用明细 */
-.fee-details {
-    padding: 4px;
-}
-
-.fee-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-}
-
-.fee-item.total {
-    font-weight: 600;
-    font-size: 16px;
-    color: var(--n-text-color-1);
-}
-
-.fee-label {
-    color: var(--n-text-color-2);
-    font-size: 14px;
-}
-
-.fee-value {
-    color: var(--n-error-color);
-    font-weight: 500;
-}
-
-.fee-divider {
-    height: 1px;
-    background: var(--n-border-color);
-    margin: 8px 0;
-}
-
-/* 用户信息 */
-.user-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 4px;
-}
-
-.user-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-.user-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.user-details {
-    flex: 1;
-}
-
-.user-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 4px 0;
-}
-
-.user-meta {
-    display: flex;
-    align-items: center;
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 16px;
-    font-size: 13px;
-    color: var(--n-text-color-3);
+    margin-top: 18px;
 }
 
-.user-rating {
+.chip-row {
     display: flex;
-    align-items: center;
-    gap: 4px;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
 }
 
-.user-actions {
-    flex-shrink: 0;
+.info-chip {
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary);
+    background: rgba(59, 130, 246, 0.08);
 }
 
-/* 订单进度 */
-.progress-timeline {
-    padding: 4px;
+.timeline-panel {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid color-mix(in srgb, var(--muted) 16%, transparent);
 }
 
 .timeline-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px 0;
     position: relative;
+    display: flex;
+    gap: 12px;
+    padding: 10px 0 10px 2px;
 }
 
 .timeline-item:not(:last-child)::after {
     content: '';
     position: absolute;
-    left: 15px;
-    top: 36px;
+    left: 7px;
+    top: 28px;
     width: 2px;
-    height: calc(100% - 12px);
-    background: var(--n-border-color);
-}
-
-.timeline-item.completed::after {
-    background: var(--n-success-color);
+    height: calc(100% - 8px);
+    background: rgba(148, 163, 184, 0.22);
 }
 
 .timeline-dot {
-    width: 20px;
-    height: 20px;
+    width: 14px;
+    height: 14px;
+    margin-top: 4px;
     border-radius: 50%;
-    border: 2px solid var(--n-border-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--n-body-color);
+    border: 2px solid #cbd5e1;
+    background: #fff;
     flex-shrink: 0;
-    margin-top: 2px;
-}
-
-.timeline-item.completed .timeline-dot {
-    border-color: var(--n-success-color);
-    background: var(--n-success-color);
-    color: white;
 }
 
 .timeline-item.active .timeline-dot {
-    border-color: var(--n-primary-color);
+    border-color: var(--primary);
+    background: var(--primary);
 }
 
-.timeline-content {
-    flex: 1;
-    padding-top: 2px;
+.timeline-item.done .timeline-dot {
+    border-color: #10b981;
+    background: #10b981;
 }
 
-.timeline-title {
+.timeline-content strong {
+    display: block;
     font-size: 14px;
-    font-weight: 500;
-    color: var(--n-text-color-1);
-    margin-bottom: 4px;
 }
 
-.timeline-item.completed .timeline-title {
-    color: var(--n-success-color);
-}
-
-.timeline-time {
-    font-size: 12px;
-    color: var(--n-text-color-3);
-}
-
-/* 操作按钮 */
-.action-section {
-    margin-top: 32px;
-}
-
-.action-buttons .n-button {
-    height: 50px;
-    font-size: 16px;
-    font-weight: 600;
-    border-radius: 12px;
-}
-
-/* 分享选项 */
-.share-options {
-    display: flex;
-    justify-content: center;
-    gap: 40px;
-    padding: 20px 0;
-}
-
-.share-option {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    padding: 12px;
-    border-radius: 12px;
-    transition: all 0.2s ease;
-}
-
-.share-option:hover {
-    background: var(--n-color-target);
-}
-
-.share-option span {
+.timeline-content p {
+    margin: 4px 0 0;
     font-size: 13px;
-    color: var(--n-text-color-2);
+    line-height: 1.6;
+    color: var(--muted);
 }
 
-/* 评价表单 */
+.timeline-content span {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.node-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid color-mix(in srgb, var(--muted) 16%, transparent);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.u-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--surface) 72%, var(--card));
+    color: #94a3b8;
+}
+
+.u-svg {
+    width: 18px;
+    height: 18px;
+}
+
+.actions-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .rating-form {
     padding: 16px 0;
 }
@@ -1180,91 +866,52 @@ onMounted(() => {
 .rating-stars {
     display: flex;
     justify-content: center;
-    gap: 8px;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
 .rating-star {
-    cursor: pointer;
-    color: var(--n-border-color);
-    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    color: #cbd5e1;
+    padding: 4px;
 }
 
 .rating-star.active {
-    color: var(--n-warning-color);
+    color: #f59e0b;
 }
 
-.rating-star:hover {
-    transform: scale(1.1);
-}
-
-/* 响应式适配 */
-@media (max-width: 375px) {
-    .detail-container {
-        padding: 12px;
-        padding-bottom: 100px;
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(18px);
     }
-
-    .status-section {
-        gap: 12px;
-    }
-
-    .status-icon {
-        width: 64px;
-        height: 64px;
-    }
-
-    .status-title {
-        font-size: 16px;
-    }
-
-    .user-info {
-        gap: 8px;
-    }
-
-    .user-avatar {
-        width: 40px;
-        height: 40px;
-    }
-
-    .action-buttons .n-button {
-        height: 46px;
-        font-size: 15px;
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
-/* iOS 安全区域适配 */
-.pickup-detail-page.is-ios {
-    padding-bottom: calc(100px + var(--safe-area-bottom, 34px));
+@media (max-width: 768px) {
+    .order-node {
+        padding: 22px 20px;
+    }
+
+    .node-details,
+    .detail-grid {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
-/* 加载动画 */
-.pickup-detail-page {
-    animation: ios-fade-in 0.4s ease-out;
-}
+@media (max-width: 560px) {
+    .node-details,
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
 
-.section {
-    animation: ios-fade-in 0.6s ease-out;
-}
-
-.section:nth-child(2) {
-    animation-delay: 0.1s;
-}
-
-.section:nth-child(3) {
-    animation-delay: 0.2s;
-}
-
-.section:nth-child(4) {
-    animation-delay: 0.3s;
-}
-
-/* 深色模式优化 */
-.dark-theme .share-option:hover {
-    background: var(--ios-dark-gray4);
-}
-
-.light-theme .share-option:hover {
-    background: var(--ios-gray5);
+    .node-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 </style>

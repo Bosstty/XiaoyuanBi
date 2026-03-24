@@ -74,31 +74,6 @@
 
         <section class="campus-home__section">
             <div class="campus-home__section-head">
-                <h3>今日看板</h3>
-                <button type="button" @click="go('/pickup')">进入订单</button>
-            </div>
-            <div v-if="homeLoading" class="campus-home__status">首页数据加载中...</div>
-            <div v-else-if="homeError" class="campus-home__status campus-home__status--muted">
-                {{ homeError }}
-            </div>
-            <div class="campus-home__board-grid">
-                <article
-                    v-for="card in dashboardCards"
-                    :key="card.title"
-                    class="campus-home__board-card"
-                >
-                    <div class="campus-home__board-icon" :style="{ background: card.tint }">
-                        <NIcon :size="20"><component :is="card.icon" /></NIcon>
-                    </div>
-                    <strong>{{ card.value }}</strong>
-                    <h4>{{ card.title }}</h4>
-                    <p>{{ card.description }}</p>
-                </article>
-            </div>
-        </section>
-
-        <section class="campus-home__section">
-            <div class="campus-home__section-head">
                 <h3>快捷入口</h3>
             </div>
             <div class="campus-home__shortcut-grid">
@@ -157,9 +132,6 @@ import { NAvatar, NIcon, NTag } from 'naive-ui';
 import {
     BagHandleOutline,
     BriefcaseOutline,
-    FlashOutline,
-    TrendingUpOutline,
-    TimeOutline,
     WalletOutline,
     ReceiptOutline,
     RocketOutline,
@@ -172,14 +144,6 @@ import type { ForumPost, Task } from '@/types';
 type MetricItem = {
     label: string;
     value: string | number;
-};
-
-type DashboardCard = {
-    title: string;
-    value: string | number;
-    description: string;
-    icon: ReturnType<typeof markRaw>;
-    tint: string;
 };
 
 type FeaturedPostCard = {
@@ -211,8 +175,6 @@ const appStore = useAppStore();
 const userStore = useUserStore();
 
 const hasSession = computed(() => !!userStore.token);
-const homeLoading = ref(false);
-const homeError = ref('');
 const homeTasks = ref<Task[]>([]);
 const homePosts = ref<ForumPost[]>([]);
 const homeOrderStats = ref<HomeOrderStats | null>(null);
@@ -227,30 +189,6 @@ const fallbackTaskMetrics: MetricItem[] = [
     { label: '新任务', value: '54' },
     { label: '正在招募', value: '31' },
     { label: '本周收入', value: '860' },
-];
-
-const fallbackDashboardCards: DashboardCard[] = [
-    {
-        title: '订单热度',
-        value: '南区宿舍',
-        description: '午间外卖和晚间快递需求最集中',
-        icon: markRaw(FlashOutline),
-        tint: 'linear-gradient(135deg, rgba(47,107,255,0.18), rgba(75,184,255,0.18))',
-    },
-    {
-        title: '任务趋势',
-        value: '设计类 +18%',
-        description: '活动海报、社团招新和短视频需求上升',
-        icon: markRaw(TrendingUpOutline),
-        tint: 'linear-gradient(135deg, rgba(255,155,61,0.2), rgba(247,199,95,0.2))',
-    },
-    {
-        title: '响应时效',
-        value: '8 分钟',
-        description: '当前平台平均首次响应时间',
-        icon: markRaw(TimeOutline),
-        tint: 'linear-gradient(135deg, rgba(25,179,107,0.18), rgba(75,184,255,0.12))',
-    },
 ];
 
 const shortcuts = [
@@ -339,37 +277,7 @@ const taskMetrics = computed<MetricItem[]>(() => {
     return [
         { label: '最新任务', value: homeTasks.value.length },
         { label: '加急任务', value: urgentCount },
-        { label: '任务总额', value: `¥${totalReward}` },
-    ];
-});
-
-const dashboardCards = computed<DashboardCard[]>(() => {
-    if (!homeOrderStats.value && !homeTasks.value.length) {
-        return fallbackDashboardCards;
-    }
-
-    return [
-        {
-            title: '订单概览',
-            value: `${homeOrderStats.value?.accepted?.total ?? 0} 单`,
-            description: '当前账号已承接的订单总量',
-            icon: markRaw(FlashOutline),
-            tint: 'linear-gradient(135deg, rgba(47,107,255,0.18), rgba(75,184,255,0.18))',
-        },
-        {
-            title: '任务招募',
-            value: `${homeTasks.value.length} 条`,
-            description: '首页已拉取的最新任务数量',
-            icon: markRaw(TrendingUpOutline),
-            tint: 'linear-gradient(135deg, rgba(255,155,61,0.2), rgba(247,199,95,0.2))',
-        },
-        {
-            title: '远程任务',
-            value: `${homeTasks.value.filter((task: Task) => task.remote_work).length} 条`,
-            description: '最新任务里支持远程协作的数量',
-            icon: markRaw(TimeOutline),
-            tint: 'linear-gradient(135deg, rgba(25,179,107,0.18), rgba(75,184,255,0.12))',
-        },
+        { label: '任务总额', value: `¥${totalReward.toFixed(2)}` },
     ];
 });
 
@@ -429,30 +337,19 @@ const formatRelativeTime = (value?: string) => {
 
 const loadHomeData = async () => {
     if (!hasSession.value) {
-        homeError.value = '';
         homeOrderStats.value = null;
         homeTasks.value = [];
         homePosts.value = [];
         return;
     }
 
-    homeLoading.value = true;
-    homeError.value = '';
-
     try {
         const overview = await HomeApi.getHomeOverview();
         homeOrderStats.value = overview.orderStats;
         homeTasks.value = overview.latestTasks;
         homePosts.value = overview.hotPosts;
-
-        if (!overview.orderStats && !overview.latestTasks.length && !overview.hotPosts.length) {
-            homeError.value = '首页接口已接入，但后端当前没有返回可展示的数据。';
-        }
     } catch (error) {
         console.error('Home data load failed:', error);
-        homeError.value = '首页数据加载失败，当前显示静态占位内容。';
-    } finally {
-        homeLoading.value = false;
     }
 };
 

@@ -1,971 +1,728 @@
 <template>
-    <div class="my-pickups-page">
-        <!-- 导航栏 -->
-        <div class="nav-header">
-            <MobileNavBar
-                title="我的订单"
-                show-back
-                @back="router.back()"
-            />
-        </div>
-
-        <!-- 筛选标签 -->
-        <div class="filter-section">
-            <MobileCard :padding="'12px 16px'">
-                <div class="filter-tabs">
-                    <div
-                        v-for="tab in filterTabs"
+    <div class="campus-orders" :class="{ 'is-dark': appStore.isDark }">
+        <header class="campus-nav-sticky">
+            <div class="nav-main">
+                <button type="button" class="back-icon-btn touch-feedback" @click="router.back()">
+                    <svg viewBox="0 0 24 24" class="icon-svg">
+                        <path
+                            d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                </button>
+                <div class="tabs-group">
+                    <button
+                        v-for="tab in tabs"
                         :key="tab.key"
-                        class="filter-tab"
-                        :class="{ active: currentTab === tab.key }"
-                        @click="handleTabChange(tab.key)"
+                        type="button"
+                        class="tab-link"
+                        :class="{ active: currentType === tab.key }"
+                        @click="changeType(tab.key)"
                     >
-                        <span class="tab-label">{{ tab.label }}</span>
-                        <span v-if="tab.count > 0" class="tab-count">{{ tab.count }}</span>
-                    </div>
+                        {{ tab.label }}
+                    </button>
                 </div>
-            </MobileCard>
-        </div>
-
-        <!-- 搜索框 -->
-        <div class="search-section">
-            <MobileCard :padding="'12px 16px'">
-                <NInput
-                    v-model:value="searchQuery"
-                    placeholder="搜索我的订单..."
-                    size="medium"
-                    clearable
-                    @update:value="handleSearch"
-                >
-                    <template #prefix>
-                        <NIcon size="16">
-                            <SearchIcon />
-                        </NIcon>
-                    </template>
-                </NInput>
-            </MobileCard>
-        </div>
-
-        <!-- 订单列表 -->
-        <div class="orders-section">
-            <div v-if="loading" class="loading-container">
-                <MobileLoading type="default" text="加载中..." />
             </div>
 
-            <div v-else-if="filteredOrders.length > 0">
-                <div
-                    v-for="order in filteredOrders"
-                    :key="order.id"
-                    class="order-item"
-                >
-                    <MobileCard
-                        :hoverable="true"
-                        @click="viewOrderDetail(order)"
+            <div class="filter-section">
+                <div class="filter-flex">
+                    <button
+                        v-for="item in statusOptions"
+                        :key="item.value"
+                        class="status-pill"
+                        :class="{ active: currentStatus === item.value }"
+                        @click="changeStatus(item.value)"
                     >
-                        <div class="order-content">
-                            <!-- 订单头部 -->
-                            <div class="order-header">
-                                <div class="order-type">
-                                    <NIcon size="18" :color="getTypeColor(order.type)">
-                                        <component :is="getTypeIcon(order.type)" />
-                                    </NIcon>
-                                    <span class="type-label">{{ getTypeLabel(order.type) }}</span>
-                                </div>
-                                <div class="order-status">
-                                    <NTag :type="getStatusType(order.status)" size="small">
-                                        {{ getStatusLabel(order.status) }}
-                                    </NTag>
-                                </div>
-                            </div>
+                        {{ item.label }}
+                    </button>
+                </div>
+            </div>
+        </header>
 
-                            <!-- 订单信息 -->
-                            <div class="order-info">
-                                <h4 class="order-title">{{ order.title }}</h4>
-                                <p class="order-description">{{ order.description }}</p>
-
-                                <div class="order-meta">
-                                    <div class="meta-item">
-                                        <NIcon size="12">
-                                            <LocationIcon />
-                                        </NIcon>
-                                        <span>{{ order.pickupLocation }} → {{ order.deliveryLocation }}</span>
-                                    </div>
-                                    <div class="meta-item">
-                                        <NIcon size="12">
-                                            <TimeIcon />
-                                        </NIcon>
-                                        <span>{{ formatTime(order.createdAt) }}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 订单底部 -->
-                            <div class="order-footer">
-                                <div class="price-info">
-                                    <span class="price-label">{{ order.role === 'publisher' ? '支付：' : '收入：' }}</span>
-                                    <span class="price-value">¥{{ order.totalAmount }}</span>
-                                </div>
-                                <div class="order-actions">
-                                    <NButton
-                                        v-if="order.status === 'pending' && order.role === 'publisher'"
-                                        size="small"
-                                        type="warning"
-                                        @click.stop="cancelOrder(order)"
-                                    >
-                                        取消订单
-                                    </NButton>
-                                    <NButton
-                                        v-else-if="order.status === 'processing' && order.role === 'accepter'"
-                                        size="small"
-                                        type="primary"
-                                        @click.stop="completeOrder(order)"
-                                    >
-                                        完成订单
-                                    </NButton>
-                                    <NButton
-                                        v-else-if="order.status === 'completed' && order.role === 'publisher' && !order.rated"
-                                        size="small"
-                                        type="primary"
-                                        @click.stop="rateOrder(order)"
-                                    >
-                                        评价
-                                    </NButton>
-                                    <NButton
-                                        v-else
-                                        size="small"
-                                        @click.stop="contactUser(order)"
-                                    >
-                                        联系
-                                    </NButton>
-                                </div>
-                            </div>
-                        </div>
-                    </MobileCard>
+        <main class="order-viewport">
+            <div v-if="!loading">
+                <div v-if="orders.length === 0" class="no-data-view">
+                    <div class="no-data-icon">
+                        <svg viewBox="0 0 24 24" class="svg-large">
+                            <path
+                                d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4.86 8.86l-3 3.87L9 13.14 6 17h12l-3.86-5.14z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                    </div>
+                    <h3>{{ emptyTitle }}</h3>
+                    <p>{{ emptyDescription }}</p>
                 </div>
 
-                <!-- 加载更多 -->
-                <div v-if="hasMore" class="load-more">
-                    <NButton
-                        block
-                        :loading="loadingMore"
-                        @click="loadMore"
+                <div v-else class="order-stack">
+                    <article
+                        v-for="(order, index) in orders"
+                        :key="order.id"
+                        class="order-node touch-feedback"
+                        :style="{ animationDelay: `${0.1 + index * 0.05}s` }"
+                        @click="viewOrderDetail(order.id)"
                     >
-                        加载更多
+                        <div class="node-top">
+                            <div class="node-tag-group" :data-type="order.type">
+                                <i class="v-line"></i>
+                                <span class="v-text">{{ getTypeLabel(order.type) }}</span>
+                            </div>
+                            <NTag
+                                size="small"
+                                :bordered="false"
+                                :type="getStatusTagType(order.status)"
+                            >
+                                {{ getStatusLabel(order.status) }}
+                            </NTag>
+                        </div>
+
+                        <h3 class="node-title">{{ order.title }}</h3>
+
+                        <div class="location-map">
+                            <div class="map-line"></div>
+                            <div class="map-point">
+                                <span class="dot-p"></span>
+                                <span class="label-p">取</span>
+                                <span class="text-p">{{ order.pickup_location }}</span>
+                            </div>
+                            <div class="map-point">
+                                <span class="dot-d"></span>
+                                <span class="label-p">送</span>
+                                <span class="text-p">{{ order.delivery_location }}</span>
+                            </div>
+                        </div>
+
+                        <div class="node-details">
+                            <div class="detail-item">
+                                <label>订单编号</label>
+                                <span>{{ order.order_no }}</span>
+                            </div>
+                            <div class="detail-item price-accent">
+                                <label>{{ isPublisher(order) ? '应付' : '收益' }}</label>
+                                <span class="val">¥{{ formatAmount(order.price, order.tip) }}</span>
+                            </div>
+                        </div>
+
+                        <div class="node-footer">
+                            <div class="user-info">
+                                <div class="u-avatar">
+                                    <svg viewBox="0 0 24 24" class="u-svg">
+                                        <path
+                                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                                            fill="currentColor"
+                                        />
+                                    </svg>
+                                </div>
+                                <span>{{ partnerLabel(order) }}: {{ partnerName(order) }}</span>
+                            </div>
+
+                            <div class="actions-group" @click.stop>
+                                <NButton
+                                    v-if="canCancel(order)"
+                                    size="tiny"
+                                    tertiary
+                                    round
+                                    @click="handleCancel(order)"
+                                >
+                                    取消
+                                </NButton>
+                                <NButton
+                                    v-if="canConfirm(order)"
+                                    size="tiny"
+                                    type="primary"
+                                    round
+                                    @click="handleConfirm(order)"
+                                >
+                                    确认送达
+                                </NButton>
+                                <NButton
+                                    v-if="canRate(order)"
+                                    size="tiny"
+                                    type="primary"
+                                    quaternary
+                                    @click="openRating(order)"
+                                >
+                                    评价
+                                </NButton>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <div v-if="pagination?.has_next && orders.length > 0" class="more-trigger">
+                    <NButton quaternary round :loading="loadingMore" @click="loadMore">
+                        显示更多订单
                     </NButton>
                 </div>
             </div>
+        </main>
 
-            <!-- 空状态 -->
-            <div v-else>
-                <MobileEmpty
-                    :type="getEmptyType()"
-                    :title="getEmptyTitle()"
-                    :description="getEmptyDescription()"
-                    :show-action="currentTab === 'published'"
-                    action-text="发布订单"
-                    @action="router.push('/pickup/create')"
-                />
-            </div>
-        </div>
-
-        <!-- 统计信息 -->
-        <div v-if="!loading && stats" class="stats-section">
-            <MobileCard>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-value">{{ stats.published }}</div>
-                        <div class="stat-label">发布订单</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">{{ stats.accepted }}</div>
-                        <div class="stat-label">接受订单</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">{{ stats.completed }}</div>
-                        <div class="stat-label">完成订单</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">¥{{ stats.totalEarnings }}</div>
-                        <div class="stat-label">总收入</div>
-                    </div>
-                </div>
-            </MobileCard>
-        </div>
-
-        <!-- 确认弹窗 -->
-        <MobileModal
-            v-model:show="showConfirmModal"
-            :title="confirmModalData.title"
-            @confirm="handleConfirm"
-        >
-            <p>{{ confirmModalData.content }}</p>
-        </MobileModal>
-
-        <!-- 评价弹窗 -->
-        <MobileModal
-            v-model:show="showRatingModal"
-            title="评价订单"
-            @confirm="submitRating"
-        >
-            <div class="rating-form">
-                <div class="rating-stars">
-                    <div
-                        v-for="star in 5"
-                        :key="star"
-                        class="rating-star"
-                        :class="{ active: star <= rating }"
-                        @click="rating = star"
-                    >
-                        <NIcon size="24">
-                            <StarIcon />
-                        </NIcon>
-                    </div>
-                </div>
-                <NInput
-                    v-model:value="ratingComment"
-                    type="textarea"
-                    placeholder="请输入评价内容..."
-                    :rows="3"
-                    maxlength="200"
-                    show-count
-                />
-            </div>
-        </MobileModal>
+        <div class="safe-bottom"></div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import {
-    NInput,
-    NButton,
-    NIcon,
-    NTag,
-    useMessage,
-} from 'naive-ui';
-import {
-    SearchOutline as SearchIcon,
-    LocationOutline as LocationIcon,
-    TimeOutline as TimeIcon,
-    BagHandleOutline as BagIcon,
-    FastFoodOutline as FoodIcon,
-    MedkitOutline as MedIcon,
-    ShirtOutline as ShopIcon,
-    StarOutline as StarIcon,
-} from '@vicons/ionicons5';
-import { MobileNavBar, MobileCard, MobileLoading, MobileEmpty, MobileModal } from '@/components/mobile';
-import { useUserStore, useAppStore } from '@/stores';
+import { NButton, NInput, NModal, NTag, useDialog, useMessage } from 'naive-ui';
+import { PickupApi } from '@/api';
+import { useAppStore, useUserStore } from '@/stores';
+import type { PaginationMeta, PickupOrder } from '@/types';
+
+type OrderTypeFilter = 'all' | 'published' | 'accepted';
+type OrderStatusFilter = '' | PickupOrder['status'];
 
 const router = useRouter();
-const userStore = useUserStore();
-const appStore = useAppStore();
+const dialog = useDialog();
 const message = useMessage();
+const appStore = useAppStore();
+const userStore = useUserStore();
 
-// 数据状态
 const loading = ref(true);
 const loadingMore = ref(false);
-const hasMore = ref(true);
-const currentTab = ref('all');
-const searchQuery = ref('');
-const showConfirmModal = ref(false);
+const currentType = ref<OrderTypeFilter>('all');
+const currentStatus = ref<OrderStatusFilter>('');
+const orders = ref<PickupOrder[]>([]);
+const pagination = ref<PaginationMeta | null>(null);
+
 const showRatingModal = ref(false);
-const rating = ref(0);
+const submittingRating = ref(false);
+const currentOrder = ref<PickupOrder | null>(null);
+const rating = ref(5);
 const ratingComment = ref('');
-const currentOrder = ref(null);
 
-// 确认弹窗数据
-const confirmModalData = ref({
-    title: '',
-    content: '',
-    action: '',
-});
-
-// 筛选标签
-const filterTabs = [
-    { key: 'all', label: '全部', count: 0 },
-    { key: 'published', label: '我发布的', count: 0 },
-    { key: 'accepted', label: '我接受的', count: 0 },
-    { key: 'pending', label: '待接单', count: 0 },
-    { key: 'processing', label: '进行中', count: 0 },
-    { key: 'completed', label: '已完成', count: 0 },
+const tabs = [
+    { key: 'all' as OrderTypeFilter, label: '全部订单' },
+    { key: 'published' as OrderTypeFilter, label: '我发布的' },
+    { key: 'accepted' as OrderTypeFilter, label: '我接的' },
 ];
 
-// 模拟订单数据
-const orders = ref([
-    {
-        id: 1,
-        type: 'express',
-        title: '快递代取 - 菜鸟驿站',
-        description: '帮忙取一个包裹，取件码：1234',
-        pickupLocation: '菜鸟驿站',
-        deliveryLocation: '宿舍D栋',
-        status: 'completed',
-        role: 'publisher', // 'publisher' 或 'accepter'
-        fee: 3,
-        totalAmount: 3.3,
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        rated: true,
-        accepter: {
-            id: 3,
-            name: '李代取',
-            avatar: '',
-        },
-    },
-    {
-        id: 2,
-        type: 'food',
-        title: '外卖代取 - 沙县小吃',
-        description: '帮忙买一份沙县小吃',
-        pickupLocation: '沙县小吃',
-        deliveryLocation: '图书馆',
-        status: 'processing',
-        role: 'accepter',
-        fee: 5,
-        totalAmount: 4.5,
-        createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        rated: false,
-        publisher: {
-            id: 2,
-            name: '张同学',
-            avatar: '',
-        },
-    },
-    {
-        id: 3,
-        type: 'medicine',
-        title: '药品代购 - 感冒药',
-        description: '帮忙买一盒感冒灵',
-        pickupLocation: '校医院',
-        deliveryLocation: '宿舍A栋',
-        status: 'pending',
-        role: 'publisher',
-        fee: 2,
-        totalAmount: 2.2,
-        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        rated: false,
-    },
-    {
-        id: 4,
-        type: 'daily',
-        title: '生活用品代购 - 洗发水',
-        description: '帮忙买一瓶洗发水',
-        pickupLocation: '超市',
-        deliveryLocation: '宿舍B栋',
-        status: 'completed',
-        role: 'accepter',
-        fee: 3,
-        totalAmount: 2.7,
-        createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        rated: false,
-        publisher: {
-            id: 4,
-            name: '王同学',
-            avatar: '',
-        },
-    },
-]);
+const statusOptions: Array<{ label: string; value: OrderStatusFilter }> = [
+    { label: '全部状态', value: '' },
+    { label: '待接单', value: 'pending' },
+    { label: '已接单', value: 'accepted' },
+    { label: '取货中', value: 'picking' },
+    { label: '配送中', value: 'delivering' },
+    { label: '已完成', value: 'completed' },
+    { label: '已取消', value: 'cancelled' },
+];
 
-// 统计数据
-const stats = ref({
-    published: 15,
-    accepted: 23,
-    completed: 35,
-    totalEarnings: 128.50,
+const emptyTitle = computed(() => {
+    if (currentType.value === 'published') return '暂无发布订单';
+    if (currentType.value === 'accepted') return '暂无承接订单';
+    return '暂无订单记录';
 });
 
-// 计算属性
-const filteredOrders = computed(() => {
-    let result = orders.value;
-
-    // 按标签筛选
-    if (currentTab.value !== 'all') {
-        if (currentTab.value === 'published') {
-            result = result.filter(order => order.role === 'publisher');
-        } else if (currentTab.value === 'accepted') {
-            result = result.filter(order => order.role === 'accepter');
-        } else {
-            result = result.filter(order => order.status === currentTab.value);
-        }
+const emptyDescription = computed(() => {
+    if (currentStatus.value) {
+        return '当前筛选条件下没有匹配的订单。';
     }
-
-    // 按搜索关键词筛选
-    if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase();
-        result = result.filter(order =>
-            order.title.toLowerCase().includes(query) ||
-            order.description.toLowerCase().includes(query) ||
-            order.pickupLocation.toLowerCase().includes(query) ||
-            order.deliveryLocation.toLowerCase().includes(query)
-        );
-    }
-
-    return result;
+    return '创建一笔新订单后，这里会开始沉淀你的履约记录。';
 });
 
-// 方法
-const getTypeIcon = (type: string) => {
-    const iconMap = {
-        express: BagIcon,
-        food: FoodIcon,
-        medicine: MedIcon,
-        daily: ShopIcon,
-    };
-    return iconMap[type] || BagIcon;
-};
-
-const getTypeColor = (type: string) => {
-    const colorMap = {
-        express: 'var(--n-primary-color)',
-        food: 'var(--n-warning-color)',
-        medicine: 'var(--n-error-color)',
-        daily: 'var(--n-success-color)',
-    };
-    return colorMap[type] || 'var(--n-primary-color)';
-};
-
-const getTypeLabel = (type: string) => {
-    const labelMap = {
-        express: '快递代取',
-        food: '外卖代取',
-        medicine: '药品代购',
-        daily: '生活用品',
-    };
-    return labelMap[type] || '代取服务';
-};
-
-const getStatusType = (status: string) => {
-    const typeMap = {
-        pending: 'warning',
-        processing: 'info',
-        completed: 'success',
-        cancelled: 'error',
-    };
-    return typeMap[status] || 'default';
-};
-
-const getStatusLabel = (status: string) => {
-    const labelMap = {
-        pending: '等待接单',
-        processing: '进行中',
-        completed: '已完成',
-        cancelled: '已取消',
-    };
-    return labelMap[status] || '未知状态';
-};
-
-const formatTime = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-
-    if (hours < 1) {
-        return '刚刚';
-    } else if (hours < 24) {
-        return `${hours}小时前`;
-    } else {
-        return date.toLocaleDateString();
-    }
-};
-
-const getEmptyType = () => {
-    if (searchQuery.value.trim()) return 'search';
-    if (currentTab.value === 'published') return 'data';
-    return 'data';
-};
-
-const getEmptyTitle = () => {
-    if (searchQuery.value.trim()) return '暂无搜索结果';
-    if (currentTab.value === 'published') return '暂无发布订单';
-    if (currentTab.value === 'accepted') return '暂无接受订单';
-    return '暂无订单';
-};
-
-const getEmptyDescription = () => {
-    if (searchQuery.value.trim()) return '尝试调整搜索条件或关键词';
-    if (currentTab.value === 'published') return '您还没有发布任何代取订单';
-    if (currentTab.value === 'accepted') return '您还没有接受任何代取订单';
-    return '您还没有相关的代取订单';
-};
-
-// 更新标签数量
-const updateTabCounts = () => {
-    filterTabs[0].count = orders.value.length; // 全部
-    filterTabs[1].count = orders.value.filter(o => o.role === 'publisher').length; // 我发布的
-    filterTabs[2].count = orders.value.filter(o => o.role === 'accepter').length; // 我接受的
-    filterTabs[3].count = orders.value.filter(o => o.status === 'pending').length; // 待接单
-    filterTabs[4].count = orders.value.filter(o => o.status === 'processing').length; // 进行中
-    filterTabs[5].count = orders.value.filter(o => o.status === 'completed').length; // 已完成
-};
-
-// 事件处理
-const handleTabChange = (tabKey: string) => {
-    currentTab.value = tabKey;
-    appStore.hapticFeedback('light');
-};
-
-const handleSearch = (value: string) => {
-    // 实际应用中这里可以添加防抖
-    console.log('搜索:', value);
-};
-
-const viewOrderDetail = (order: any) => {
-    appStore.hapticFeedback('light');
-    router.push(`/pickup/${order.id}`);
-};
-
-const cancelOrder = (order: any) => {
-    currentOrder.value = order;
-    confirmModalData.value = {
-        title: '取消订单',
-        content: '确定要取消这个代取订单吗？取消后无法恢复。',
-        action: 'cancel',
-    };
-    showConfirmModal.value = true;
-};
-
-const completeOrder = (order: any) => {
-    currentOrder.value = order;
-    confirmModalData.value = {
-        title: '完成订单',
-        content: '确认已经完成这个代取订单了吗？',
-        action: 'complete',
-    };
-    showConfirmModal.value = true;
-};
-
-const rateOrder = (order: any) => {
-    currentOrder.value = order;
-    rating.value = 0;
-    ratingComment.value = '';
-    showRatingModal.value = true;
-};
-
-const contactUser = (order: any) => {
-    message.info('联系功能开发中...');
-    appStore.hapticFeedback('light');
-};
-
-const handleConfirm = async () => {
-    if (!currentOrder.value) return;
+const fetchOrders = async (page = 1, append = false) => {
+    const target = page > 1 ? loadingMore : loading;
+    target.value = true;
 
     try {
-        if (confirmModalData.value.action === 'cancel') {
-            // 模拟取消订单
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            currentOrder.value.status = 'cancelled';
-            message.success('订单已取消');
-        } else if (confirmModalData.value.action === 'complete') {
-            // 模拟完成订单
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            currentOrder.value.status = 'completed';
-            message.success('订单已完成');
+        const response = await PickupApi.getMyOrders({
+            page,
+            limit: 10,
+            type: currentType.value,
+            status: currentStatus.value || undefined,
+        });
+
+        if (!response.success) {
+            throw new Error(response.message || '获取订单失败');
         }
 
-        updateTabCounts();
-        appStore.hapticFeedback('medium');
-    } catch (error) {
-        message.error('操作失败');
+        const list = response.data || [];
+        orders.value = append ? [...orders.value, ...list] : list;
+        pagination.value = response.pagination || null;
+    } catch (error: any) {
+        message.error(error?.message || '获取订单失败');
     } finally {
-        showConfirmModal.value = false;
-        currentOrder.value = null;
-    }
-};
-
-const submitRating = () => {
-    if (rating.value === 0) {
-        message.warning('请选择评分');
-        return;
-    }
-
-    if (currentOrder.value) {
-        currentOrder.value.rated = true;
-    }
-
-    message.success('评价提交成功');
-    showRatingModal.value = false;
-    currentOrder.value = null;
-    rating.value = 0;
-    ratingComment.value = '';
-};
-
-const loadMore = async () => {
-    loadingMore.value = true;
-    try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        // 这里应该加载更多数据
-        hasMore.value = false; // 暂时设置为没有更多数据
-    } catch (error) {
-        message.error('加载失败');
-    } finally {
+        loading.value = false;
         loadingMore.value = false;
     }
 };
 
-// 获取订单列表
-const fetchOrders = async () => {
-    loading.value = true;
+const loadMore = async () => {
+    if (!pagination.value?.has_next) return;
+    await fetchOrders(pagination.value.current_page + 1, true);
+};
+
+const changeType = async (value: OrderTypeFilter) => {
+    currentType.value = value;
+    appStore.hapticFeedback('light');
+    await fetchOrders(1, false);
+};
+
+const changeStatus = async (value: OrderStatusFilter) => {
+    currentStatus.value = value;
+    appStore.hapticFeedback('light');
+    await fetchOrders(1, false);
+};
+
+const isPublisher = (order: PickupOrder) => order.user_id === userStore.user?.id;
+
+const getTypeLabel = (type: PickupOrder['type']) => {
+    const map = {
+        express: '快递代取',
+        food: '外卖代拿',
+        medicine: '药品代购',
+        daily: '生活用品',
+    };
+    return map[type] || '代取订单';
+};
+
+const getStatusLabel = (status: PickupOrder['status']) => {
+    const map = {
+        pending: '待接单',
+        accepted: '已接单',
+        picking: '取货中',
+        delivering: '配送中',
+        completed: '已完成',
+        cancelled: '已取消',
+    };
+    return map[status] || status;
+};
+
+const getStatusTagType = (status: PickupOrder['status']) => {
+    const map = {
+        pending: 'warning',
+        accepted: 'info',
+        picking: 'info',
+        delivering: 'info',
+        completed: 'success',
+        cancelled: 'default',
+    } as const;
+    return map[status] || 'default';
+};
+
+const formatAmount = (price?: number, tip?: number) => Number(price || 0) + Number(tip || 0);
+
+const formatDateTime = (value?: string) => {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+        date.getDate()
+    ).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(
+        date.getMinutes()
+    ).padStart(2, '0')}`;
+};
+
+const partnerLabel = (order: PickupOrder) => (isPublisher(order) ? '配送员' : '发布人');
+
+const partnerName = (order: PickupOrder) => {
+    if (isPublisher(order)) {
+        return order.deliverer?.username || order.deliverer?.real_name || '暂未接单';
+    }
+    return order.user?.username || order.user?.real_name || '匿名用户';
+};
+
+const canCancel = (order: PickupOrder) =>
+    isPublisher(order) && ['pending', 'accepted'].includes(order.status);
+
+const canConfirm = (order: PickupOrder) => isPublisher(order) && order.status === 'delivering';
+
+const canRate = (order: PickupOrder) =>
+    isPublisher(order) && order.status === 'completed' && !order.rating;
+
+const viewOrderDetail = (id: number) => {
+    appStore.hapticFeedback('light');
+    router.push(`/pickup/${id}`);
+};
+
+const handleCancel = (order: PickupOrder) => {
+    dialog.warning({
+        title: '取消订单',
+        content: '确认取消这笔订单吗？',
+        positiveText: '确认',
+        negativeText: '再想想',
+        async onPositiveClick() {
+            try {
+                const response = await PickupApi.cancelOrder(order.id);
+                if (!response.success) {
+                    throw new Error(response.message || '取消订单失败');
+                }
+                message.success('订单已取消');
+                await fetchOrders(1, false);
+            } catch (error: any) {
+                message.error(error?.message || '取消订单失败');
+            }
+        },
+    });
+};
+
+const handleConfirm = (order: PickupOrder) => {
+    dialog.info({
+        title: '确认完成',
+        content: '确认这笔订单已经配送完成？',
+        positiveText: '确认',
+        negativeText: '取消',
+        async onPositiveClick() {
+            try {
+                const response = await PickupApi.confirmOrder(order.id);
+                if (!response.success) {
+                    throw new Error(response.message || '确认完成失败');
+                }
+                message.success('订单已确认完成');
+                await fetchOrders(1, false);
+            } catch (error: any) {
+                message.error(error?.message || '确认完成失败');
+            }
+        },
+    });
+};
+
+const openRating = (order: PickupOrder) => {
+    currentOrder.value = order;
+    rating.value = 5;
+    ratingComment.value = '';
+    showRatingModal.value = true;
+};
+
+const submitRating = async () => {
+    if (!currentOrder.value) return;
+
+    submittingRating.value = true;
     try {
-        // 这里应该调用API获取真实数据
-        await new Promise(resolve => setTimeout(resolve, 800));
-        updateTabCounts();
-    } catch (error) {
-        message.error('获取订单列表失败');
+        const response = await PickupApi.rateOrder(currentOrder.value.id, {
+            rating: rating.value,
+            comment: ratingComment.value || undefined,
+        });
+
+        if (!response.success) {
+            throw new Error(response.message || '评价失败');
+        }
+
+        message.success('评价成功');
+        showRatingModal.value = false;
+        await fetchOrders(1, false);
+    } catch (error: any) {
+        message.error(error?.message || '评价失败');
     } finally {
-        loading.value = false;
+        submittingRating.value = false;
     }
 };
 
-onMounted(() => {
-    fetchOrders();
+onMounted(async () => {
+    await fetchOrders();
 });
 </script>
 
 <style scoped>
-.my-pickups-page {
-    background: var(--n-body-color);
+.campus-orders {
+    --primary: #3b82f6;
+    --cyan: #06b6d4;
+    --grad: linear-gradient(135deg, var(--primary) 0%, var(--cyan) 100%);
+    --surface: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #94a3b8;
     min-height: 100vh;
+    background-color: var(--surface);
+    color: var(--text);
 }
 
-.nav-header {
+.campus-orders.is-dark {
+    --surface: #0f172a;
+    --card: #1e293b;
+    --text: #f1f5f9;
+}
+
+.campus-nav-sticky {
     position: sticky;
     top: 0;
     z-index: 100;
+    background: rgba(var(--surface), 0.9);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.02);
 }
 
-.filter-section,
-.search-section {
-    margin: 16px 16px 0 16px;
-}
-
-.search-section {
-    margin-top: 8px;
-}
-
-/* 筛选标签 */
-.filter-tabs {
+.nav-main {
     display: flex;
-    gap: 4px;
+    align-items: center;
+    padding: 12px 16px;
+}
+
+.back-icon-btn {
+    border: none;
+    background: none;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    margin-right: 8px;
+}
+
+.icon-svg {
+    width: 24px;
+    height: 24px;
+}
+
+.tabs-group {
+    display: flex;
+    gap: 16px;
     overflow-x: auto;
     scrollbar-width: none;
-    -ms-overflow-style: none;
 }
 
-.filter-tabs::-webkit-scrollbar {
-    display: none;
-}
-
-.filter-tab {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 8px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.2s ease;
+.tab-link {
     white-space: nowrap;
-    flex-shrink: 0;
-    border: 1px solid var(--n-border-color);
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.filter-tab:hover {
-    background: var(--n-color-target);
-}
-
-.filter-tab.active {
-    background: var(--n-primary-color);
-    border-color: var(--n-primary-color);
-    color: white;
-}
-
-.tab-label {
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.tab-count {
-    font-size: 12px;
-    background: rgba(255, 255, 255, 0.3);
-    padding: 2px 6px;
-    border-radius: 10px;
-    min-width: 16px;
-    text-align: center;
-}
-
-.filter-tab:not(.active) .tab-count {
-    background: var(--n-primary-color);
-    color: white;
-}
-
-/* 订单列表 */
-.orders-section {
-    margin: 16px;
-    margin-bottom: 32px;
-}
-
-.loading-container {
-    padding: 60px 0;
-    text-align: center;
-}
-
-.order-item {
-    margin-bottom: 12px;
-}
-
-.order-item:last-child {
-    margin-bottom: 0;
-}
-
-.order-content {
-    padding: 4px;
-}
-
-/* 订单头部 */
-.order-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.order-type {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.type-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--n-text-color-1);
-}
-
-/* 订单信息 */
-.order-info {
-    margin-bottom: 12px;
-}
-
-.order-title {
-    font-size: 15px;
+    border: none;
+    background: transparent;
+    font-size: 17px;
     font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 6px 0;
-    line-height: 1.3;
+    color: var(--muted);
+    padding: 4px 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.order-description {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-    margin: 0 0 8px 0;
-    line-height: 1.4;
-}
-
-.order-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.meta-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--n-text-color-3);
-}
-
-/* 订单底部 */
-.order-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 12px;
-    border-top: 1px solid var(--n-border-color);
-}
-
-.price-info {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.price-label {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-}
-
-.price-value {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--n-error-color);
-}
-
-.order-actions {
-    display: flex;
-    gap: 8px;
-}
-
-/* 加载更多 */
-.load-more {
-    margin-top: 20px;
-}
-
-/* 统计信息 */
-.stats-section {
-    margin: 0 16px 32px 16px;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    padding: 4px;
-}
-
-.stat-item {
-    text-align: center;
-    padding: 16px 8px;
-}
-
-.stat-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--n-primary-color);
-    line-height: 1;
-    margin-bottom: 4px;
-}
-
-.stat-label {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-    font-weight: 500;
-}
-
-/* 确认弹窗 */
-.rating-form {
-    padding: 16px 0;
-}
-
-.rating-stars {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 20px;
-}
-
-.rating-star {
-    cursor: pointer;
-    color: var(--n-border-color);
-    transition: all 0.2s ease;
-}
-
-.rating-star.active {
-    color: var(--n-warning-color);
-}
-
-.rating-star:hover {
-    transform: scale(1.1);
-}
-
-/* 响应式适配 */
-@media (max-width: 375px) {
-    .filter-section,
-    .search-section,
-    .orders-section,
-    .stats-section {
-        margin-left: 12px;
-        margin-right: 12px;
-    }
-
-    .order-content {
-        padding: 2px;
-    }
-
-    .order-title {
-        font-size: 14px;
-    }
-
-    .order-description {
-        font-size: 12px;
-    }
-
-    .stats-grid {
-        gap: 16px;
-    }
-
-    .stat-value {
-        font-size: 18px;
-    }
-
-    .filter-tab {
-        padding: 6px 10px;
-    }
-
-    .tab-label {
-        font-size: 12px;
-    }
-}
-
-/* iOS 安全区域适配 */
-.my-pickups-page.is-ios {
-    padding-bottom: calc(100px + var(--safe-area-bottom, 34px));
-}
-
-/* 加载动画 */
-.my-pickups-page {
-    animation: ios-fade-in 0.4s ease-out;
-}
-
-.filter-section,
-.search-section,
-.orders-section {
-    animation: ios-fade-in 0.6s ease-out;
+.tab-link.active {
+    color: var(--text);
+    font-size: 19px;
+    transform: translateY(-1px);
 }
 
 .filter-section {
-    animation-delay: 0.1s;
+    padding: 8px 0 16px;
 }
 
-.search-section {
-    animation-delay: 0.2s;
+.filter-flex {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
 }
 
-.orders-section {
-    animation-delay: 0.3s;
+.status-pill {
+    white-space: nowrap;
+    border: none;
+    background: var(--card);
+    border-radius: 99px;
+    padding: 7px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
-/* 深色模式优化 */
-.dark-theme .filter-tab:hover {
-    background: var(--ios-dark-gray4);
+.status-pill.active {
+    background: var(--grad);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.25);
 }
 
-.light-theme .filter-tab:hover {
-    background: var(--ios-gray5);
+.order-viewport {
+    padding: 8px 16px;
 }
 
-/* 卡片悬停效果 */
-.order-item .mobile-card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.order-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
-.dark-theme .order-item .mobile-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+.order-node {
+    background: var(--card);
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.04);
+    animation: slide-up 0.5s ease-out both;
 }
 
-/* 按钮样式覆盖 */
-.load-more :deep(.n-button) {
-    border-radius: 8px;
-    height: 40px;
+.node-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.node-tag-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.v-line {
+    width: 3px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--primary);
+}
+
+.node-tag-group[data-type='food'] .v-line {
+    background: #f97316;
+}
+.node-tag-group[data-type='medicine'] .v-line {
+    background: #10b981;
+}
+
+.v-text {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.node-title {
+    margin: 0 0 16px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.location-map {
+    background: rgba(148, 163, 184, 0.05);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.map-line {
+    position: absolute;
+    left: 21px;
+    top: 24px;
+    bottom: 24px;
+    width: 1px;
+    border-left: 1px dashed #cbd5e1;
+}
+
+.map-point {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+}
+
+.map-point:first-of-type {
+    margin-bottom: 12px;
+}
+
+.dot-p,
+.dot-d {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--primary);
+}
+
+.dot-d {
+    border-color: #f97316;
+}
+
+.label-p {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--muted);
+}
+
+.text-p {
+    font-size: 14px;
     font-weight: 500;
 }
 
-.order-actions :deep(.n-button) {
-    border-radius: 6px;
-    height: 28px;
+.node-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.detail-item label {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+
+.detail-item span {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.price-accent .val {
+    color: var(--primary);
+    font-size: 16px;
+}
+
+.node-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 14px;
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 12px;
+    color: var(--muted);
+}
+
+.u-avatar {
+    width: 24px;
+    height: 24px;
+    background: #e2e8f0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+}
+
+.u-svg {
+    width: 14px;
+    height: 14px;
+}
+
+.actions-group {
+    display: flex;
+    gap: 8px;
+}
+
+.no-data-view {
+    padding: 100px 20px;
+    text-align: center;
+}
+
+.no-data-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    background: #f1f5f9;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cbd5e1;
+}
+
+.svg-large {
+    width: 32px;
+    height: 32px;
+}
+
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.safe-bottom {
+    height: 100px;
 }
 </style>

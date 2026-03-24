@@ -3,6 +3,12 @@ const router = express.Router();
 const TaskController = require('../../controllers/user/TaskController');
 
 // 任务相关路由
+// 获取已发布任务分类统计
+router.get('/stats/categories', TaskController.getPublishedCategoryStats);
+
+// 获取我的任务
+router.get('/my/tasks', TaskController.getMyTasks);
+
 // 获取任务列表
 router.get('/', TaskController.getTasks);
 
@@ -29,8 +35,5 @@ router.patch('/:id/applications/:applicationId', TaskController.handleApplicatio
 
 // 完成任务
 router.post('/:id/complete', TaskController.completeTask);
-
-// 获取我的任务
-router.get('/my/tasks', TaskController.getMyTasks);
 
 module.exports = router;

@@ -31,19 +31,19 @@ const routes: RouteRecordRaw[] = [
                 path: 'pickup/create',
                 name: 'CreatePickup',
                 component: () => import('@/views/pickup/CreatePickup.vue'),
-                meta: { title: '发布订单', requiresAuth: true, level: 1 },
+                meta: { title: '发布订单', requiresAuth: true, level: 1, hideTabBar: true },
             },
             {
                 path: 'pickup/:id',
                 name: 'PickupDetail',
                 component: () => import('@/views/pickup/PickupDetail.vue'),
-                meta: { title: '订单详情', level: 1 },
+                meta: { title: '订单详情', level: 1, hideTabBar: true },
             },
             {
                 path: 'pickup/my',
                 name: 'MyPickups',
                 component: () => import('@/views/pickup/MyPickups.vue'),
-                meta: { title: '我的订单', requiresAuth: true, level: 1 },
+                meta: { title: '我的订单', requiresAuth: true, level: 1, hideTabBar: true },
             },
             {
                 path: 'tasks',
@@ -52,10 +52,28 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '任务大厅', level: 0 },
             },
             {
+                path: 'tasks/list',
+                name: 'TaskList',
+                component: () => import('@/views/tasks/TaskList.vue'),
+                meta: { title: '任务列表', level: 1, hideTabBar: true },
+            },
+            {
+                path: 'tasks/create',
+                name: 'CreateTask',
+                component: () => import('@/views/tasks/CreateTask.vue'),
+                meta: { title: '发布任务', requiresAuth: true, level: 1, hideTabBar: true },
+            },
+            {
+                path: 'tasks/:id',
+                name: 'TaskDetail',
+                component: () => import('@/views/tasks/TaskDetail.vue'),
+                meta: { title: '任务详情', level: 1, hideTabBar: true },
+            },
+            {
                 path: 'tasks/my',
                 name: 'MyTasks',
                 component: () => import('@/views/tasks/MyTasks.vue'),
-                meta: { title: '我的任务', requiresAuth: true, level: 1 },
+                meta: { title: '我的任务', requiresAuth: true, level: 1, hideTabBar: true },
             },
             {
                 path: 'forum',
@@ -85,7 +103,7 @@ const routes: RouteRecordRaw[] = [
                 path: 'chat',
                 name: 'Chat',
                 component: () => import('@/views/chat/Chat.vue'),
-                meta: { title: '客服消息', requiresAuth: true, level: 1 },
+                meta: { title: '消息', requiresAuth: true, level: 0 },
             },
             {
                 path: 'login',
@@ -145,7 +163,7 @@ router.beforeEach((to, from, next) => {
 
     // 检查是否需要认证
     if (to.meta.requiresAuth && !userStore.isAuthenticated) {
-        console.log('🔐 需要登录，重定向到登录页面');
+        console.log('  需要登录，重定向到登录页面');
         next({
             name: 'Login',
             query: { redirect: to.fullPath },
@@ -155,7 +173,7 @@ router.beforeEach((to, from, next) => {
 
     // 检查是否为访客页面（已登录用户不应该访问）
     if (to.meta.guest && userStore.isAuthenticated) {
-        console.log('👤 已登录用户，重定向到首页');
+        console.log(' 已登录用户，重定向到首页');
         next({ name: 'Home' });
         return;
     }
@@ -164,7 +182,7 @@ router.beforeEach((to, from, next) => {
 });
 
 router.afterEach((to, from) => {
-    console.log(`🚀 路由跳转: ${from.path} -> ${to.path}`);
+    console.log(` 路由跳转: ${from.path} -> ${to.path}`);
 });
 
 export default router;

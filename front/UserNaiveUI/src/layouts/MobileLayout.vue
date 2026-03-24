@@ -1,5 +1,5 @@
 <template>
-    <div class="mobile-layout" :class="{ 'has-tab-bar': showTabBar }">
+    <div class="mobile-layout" :class="{ 'has-tab-bar': resolvedShowTabBar }">
         <!-- 页面内容区域 -->
         <main class="page-content">
             <router-view v-slot="{ Component, route }">
@@ -18,7 +18,7 @@
         </main>
 
         <!-- 底部标签栏 -->
-        <MobileTabBar v-if="showTabBar" />
+        <MobileTabBar v-if="resolvedShowTabBar" />
 
         <!-- 全局加载遮罩 -->
         <Teleport to="body">
@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { MobileTabBar, MobileLoading } from '@/components/mobile';
 import { useAppStore } from '@/stores';
@@ -44,13 +44,18 @@ interface Props {
     keepAlivePages?: string[];
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     showTabBar: true,
     keepAlivePages: () => ['Home', 'PickupList', 'TaskList', 'ForumIndex'],
 });
 
 const route = useRoute();
 const appStore = useAppStore();
+const resolvedShowTabBar = computed(() => {
+    const hideForChatConversation =
+        route.path === '/chat' && typeof route.query.conversationId === 'string';
+    return props.showTabBar && !route.meta.hideTabBar && !hideForChatConversation;
+});
 
 // 路由动画状态
 const transitionName = ref('slide-left');
@@ -62,6 +67,7 @@ const routeLevels: Record<string, number> = {
     '/pickup': 1,
     '/pickup/list': 1,
     '/tasks': 1,
+    '/chat': 1,
     '/forum': 1,
     '/profile': 1,
     '/login': 2,
@@ -73,6 +79,7 @@ const mainTabs = [
     { key: 'home', matchBase: '/', entryRoute: '/' },
     { key: 'pickup', matchBase: '/pickup', entryRoute: '/pickup/list' },
     { key: 'tasks', matchBase: '/tasks', entryRoute: '/tasks' },
+    { key: 'chat', matchBase: '/chat', entryRoute: '/chat' },
     { key: 'forum', matchBase: '/forum', entryRoute: '/forum' },
     { key: 'profile', matchBase: '/profile', entryRoute: '/profile' },
 ];

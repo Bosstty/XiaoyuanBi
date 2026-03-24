@@ -102,6 +102,9 @@
               <el-descriptions-item label="创建时间" :span="2">
                 {{ formatDate(task.createdAt) }}
               </el-descriptions-item>
+              <el-descriptions-item v-if="task.cancel_reason" label="取消原因" :span="2">
+                <span class="cancel-reason">{{ task.cancel_reason }}</span>
+              </el-descriptions-item>
             </el-descriptions>
           </el-card>
 
@@ -425,9 +428,11 @@ const submitModerate = async () => {
 
   moderateDialog.loading = true
   try {
-    const response = await taskManagementApi.moderateTask(
+    // 根据操作类型设置状态：approve -> published, reject -> cancelled
+    const newStatus = moderateDialog.form.action === 'approve' ? 'published' : 'cancelled'
+    const response = await taskManagementApi.updateTaskStatus(
       task.value.id,
-      moderateDialog.form.action,
+      newStatus,
       moderateDialog.form.reason,
     )
 
@@ -746,6 +751,12 @@ onMounted(() => {
   font-weight: 700;
   color: var(--accent-danger);
   font-family: 'Fira Code', monospace;
+}
+
+/* 取消原因样式 */
+.cancel-reason {
+  color: var(--accent-danger);
+  font-weight: 500;
 }
 
 /* 描述内容 */

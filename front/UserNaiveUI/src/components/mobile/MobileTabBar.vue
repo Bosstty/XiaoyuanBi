@@ -10,7 +10,7 @@
         <div class="tab-bar-background" />
         <div class="tab-bar-content">
             <div
-                v-for="tab in tabs"
+                v-for="tab in renderedTabs"
                 :key="tab.name"
                 class="tab-item"
                 :class="{ active: activeTab === tab.name }"
@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { NIcon } from 'naive-ui';
 import {
@@ -39,12 +39,15 @@ import {
     BagHandle,
     BriefcaseOutline,
     Briefcase,
+    MailOutline,
+    Mail,
     ChatbubblesOutline,
     Chatbubbles,
     PersonOutline,
     Person,
 } from '@vicons/ionicons5';
-import { useAppStore } from '@/stores';
+import { chatApi } from '@/api';
+import { useAppStore, useUserStore } from '@/stores';
 
 interface TabItem {
     name: string;
@@ -59,6 +62,8 @@ interface TabItem {
 const router = useRouter();
 const route = useRoute();
 const appStore = useAppStore();
+const userStore = useUserStore();
+const unreadCount = ref(0);
 
 const tabs: TabItem[] = [
     {
@@ -76,7 +81,6 @@ const tabs: TabItem[] = [
         activeIcon: BagHandle,
         route: '/pickup/list',
         matchBase: '/pickup',
-        badge: 3, // 示例：有3个新订单
     },
     {
         name: 'tasks',
@@ -85,6 +89,14 @@ const tabs: TabItem[] = [
         activeIcon: Briefcase,
         route: '/tasks',
         matchBase: '/tasks',
+    },
+    {
+        name: 'chat',
+        label: '消息',
+        icon: MailOutline,
+        activeIcon: Mail,
+        route: '/chat',
+        matchBase: '/chat',
     },
     {
         name: 'forum',
@@ -103,6 +115,13 @@ const tabs: TabItem[] = [
         matchBase: '/profile',
     },
 ];
+
+const renderedTabs = computed(() =>
+    tabs.map(tab => ({
+        ...tab,
+        badge: tab.name === 'chat' && unreadCount.value > 0 ? unreadCount.value : undefined,
+    }))
+);
 
 const isTabSectionActive = (tab: TabItem, path = route.path) => {
     if (tab.matchBase === '/') {
@@ -129,6 +148,37 @@ const handleTabClick = (tab: TabItem) => {
     appStore.hapticFeedback('light');
     router.push(tab.route);
 };
+
+const fetchUnreadCount = async () => {
+    if (!userStore.isAuthenticated) {
+        unreadCount.value = 0;
+        return;
+    }
+
+    try {
+        const response = await chatApi.getConversations();
+        const list = Array.isArray(response.data) ? response.data : [];
+        unreadCount.value = list.reduce(
+            (sum: number, item: any) => sum + Number(item?.unread_count || 0),
+            0
+        );
+    } catch (error) {
+        unreadCount.value = 0;
+    }
+};
+
+onMounted(fetchUnreadCount);
+
+watch(
+    () => route.path,
+    () => {
+        if (route.path.startsWith('/chat')) {
+            unreadCount.value = 0;
+            return;
+        }
+        fetchUnreadCount();
+    }
+);
 </script>
 
 <style scoped>

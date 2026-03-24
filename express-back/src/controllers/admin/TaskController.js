@@ -34,7 +34,12 @@ class TaskController {
             if (startDate || endDate) {
                 where.created_at = {};
                 if (startDate) where.created_at[Op.gte] = new Date(startDate);
-                if (endDate) where.created_at[Op.lte] = new Date(endDate);
+                if (endDate) {
+                    // 结束日期设置为当天 23:59:59，确保包含当天所有数据
+                    const endDateObj = new Date(endDate);
+                    endDateObj.setHours(23, 59, 59, 999);
+                    where.created_at[Op.lte] = endDateObj;
+                }
             }
 
             if (keyword) {
@@ -190,6 +195,7 @@ class TaskController {
 
             // 验证状态转换是否合法
             const allowedTransitions = {
+                pending: ['published', 'cancelled'],
                 published: ['in_progress', 'cancelled', 'expired'],
                 in_progress: ['completed', 'cancelled'],
                 completed: [],
@@ -300,7 +306,12 @@ class TaskController {
             if (startDate || endDate) {
                 where.created_at = {};
                 if (startDate) where.created_at[Op.gte] = new Date(startDate);
-                if (endDate) where.created_at[Op.lte] = new Date(endDate);
+                if (endDate) {
+                    // 结束日期设置为当天 23:59:59，确保包含当天所有数据
+                    const endDateObj = new Date(endDate);
+                    endDateObj.setHours(23, 59, 59, 999);
+                    where.created_at[Op.lte] = endDateObj;
+                }
             }
 
             // 任务状态统计

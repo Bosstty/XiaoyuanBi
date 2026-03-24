@@ -165,7 +165,7 @@ export const useAppStore = defineStore('app', () => {
                 userPreferences.value = JSON.parse(savedPreferences);
             }
         } catch (error) {
-            console.error('❌ 恢复设置失败:', error);
+            console.error('  恢复设置失败:', error);
         }
     };
 
@@ -180,7 +180,7 @@ export const useAppStore = defineStore('app', () => {
         window.addEventListener('online', updateNetworkStatus);
         window.addEventListener('offline', updateNetworkStatus);
 
-        console.log('✅ 移动端应用初始化完成');
+        console.log('  移动端应用初始化完成');
     };
 
     return {

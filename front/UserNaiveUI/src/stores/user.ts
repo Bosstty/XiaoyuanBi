@@ -31,12 +31,12 @@ export const useUserStore = defineStore('user', () => {
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('user', JSON.stringify(response.data.user));
 
-                console.log('✅ 登录成功:', user.value.username);
+                console.log('  登录成功:', user.value.username);
                 return response.data;
             }
             throw new Error(response.message || '登录失败');
         } catch (error) {
-            console.error('❌ 登录失败:', error);
+            console.error('  登录失败:', error);
             throw error;
         } finally {
             isLoading.value = false;
@@ -56,12 +56,12 @@ export const useUserStore = defineStore('user', () => {
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('user', JSON.stringify(response.data.user));
 
-                console.log('✅ 注册成功:', user.value.username);
+                console.log('  注册成功:', user.value.username);
                 return response.data;
             }
             throw new Error(response.message || '注册失败');
         } catch (error) {
-            console.error('❌ 注册失败:', error);
+            console.error('  注册失败:', error);
             throw error;
         } finally {
             isLoading.value = false;
@@ -73,7 +73,7 @@ export const useUserStore = defineStore('user', () => {
         try {
             await AuthApi.logout();
         } catch (error) {
-            console.error('❌ 退出登录请求失败:', error);
+            console.error('  退出登录请求失败:', error);
         } finally {
             // 清理状态和本地存储
             user.value = null;
@@ -81,7 +81,7 @@ export const useUserStore = defineStore('user', () => {
             userStats.value = null;
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            console.log('✅ 已退出登录');
+            console.log('  已退出登录');
         }
     };
 
@@ -95,10 +95,10 @@ export const useUserStore = defineStore('user', () => {
             if (response.success && response.data) {
                 user.value = response.data;
                 localStorage.setItem('user', JSON.stringify(response.data));
-                console.log('✅ 用户信息更新成功');
+                console.log('  用户信息更新成功');
             }
         } catch (error) {
-            console.error('❌ 获取用户信息失败:', error);
+            console.error('  获取用户信息失败:', error);
             // 如果是认证错误，清理状态
             if (error.response?.status === 401) {
                 await logout();
@@ -118,12 +118,12 @@ export const useUserStore = defineStore('user', () => {
             if (response.success && response.data) {
                 user.value = response.data;
                 localStorage.setItem('user', JSON.stringify(response.data));
-                console.log('✅ 用户信息更新成功');
+                console.log('  用户信息更新成功');
                 return response.data;
             }
             throw new Error(response.message || '更新失败');
         } catch (error) {
-            console.error('❌ 更新用户信息失败:', error);
+            console.error('  更新用户信息失败:', error);
             throw error;
         } finally {
             isLoading.value = false;
@@ -139,12 +139,12 @@ export const useUserStore = defineStore('user', () => {
                 new_password: newPassword,
             });
             if (response.success) {
-                console.log('✅ 密码修改成功');
+                console.log('  密码修改成功');
                 return true;
             }
             throw new Error(response.message || '密码修改失败');
         } catch (error) {
-            console.error('❌ 密码修改失败:', error);
+            console.error('  密码修改失败:', error);
             throw error;
         } finally {
             isLoading.value = false;
@@ -161,12 +161,12 @@ export const useUserStore = defineStore('user', () => {
             if (response.success && response.data) {
                 user.value.avatar = response.data.avatar;
                 localStorage.setItem('user', JSON.stringify(user.value));
-                console.log('✅ 头像上传成功');
+                console.log('  头像上传成功');
                 return response.data.avatar;
             }
             throw new Error(response.message || '头像上传失败');
         } catch (error) {
-            console.error('❌ 头像上传失败:', error);
+            console.error('  头像上传失败:', error);
             throw error;
         } finally {
             isLoading.value = false;
@@ -181,11 +181,11 @@ export const useUserStore = defineStore('user', () => {
             const response = await UserApi.getStats();
             if (response.success && response.data) {
                 userStats.value = response.data;
-                console.log('✅ 用户统计数据获取成功');
+                console.log('  用户统计数据获取成功');
                 return response.data;
             }
         } catch (error) {
-            console.error('❌ 获取用户统计数据失败:', error);
+            console.error('  获取用户统计数据失败:', error);
         }
     };
 
@@ -198,9 +198,9 @@ export const useUserStore = defineStore('user', () => {
             try {
                 token.value = storedToken;
                 user.value = JSON.parse(storedUser);
-                console.log('✅ 从本地存储恢复用户状态:', user.value.username);
+                console.log('  从本地存储恢复用户状态:', user.value.username);
             } catch (error) {
-                console.error('❌ 本地存储数据解析失败:', error);
+                console.error('  本地存储数据解析失败:', error);
                 localStorage.removeItem('user');
                 localStorage.removeItem('token');
             }
@@ -212,12 +212,12 @@ export const useUserStore = defineStore('user', () => {
         try {
             const response = await AuthApi.sendVerificationCode({ type, target });
             if (response.success) {
-                console.log('✅ 验证码发送成功');
+                console.log('  验证码发送成功');
                 return true;
             }
             throw new Error(response.message || '验证码发送失败');
         } catch (error) {
-            console.error('❌ 验证码发送失败:', error);
+            console.error('  验证码发送失败:', error);
             throw error;
         }
     };
@@ -235,12 +235,12 @@ export const useUserStore = defineStore('user', () => {
                     }
                     localStorage.setItem('user', JSON.stringify(user.value));
                 }
-                console.log('✅ 验证成功');
+                console.log('  验证成功');
                 return true;
             }
             throw new Error(response.message || '验证失败');
         } catch (error) {
-            console.error('❌ 验证失败:', error);
+            console.error('  验证失败:', error);
             throw error;
         }
     };

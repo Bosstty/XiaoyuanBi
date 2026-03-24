@@ -374,9 +374,11 @@ const submitModerate = async () => {
 
   moderateDialog.loading = true
   try {
-    const response = await taskManagementApi.moderateTask(
+    // 根据操作类型设置状态：approve -> published, reject -> cancelled
+    const newStatus = moderateDialog.form.action === 'approve' ? 'published' : 'cancelled'
+    const response = await taskManagementApi.updateTaskStatus(
       moderateDialog.form.taskId,
-      moderateDialog.form.action,
+      newStatus,
       moderateDialog.form.reason,
     )
 

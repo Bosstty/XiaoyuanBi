@@ -3,8 +3,8 @@ import type {
   PickupOrder,
   CreatePickupOrderData,
   PickupOrderFilters,
-  PaginatedResponse,
   ApiResponse,
+  PaginatedResponse,
 } from '@/types'
 
 export class PickupApi {
@@ -38,13 +38,20 @@ export class PickupApi {
   }
 
   // 取消订单
-  static async cancelOrder(id: number, reason?: string): Promise<ApiResponse> {
-    return apiClient.delete(`/orders/${id}`, { data: { reason } })
+  static async cancelOrder(id: number, reason?: string): Promise<ApiResponse<PickupOrder>> {
+    return apiClient.post(`/orders/${id}/cancel`, { reason })
   }
 
   // 获取我的订单
-  static async getMyOrders(filters?: PickupOrderFilters): Promise<ApiResponse<PaginatedResponse<PickupOrder>>> {
+  static async getMyOrders(
+    filters?: Omit<PickupOrderFilters, 'type'> & { type?: 'all' | 'published' | 'accepted' }
+  ): Promise<ApiResponse<PickupOrder[]>> {
     return apiClient.get('/orders/my-orders', { params: filters })
+  }
+
+  // 确认订单完成
+  static async confirmOrder(id: number): Promise<ApiResponse<PickupOrder>> {
+    return apiClient.post(`/orders/${id}/confirm`)
   }
 
   // 评价订单

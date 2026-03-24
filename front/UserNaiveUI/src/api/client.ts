@@ -26,11 +26,11 @@ class ApiClient {
                     config.headers.Authorization = `Bearer ${token}`;
                 }
 
-                console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+                console.log(` API Request: ${config.method?.toUpperCase()} ${config.url}`);
                 return config;
             },
             error => {
-                console.error('❌ Request error:', error);
+                console.error('  Request error:', error);
                 return Promise.reject(error);
             }
         );
@@ -39,14 +39,14 @@ class ApiClient {
         this.instance.interceptors.response.use(
             (response: AxiosResponse<ApiResponse>) => {
                 console.log(
-                    `✅ API Response: ${response.config.method?.toUpperCase()} ${
+                    `  API Response: ${response.config.method?.toUpperCase()} ${
                         response.config.url
                     }`
                 );
                 return response;
             },
             error => {
-                console.error('❌ Response error:', error);
+                console.error('  Response error:', error);
 
                 // 处理认证错误
                 if (error.response?.status === 401) {
@@ -132,6 +132,7 @@ class ApiClient {
 
 // 创建默认实例
 export const apiClient = new ApiClient();
+export const publicApiClient = new ApiClient('/api/public');
 
 // 导出类型
 export type { AxiosRequestConfig, AxiosResponse };

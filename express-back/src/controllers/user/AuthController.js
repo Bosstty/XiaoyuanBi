@@ -1,7 +1,25 @@
-const { User } = require('../../models');
+const { User, Deliverer } = require('../../models');
 const { jwtUtils, responseUtils, validationUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const SecurityService = require('../../services/SecurityService');
+
+async function buildUserResponse(user) {
+    const deliverer = await Deliverer.findOne({
+        where: {
+            user_id: user.id,
+            application_status: 'approved',
+            status: 'active',
+            isDeleted: false,
+        },
+        attributes: ['id', 'application_status', 'status'],
+    });
+
+    return {
+        ...user.toJSON(),
+        is_deliverer: Boolean(deliverer),
+        deliverer_id: deliverer ? deliverer.id : null,
+    };
+}
 
 class UserAuthController {
     // 用户注册
@@ -74,15 +92,9 @@ class UserAuthController {
                 type: 'user',
             });
 
-            res.json(
-                responseUtils.success(
-                    {
-                        user,
-                        token,
-                    },
-                    '注册成功'
-                )
-            );
+            const userData = await buildUserResponse(user);
+
+            res.json(responseUtils.success({ user: userData, token }, '注册成功'));
         } catch (error) {
             console.error('用户注册失败:', error);
             res.status(500).json(responseUtils.error('注册失败'));
@@ -134,15 +146,9 @@ class UserAuthController {
                 type: 'user',
             });
 
-            res.json(
-                responseUtils.success(
-                    {
-                        user,
-                        token,
-                    },
-                    '登录成功'
-                )
-            );
+            const userData = await buildUserResponse(user);
+
+            res.json(responseUtils.success({ user: userData, token }, '登录成功'));
         } catch (error) {
             console.error('用户登录失败:', error);
             res.status(500).json(responseUtils.error('登录失败'));
@@ -153,7 +159,9 @@ class UserAuthController {
     static async getProfile(req, res) {
         try {
             const user = req.user;
-            res.json(responseUtils.success(user, '获取用户信息成功'));
+            const userData = await buildUserResponse(user);
+
+            res.json(responseUtils.success(userData, '获取用户信息成功'));
         } catch (error) {
             console.error('获取用户信息失败:', error);
             res.status(500).json(responseUtils.error('获取用户信息失败'));
@@ -207,7 +215,9 @@ class UserAuthController {
                 skills,
             });
 
-            res.json(responseUtils.success(user, '更新成功'));
+            const userData = await buildUserResponse(user);
+
+            res.json(responseUtils.success(userData, '更新成功'));
         } catch (error) {
             console.error('更新用户信息失败:', error);
             res.status(500).json(responseUtils.error('更新失败'));
@@ -361,10 +371,12 @@ class UserAuthController {
                 type: 'user',
             });
 
+            const userData = await buildUserResponse(user);
+
             res.json(
                 responseUtils.success(
                     {
-                        user,
+                        user: userData,
                         token,
                         is_new_user: !user.student_verified,
                     },

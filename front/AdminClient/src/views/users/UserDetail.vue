@@ -14,10 +14,6 @@
       </div>
       <div class="header-right">
         <el-button @click="refreshData">刷新</el-button>
-        <el-button type="primary" @click="handleEdit">
-          <el-icon><Edit /></el-icon>
-          编辑用户
-        </el-button>
       </div>
     </div>
 
@@ -171,8 +167,8 @@
                       <span class="verification-status">
                         {{ userInfo.student_verified ? '已认证' : '未认证' }}
                       </span>
-                      <span v-if="userInfo.student_verified_at" class="verification-time">
-                        {{ formatDate(userInfo.student_verified_at) }}
+                      <span v-if="userInfo.verified_at" class="verification-time">
+                        {{ formatDate(userInfo.verified_at) }}
                       </span>
                     </div>
                   </div>
@@ -274,13 +270,6 @@
             </template>
             <div class="action-grid">
               <div class="action-item">
-                <el-button type="primary" size="large" @click="handleEdit">
-                  <el-icon><Edit /></el-icon>
-                  编辑用户
-                </el-button>
-                <p>修改用户基本信息</p>
-              </div>
-              <div class="action-item">
                 <el-button
                   :type="userInfo.status === 'active' ? 'warning' : 'success'"
                   size="large"
@@ -292,11 +281,24 @@
                 <p>{{ userInfo.status === 'active' ? '禁用该用户账号' : '恢复该用户账号' }}</p>
               </div>
               <div class="action-item">
-                <el-button type="danger" size="large" @click="handleDelete">
-                  <el-icon><Delete /></el-icon>
-                  删除用户
+                <el-button
+                  :type="userInfo.student_verified ? 'info' : 'success'"
+                  size="large"
+                  @click="handleVerifyStudent"
+                >
+                  <el-icon><Tickets /></el-icon>
+                  {{ userInfo.student_verified ? '取消学生认证' : '认证学生身份' }}
                 </el-button>
-                <p>永久删除该用户账号</p>
+                <p>
+                  {{ userInfo.student_verified ? '取消该学生的认证状态' : '通过该学生的身份认证' }}
+                </p>
+              </div>
+              <div class="action-item">
+                <el-button type="danger" size="large" @click="handleResetPassword">
+                  <el-icon><Key /></el-icon>
+                  重置密码
+                </el-button>
+                <p>重置该用户的登录密码</p>
               </div>
             </div>
           </el-card>
@@ -310,7 +312,16 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Edit, Lock, Delete, Message, Phone, Ticket } from '@element-plus/icons-vue'
+import {
+  ArrowLeft,
+  Edit,
+  Lock,
+  Message,
+  Phone,
+  Ticket,
+  Tickets,
+  Key,
+} from '@element-plus/icons-vue'
 import { userManagementApi } from '../../api/index.js'
 
 const route = useRoute()
@@ -359,15 +370,11 @@ const refreshData = () => {
   ElMessage.success('已刷新')
 }
 
-const handleEdit = () => {
-  ElMessage.info('编辑功能开发中...')
-}
-
 // 状态变更
 const handleStatusChange = async () => {
   try {
-    const newStatus = userInfo.value.status === 'active' ? 'disabled' : 'active'
-    const action = newStatus === 'disabled' ? '禁用' : '启用'
+    const newStatus = userInfo.value.status === 'active' ? 'inactive' : 'active'
+    const action = newStatus === 'inactive' ? '禁用' : '启用'
 
     await ElMessageBox.confirm(
       `确定要${action}用户 "${userInfo.value.username}" 吗？`,
@@ -392,28 +399,56 @@ const handleStatusChange = async () => {
   }
 }
 
-// 删除用户
-const handleDelete = async () => {
+// 认证学生身份
+const handleVerifyStudent = async () => {
   try {
+    const verified = !userInfo.value.student_verified
+    const action = verified ? '认证' : '取消认证'
+
     await ElMessageBox.confirm(
-      `确定要删除用户 "${userInfo.value.username}" 吗？此操作不可恢复！`,
-      '危险操作',
+      `确定要${action}用户 "${userInfo.value.username}" 的学生身份吗？`,
+      '确认操作',
       {
-        confirmButtonText: '确定删除',
+        confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'error',
+        type: 'warning',
       },
     )
 
-    const response = await userManagementApi.deleteUser(userId)
+    const response = await userManagementApi.verifyStudent(userId, { verified })
     if (response.success) {
-      ElMessage.success('删除成功')
-      router.push('/users')
+      ElMessage.success(`${action}成功`)
+      fetchUserDetail()
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('删除用户失败:', error)
-      ElMessage.error('删除失败')
+      console.error('认证失败:', error)
+      ElMessage.error('操作失败')
+    }
+  }
+}
+
+// 重置密码
+const handleResetPassword = async () => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要重置用户 "${userInfo.value.username}" 的密码吗？`,
+      '确认操作',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+
+    const response = await userManagementApi.resetUserPassword(userId)
+    if (response.success) {
+      ElMessage.success('密码重置成功')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('重置密码失败:', error)
+      ElMessage.error('操作失败')
     }
   }
 }
@@ -422,7 +457,7 @@ const handleDelete = async () => {
 const getStatusTagType = (status) => {
   const types = {
     active: 'success',
-    disabled: 'danger',
+    inactive: 'danger',
   }
   return types[status] || 'info'
 }
@@ -430,7 +465,7 @@ const getStatusTagType = (status) => {
 const getStatusText = (status) => {
   const texts = {
     active: '正常',
-    disabled: '禁用',
+    inactive: '禁用',
   }
   return texts[status] || '未知'
 }
@@ -446,7 +481,13 @@ const getGenderText = (gender) => {
 
 const formatDate = (dateString) => {
   if (!dateString) return null
-  return new Date(dateString).toLocaleString('zh-CN')
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return '未知'
+    return date.toLocaleString('zh-CN')
+  } catch {
+    return dateString
+  }
 }
 
 // 订单状态

@@ -96,9 +96,9 @@ const Task = sequelize.define(
             comment: '是否可远程',
         },
         status: {
-            type: DataTypes.ENUM('published', 'in_progress', 'completed', 'cancelled', 'expired'),
-            defaultValue: 'published',
-            comment: '任务状态',
+            type: DataTypes.ENUM('pending', 'published', 'in_progress', 'completed', 'cancelled', 'expired'),
+            defaultValue: 'pending',
+            comment: '任务状态：pending待审核, published已发布, in_progress进行中, completed已完成, cancelled已取消, expired已过期',
         },
         payment_status: {
             type: DataTypes.ENUM('unpaid', 'paid', 'refunded'),

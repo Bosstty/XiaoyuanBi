@@ -25,4 +25,4 @@ appStore.initializeApp();
 // 挂载应用
 app.mount('#app');
 
-console.log('🚀 哈尔滨学院校园服务平台启动成功!');
+console.log(' 哈尔滨学院校园服务平台启动成功!');

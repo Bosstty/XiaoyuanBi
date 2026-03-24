@@ -1,879 +1,715 @@
 <template>
-    <div class="create-pickup-page">
-        <!-- 导航栏 -->
-        <div class="nav-header">
-            <MobileNavBar
-                title="发布代取订单"
-                show-back
-                @back="router.back()"
-            />
-        </div>
+    <div class="campus-create" :class="{ 'is-dark': appStore.isDark }">
+        <header class="campus-nav-sticky">
+            <div class="nav-main">
+                <button type="button" class="back-icon-btn touch-feedback" @click="router.back()">
+                    <svg viewBox="0 0 24 24" class="icon-svg">
+                        <path
+                            d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                </button>
+                <div class="nav-title-group">
+                    <span class="sub-label">Campus Order Form</span>
+                    <h1 class="main-title">创建订单</h1>
+                </div>
+            </div>
+        </header>
 
-        <!-- 表单内容 -->
-        <div class="form-container">
-            <!-- 服务类型选择 -->
-            <div class="section">
-                <h3 class="section-title">选择服务类型</h3>
-                <MobileCard>
-                    <div class="service-types">
-                        <div
-                            v-for="service in serviceTypes"
-                            :key="service.key"
-                            class="service-type-item"
-                            :class="{ active: orderForm.type === service.key }"
-                            @click="selectServiceType(service.key)"
-                        >
-                            <div class="service-icon" :style="{ backgroundColor: service.color + '20' }">
-                                <NIcon size="24" :color="service.color">
-                                    <component :is="service.icon" />
-                                </NIcon>
-                            </div>
-                            <span class="service-label">{{ service.label }}</span>
+        <main class="order-viewport">
+            <div class="config-stack">
+                <section class="form-card">
+                    <div class="field-node">
+                        <label class="field-label">服务类型</label>
+                        <NSelect
+                            v-model:value="form.type"
+                            :options="orderTypeOptions"
+                            placeholder="请选择服务类型"
+                            size="large"
+                        />
+                    </div>
+                </section>
+
+                <section class="form-card">
+                    <div class="field-grid">
+                        <div class="field-node">
+                            <label class="field-label">{{ pickupLabel }}</label>
+                            <NInput
+                                v-model:value="form.pickup_location"
+                                :placeholder="pickupPlaceholder"
+                            />
+                        </div>
+                        <div class="field-node">
+                            <label class="field-label">送达地点</label>
+                            <NInput
+                                v-model:value="form.delivery_location"
+                                placeholder="例如：A3 宿舍楼下"
+                            />
                         </div>
                     </div>
-                </MobileCard>
-            </div>
 
-            <!-- 订单信息表单 -->
-            <div class="section">
-                <h3 class="section-title">订单信息</h3>
-                <MobileCard>
-                    <NForm
-                        ref="formRef"
-                        :model="orderForm"
-                        :rules="formRules"
-                        :label-width="80"
-                    >
-                        <NFormItem label="订单标题" path="title">
-                            <NInput
-                                v-model:value="orderForm.title"
-                                placeholder="请输入订单标题"
-                                maxlength="50"
-                                show-count
-                            />
-                        </NFormItem>
+                    <transition name="fade-slide" mode="out-in">
+                        <div :key="form.type" class="feature-zone">
+                            <div v-if="form.type === 'express'" class="field-grid">
+                                <div class="field-node">
+                                    <label class="field-label">取件码</label>
+                                    <NInput
+                                        v-model:value="featureForm.express.pickupCode"
+                                        placeholder="请输入取件码"
+                                    />
+                                </div>
+                                <div class="field-node">
+                                    <label class="field-label">手机尾号</label>
+                                    <NInput
+                                        v-model:value="featureForm.express.phoneTail"
+                                        maxlength="4"
+                                        placeholder="1234"
+                                    />
+                                </div>
+                            </div>
 
-                        <NFormItem label="详细描述" path="description">
-                            <NInput
-                                v-model:value="orderForm.description"
-                                type="textarea"
-                                placeholder="请详细描述您的需求..."
-                                :rows="4"
-                                maxlength="200"
-                                show-count
-                            />
-                        </NFormItem>
+                            <div v-if="form.type === 'food'" class="field-grid">
+                                <div class="field-node">
+                                    <label class="field-label">取餐人</label>
+                                    <NInput
+                                        v-model:value="featureForm.food.receiverName"
+                                        placeholder="例如 张同学"
+                                    />
+                                </div>
+                                <div class="field-node">
+                                    <label class="field-label">手机尾号</label>
+                                    <NInput
+                                        v-model:value="featureForm.food.phoneTail"
+                                        maxlength="4"
+                                        placeholder="1234"
+                                    />
+                                </div>
+                            </div>
 
-                        <NFormItem label="取货地点" path="pickupLocation">
-                            <NInput
-                                v-model:value="orderForm.pickupLocation"
-                                placeholder="请输入取货地点"
-                                @click="selectLocation('pickup')"
-                                readonly
-                            >
-                                <template #suffix>
-                                    <NIcon>
-                                        <LocationIcon />
-                                    </NIcon>
-                                </template>
-                            </NInput>
-                        </NFormItem>
+                            <div v-if="form.type === 'medicine'" class="field-stack">
+                                <div class="field-node">
+                                    <label class="field-label">药品信息</label>
+                                    <NInput
+                                        v-model:value="featureForm.medicine.medicineName"
+                                        type="textarea"
+                                        :rows="3"
+                                        placeholder="请填写药品名称、规格或数量"
+                                    />
+                                </div>
+                            </div>
 
-                        <NFormItem label="送达地点" path="deliveryLocation">
-                            <NInput
-                                v-model:value="orderForm.deliveryLocation"
-                                placeholder="请输入送达地点"
-                                @click="selectLocation('delivery')"
-                                readonly
-                            >
-                                <template #suffix>
-                                    <NIcon>
-                                        <LocationIcon />
-                                    </NIcon>
-                                </template>
-                            </NInput>
-                        </NFormItem>
+                            <div v-if="form.type === 'daily'" class="field-stack">
+                                <div class="field-node">
+                                    <label class="field-label">购物清单</label>
+                                    <NInput
+                                        v-model:value="featureForm.daily.shoppingList"
+                                        type="textarea"
+                                        :rows="3"
+                                        placeholder="请详细填写需要采购的物品"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </transition>
+                </section>
 
-                        <NFormItem label="服务费用" path="fee">
+                <section class="form-card">
+                    <div class="field-grid">
+                        <div class="field-node price-focus">
+                            <label class="field-label">{{ priceLabel }}</label>
                             <NInputNumber
-                                v-model:value="orderForm.fee"
-                                placeholder="请输入服务费用"
-                                :min="1"
-                                :max="100"
+                                v-model:value="form.price"
+                                :min="minimumPrice"
                                 :precision="2"
                                 style="width: 100%"
-                            >
-                                <template #prefix>
-                                    ¥
-                                </template>
-                            </NInputNumber>
-                        </NFormItem>
-
-                        <NFormItem label="联系方式" path="contact">
-                            <NInput
-                                v-model:value="orderForm.contact"
-                                placeholder="请输入联系方式"
-                                maxlength="50"
                             />
-                        </NFormItem>
-
-                        <!-- 特殊字段：快递代取 -->
-                        <div v-if="orderForm.type === 'express'">
-                            <NFormItem label="取件码" path="pickupCode">
-                                <NInput
-                                    v-model:value="orderForm.pickupCode"
-                                    placeholder="请输入取件码"
-                                    maxlength="20"
-                                />
-                            </NFormItem>
-
-                            <NFormItem label="快递公司">
-                                <NSelect
-                                    v-model:value="orderForm.expressCompany"
-                                    :options="expressCompanies"
-                                    placeholder="请选择快递公司"
-                                />
-                            </NFormItem>
                         </div>
-
-                        <!-- 特殊字段：外卖代取 -->
-                        <div v-if="orderForm.type === 'food'">
-                            <NFormItem label="预计重量">
-                                <NSelect
-                                    v-model:value="orderForm.weight"
-                                    :options="weightOptions"
-                                    placeholder="请选择预计重量"
-                                />
-                            </NFormItem>
-
-                            <NFormItem label="是否需要保温">
-                                <NSwitch v-model:value="orderForm.needKeepWarm" />
-                            </NFormItem>
+                        <div class="field-node">
+                            <label class="field-label">联系电话</label>
+                            <NInput v-model:value="customContactPhone" placeholder="联系电话" />
                         </div>
+                    </div>
 
-                        <!-- 特殊字段：药品代购 -->
-                        <div v-if="orderForm.type === 'medicine'">
-                            <NFormItem label="处方照片">
-                                <div class="upload-area">
-                                    <NUpload
-                                        :file-list="prescriptionFiles"
-                                        :max="3"
-                                        accept="image/*"
-                                        @change="handlePrescriptionUpload"
-                                    >
-                                        <NUploadDragger>
-                                            <div class="upload-content">
-                                                <NIcon size="48" color="var(--n-primary-color)">
-                                                    <CameraIcon />
-                                                </NIcon>
-                                                <p>点击或拖拽上传处方照片</p>
-                                                <p class="upload-hint">最多上传3张照片</p>
-                                            </div>
-                                        </NUploadDragger>
-                                    </NUpload>
-                                </div>
-                            </NFormItem>
+                    <div class="options-flex">
+                        <NCheckbox v-model:checked="form.urgent">加急处理</NCheckbox>
+                        <NCheckbox v-model:checked="form.fragile">易碎物品</NCheckbox>
+                    </div>
 
-                            <NFormItem label="购买金额">
-                                <NInputNumber
-                                    v-model:value="orderForm.purchaseAmount"
-                                    placeholder="请输入预计购买金额"
-                                    :min="0"
-                                    :precision="2"
+                    <button
+                        type="button"
+                        class="advanced-trigger touch-feedback"
+                        @click="showAdvanced = !showAdvanced"
+                    >
+                        <span>
+                            {{ showAdvanced ? '收起更多选项' : '补充详细信息 (时间/备注)' }}
+                        </span>
+                        <i :class="{ 'is-open': showAdvanced }"></i>
+                    </button>
+
+                    <div v-if="showAdvanced" class="advanced-pane">
+                        <div class="field-grid">
+                            <div class="field-node">
+                                <label class="field-label">期望送达时间</label>
+                                <NDatePicker
+                                    v-model:value="deliveryTime"
+                                    type="datetime"
                                     style="width: 100%"
-                                >
-                                    <template #prefix>
-                                        ¥
-                                    </template>
-                                </NInputNumber>
-                            </NFormItem>
+                                />
+                            </div>
+                            <div class="field-node">
+                                <label class="field-label">订单小费</label>
+                                <NInputNumber
+                                    v-model:value="form.tip"
+                                    :min="0"
+                                    style="width: 100%"
+                                />
+                            </div>
                         </div>
-
-                        <!-- 期望完成时间 -->
-                        <NFormItem label="期望完成时间" path="expectedTime">
-                            <NDatePicker
-                                v-model:value="orderForm.expectedTime"
-                                type="datetime"
-                                placeholder="选择期望完成时间"
-                                style="width: 100%"
-                                :is-date-disabled="disableDate"
-                                :is-time-disabled="disableTime"
-                            />
-                        </NFormItem>
-
-                        <!-- 备注信息 -->
-                        <NFormItem label="备注">
+                        <div class="field-node mt-16">
+                            <label class="field-label">补充说明</label>
                             <NInput
-                                v-model:value="orderForm.remarks"
+                                v-model:value="form.notes"
                                 type="textarea"
-                                placeholder="其他需要说明的信息..."
-                                :rows="3"
-                                maxlength="100"
-                                show-count
+                                :rows="2"
+                                placeholder="备注您的特殊要求..."
                             />
-                        </NFormItem>
-                    </NForm>
-                </MobileCard>
-            </div>
-
-            <!-- 费用说明 -->
-            <div class="section">
-                <h3 class="section-title">费用说明</h3>
-                <MobileCard>
-                    <div class="fee-info">
-                        <div class="fee-item">
-                            <span class="fee-label">服务费：</span>
-                            <span class="fee-value">¥{{ orderForm.fee || 0 }}</span>
-                        </div>
-                        <div class="fee-item">
-                            <span class="fee-label">平台费：</span>
-                            <span class="fee-value">¥{{ platformFee }}</span>
-                        </div>
-                        <div v-if="orderForm.type === 'medicine'" class="fee-item">
-                            <span class="fee-label">代购金额：</span>
-                            <span class="fee-value">¥{{ orderForm.purchaseAmount || 0 }}</span>
-                        </div>
-                        <div class="fee-divider"></div>
-                        <div class="fee-item total">
-                            <span class="fee-label">总计：</span>
-                            <span class="fee-value">¥{{ totalFee }}</span>
                         </div>
                     </div>
-                </MobileCard>
+                </section>
             </div>
 
-            <!-- 服务条款 -->
-            <div class="section">
-                <MobileCard>
-                    <div class="terms-section">
-                        <NCheckbox v-model:checked="agreeTerms">
-                            我已阅读并同意
-                            <NButton text type="primary" @click="showTerms">
-                                《代取服务条款》
-                            </NButton>
-                        </NCheckbox>
-                    </div>
-                </MobileCard>
-            </div>
-
-            <!-- 提交按钮 -->
-            <div class="submit-section">
+            <footer class="action-footer">
+                <div class="summary-line">
+                    <div class="total-label">合计费用</div>
+                    <div class="total-val">¥{{ totalAmount }}</div>
+                </div>
                 <NButton
                     type="primary"
-                    size="large"
                     block
+                    size="large"
+                    round
+                    class="submit-btn"
                     :loading="submitting"
-                    :disabled="!canSubmit"
-                    @click="handleSubmit"
+                    @click="submitOrder"
                 >
                     发布订单
                 </NButton>
-            </div>
-        </div>
-
-        <!-- 地点选择弹窗 -->
-        <MobileModal
-            v-model:show="showLocationModal"
-            title="选择地点"
-            @confirm="confirmLocation"
-        >
-            <div class="location-selector">
-                <div class="common-locations">
-                    <h4>常用地点</h4>
-                    <div class="location-list">
-                        <div
-                            v-for="location in commonLocations"
-                            :key="location.id"
-                            class="location-item"
-                            :class="{ active: selectedLocation === location.name }"
-                            @click="selectedLocation = location.name"
-                        >
-                            <NIcon size="16" color="var(--n-primary-color)">
-                                <LocationIcon />
-                            </NIcon>
-                            <span>{{ location.name }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="custom-location">
-                    <h4>自定义地点</h4>
-                    <NInput
-                        v-model:value="customLocation"
-                        placeholder="请输入详细地址"
-                    />
-                </div>
-            </div>
-        </MobileModal>
+            </footer>
+        </main>
+        <div class="safe-bottom"></div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
-    NForm,
-    NFormItem,
+    NButton,
+    NCheckbox,
+    NDatePicker,
     NInput,
     NInputNumber,
     NSelect,
-    NDatePicker,
-    NButton,
-    NIcon,
-    NSwitch,
-    NUpload,
-    NUploadDragger,
-    NCheckbox,
-    FormInst,
+    useDialog,
     useMessage,
-    UploadFileInfo,
 } from 'naive-ui';
-import {
-    LocationOutline as LocationIcon,
-    BagHandleOutline as BagIcon,
-    FastFoodOutline as FoodIcon,
-    MedkitOutline as MedIcon,
-    ShirtOutline as ShopIcon,
-    CameraOutline as CameraIcon,
-} from '@vicons/ionicons5';
-import { MobileNavBar, MobileCard, MobileModal } from '@/components/mobile';
-import { useUserStore, useAppStore } from '@/stores';
+import { PickupApi } from '@/api';
+import { useAppStore, useUserStore } from '@/stores';
+import type { CreatePickupOrderData } from '@/types';
+
+type OrderType = CreatePickupOrderData['type'];
 
 const router = useRouter();
-const userStore = useUserStore();
-const appStore = useAppStore();
+const route = useRoute();
+const dialog = useDialog();
 const message = useMessage();
-const formRef = ref<FormInst>();
+const appStore = useAppStore();
+const userStore = useUserStore();
 
-// 服务类型配置
-const serviceTypes = [
-    {
-        key: 'express',
-        label: '快递代取',
-        icon: BagIcon,
-        color: 'var(--n-primary-color)',
-    },
-    {
-        key: 'food',
-        label: '外卖代取',
-        icon: FoodIcon,
-        color: 'var(--n-warning-color)',
-    },
-    {
-        key: 'medicine',
-        label: '药品代购',
-        icon: MedIcon,
-        color: 'var(--n-error-color)',
-    },
-    {
-        key: 'daily',
-        label: '生活用品',
-        icon: ShopIcon,
-        color: 'var(--n-success-color)',
-    },
-];
-
-// 表单数据
-const orderForm = reactive({
-    type: 'express',
-    title: '',
-    description: '',
-    pickupLocation: '',
-    deliveryLocation: '',
-    fee: null as number | null,
-    contact: '',
-    expectedTime: null as number | null,
-    remarks: '',
-    // 快递特有字段
-    pickupCode: '',
-    expressCompany: '',
-    // 外卖特有字段
-    weight: '',
-    needKeepWarm: false,
-    // 药品特有字段
-    purchaseAmount: null as number | null,
-});
-
-// 表单验证规则
-const formRules = {
-    title: [
-        { required: true, message: '请输入订单标题', trigger: 'blur' },
-        { min: 2, max: 50, message: '标题长度在2-50个字符', trigger: 'blur' },
-    ],
-    description: [
-        { required: true, message: '请输入详细描述', trigger: 'blur' },
-        { min: 10, max: 200, message: '描述长度在10-200个字符', trigger: 'blur' },
-    ],
-    pickupLocation: [
-        { required: true, message: '请选择取货地点', trigger: 'blur' },
-    ],
-    deliveryLocation: [
-        { required: true, message: '请选择送达地点', trigger: 'blur' },
-    ],
-    fee: [
-        { required: true, type: 'number', message: '请输入服务费用', trigger: 'blur' },
-        { type: 'number', min: 1, max: 100, message: '服务费用在1-100元之间', trigger: 'blur' },
-    ],
-    contact: [
-        { required: true, message: '请输入联系方式', trigger: 'blur' },
-    ],
-    expectedTime: [
-        { required: true, type: 'number', message: '请选择期望完成时间', trigger: 'blur' },
-    ],
-    pickupCode: [
-        { required: true, message: '请输入取件码', trigger: 'blur' },
-    ],
-};
-
-// 其他数据
 const submitting = ref(false);
-const agreeTerms = ref(false);
-const prescriptionFiles = ref<UploadFileInfo[]>([]);
-const showLocationModal = ref(false);
-const selectedLocation = ref('');
-const customLocation = ref('');
-const currentLocationField = ref<'pickup' | 'delivery'>('pickup');
+const showAdvanced = ref(false);
+const pickupTime = ref<number | null>(null);
+const deliveryTime = ref<number | null>(null);
 
-// 快递公司选项
-const expressCompanies = [
-    { label: '顺丰速运', value: 'sf' },
-    { label: '中通快递', value: 'zt' },
-    { label: '圆通速递', value: 'yt' },
-    { label: '申通快递', value: 'st' },
-    { label: '韵达速递', value: 'yd' },
-    { label: '菜鸟驿站', value: 'cn' },
-];
+const orderTypes = [
+    { value: 'express', label: '快递代取', note: '驿站、快递柜、代收点' },
+    { value: 'food', label: '外卖代拿', note: '食堂、店铺、外卖柜' },
+    { value: 'medicine', label: '药品代购', note: '校医院、药房、指定药店' },
+    { value: 'daily', label: '生活用品', note: '超市采购、日用品代买' },
+] as const;
 
-// 重量选项
-const weightOptions = [
-    { label: '轻量 (< 1kg)', value: 'light' },
-    { label: '中等 (1-3kg)', value: 'medium' },
-    { label: '较重 (3-5kg)', value: 'heavy' },
-    { label: '很重 (> 5kg)', value: 'very-heavy' },
-];
+const orderTypeOptions = orderTypes.map(item => ({
+    label: `${item.label} · ${item.note}`,
+    value: item.value,
+}));
 
-// 常用地点
-const commonLocations = [
-    { id: 1, name: '宿舍楼下' },
-    { id: 2, name: '教学楼A栋' },
-    { id: 3, name: '图书馆' },
-    { id: 4, name: '食堂' },
-    { id: 5, name: '菜鸟驿站' },
-    { id: 6, name: '校医院' },
-    { id: 7, name: '体育馆' },
-    { id: 8, name: '南门' },
-];
+const minimumPriceMap: Record<OrderType, number> = {
+    express: 2,
+    food: 3,
+    medicine: 5,
+    daily: 3,
+};
 
-// 计算属性
-const platformFee = computed(() => {
-    return orderForm.fee ? (orderForm.fee * 0.1).toFixed(2) : '0.00';
+const form = reactive<Omit<CreatePickupOrderData, 'title' | 'contact_name' | 'contact_phone'>>({
+    type: 'express',
+    description: '',
+    pickup_location: '',
+    delivery_location: '',
+    pickup_time: undefined,
+    delivery_time: undefined,
+    pickup_code: '',
+    weight: undefined,
+    size: '',
+    price: 0,
+    tip: 0,
+    urgent: false,
+    fragile: false,
+    images: undefined,
+    notes: '',
 });
 
-const totalFee = computed(() => {
-    const serviceFee = orderForm.fee || 0;
-    const platform = parseFloat(platformFee.value);
-    const purchase = orderForm.type === 'medicine' ? (orderForm.purchaseAmount || 0) : 0;
-    return (serviceFee + platform + purchase).toFixed(2);
+const featureForm = reactive({
+    express: {
+        pickupCode: '',
+        phoneTail: '',
+    },
+    food: {
+        receiverName: '',
+        phoneTail: '',
+    },
+    medicine: {
+        medicineName: '',
+        specification: '',
+    },
+    daily: {
+        shoppingList: '',
+    },
 });
 
-const canSubmit = computed(() => {
-    return orderForm.type && orderForm.title && orderForm.description &&
-           orderForm.pickupLocation && orderForm.deliveryLocation &&
-           orderForm.fee && orderForm.contact && orderForm.expectedTime &&
-           agreeTerms.value;
+const selectedFlags = computed({
+    get: () => {
+        const values: string[] = [];
+        if (form.urgent) values.push('urgent');
+        if (form.fragile) values.push('fragile');
+        return values;
+    },
+    set: values => {
+        form.urgent = values.includes('urgent');
+        form.fragile = values.includes('fragile');
+    },
 });
 
-// 方法
-const selectServiceType = (type: string) => {
-    orderForm.type = type;
-    appStore.hapticFeedback('light');
+const totalAmount = computed(() => (Number(form.price || 0) + Number(form.tip || 0)).toFixed(2));
 
-    // 根据类型设置默认标题
-    const typeLabels = {
-        express: '快递代取',
-        food: '外卖代取',
-        medicine: '药品代购',
-        daily: '生活用品代购',
+const defaultContactName = computed(
+    () => userStore.user?.real_name || userStore.user?.username || '校园用户'
+);
+
+const defaultContactPhone = computed(() => userStore.user?.phone || '未留手机号');
+const customContactName = ref('');
+const customContactPhone = ref('');
+const hasShownMedicineNotice = ref(false);
+
+const pickupLabel = computed(() => {
+    const map: Record<OrderType, string> = {
+        express: '取件地点',
+        food: '取餐地点',
+        medicine: '购买地点',
+        daily: '采购地点',
     };
-    orderForm.title = typeLabels[type] || '';
+    return map[form.type];
+});
+
+const pickupPlaceholder = computed(() => {
+    const map: Record<OrderType, string> = {
+        express: '例如：菜鸟驿站 / 快递柜',
+        food: '例如：食堂门口 / 外卖柜',
+        medicine: '例如：校医院 / 指定药店',
+        daily: '例如：校园超市 / 南门便利店',
+    };
+    return map[form.type];
+});
+
+const priceLabel = computed(() => (form.type === 'medicine' ? '预计采购金额' : '订单金额'));
+const pricePlaceholder = computed(() => `${priceLabel.value}，${minimumPriceHint.value}`);
+const minimumPrice = computed(() => minimumPriceMap[form.type]);
+const minimumPriceHint = computed(() => `该类型打底 ¥${minimumPrice.value}`);
+
+const toISOStringOrUndefined = (value: number | null) =>
+    value ? new Date(value).toISOString() : undefined;
+
+const buildOrderPayload = (): CreatePickupOrderData & {
+    contact_name: string;
+    contact_phone: string;
+} => {
+    let title = '';
+    let description = '';
+    let contact_name = defaultContactName.value;
+    let contact_phone = defaultContactPhone.value;
+    let pickup_code: string | undefined;
+
+    if (form.type === 'express') {
+        title = `快递代取 · ${form.pickup_location.trim()}`;
+        description = `取件码：${featureForm.express.pickupCode.trim()}；手机号尾号：${featureForm.express.phoneTail.trim()}`;
+        contact_name = customContactName.value.trim() || '快递代取';
+        contact_phone = customContactPhone.value.trim() || featureForm.express.phoneTail.trim();
+        pickup_code = featureForm.express.pickupCode.trim();
+    } else if (form.type === 'food') {
+        title = `外卖代拿 · ${form.pickup_location.trim()}`;
+        description = `取餐人：${featureForm.food.receiverName.trim()}；手机号尾号：${featureForm.food.phoneTail.trim()}`;
+        contact_name = customContactName.value.trim() || featureForm.food.receiverName.trim();
+        contact_phone = customContactPhone.value.trim() || featureForm.food.phoneTail.trim();
+    } else if (form.type === 'medicine') {
+        title = `药品代购 · ${featureForm.medicine.medicineName.trim()}`;
+        description = `仅购买非处方药；药品名称：${featureForm.medicine.medicineName.trim()}${
+            featureForm.medicine.specification.trim()
+                ? `；规格/数量：${featureForm.medicine.specification.trim()}`
+                : ''
+        }`;
+        contact_name = customContactName.value.trim() || defaultContactName.value;
+        contact_phone = customContactPhone.value.trim() || defaultContactPhone.value;
+    } else {
+        title = `生活用品代购 · ${form.pickup_location.trim()}`;
+        description = `购物清单：${featureForm.daily.shoppingList.trim()}`;
+        contact_name = customContactName.value.trim() || defaultContactName.value;
+        contact_phone = customContactPhone.value.trim() || defaultContactPhone.value;
+    }
+
+    return {
+        type: form.type,
+        title,
+        description,
+        pickup_location: form.pickup_location.trim(),
+        delivery_location: form.delivery_location.trim(),
+        pickup_time: toISOStringOrUndefined(pickupTime.value),
+        delivery_time: toISOStringOrUndefined(deliveryTime.value),
+        contact_name,
+        contact_phone,
+        pickup_code,
+        weight: form.weight,
+        size: form.size?.trim() || undefined,
+        price: Number(form.price || 0),
+        tip: Number(form.tip || 0),
+        urgent: form.urgent,
+        fragile: form.fragile,
+        notes: form.notes?.trim() || undefined,
+    };
 };
 
-const selectLocation = (field: 'pickup' | 'delivery') => {
-    currentLocationField.value = field;
-    selectedLocation.value = field === 'pickup' ? orderForm.pickupLocation : orderForm.deliveryLocation;
-    customLocation.value = '';
-    showLocationModal.value = true;
+const validateForm = () => {
+    if (!form.pickup_location.trim()) return `请填写${pickupLabel.value}`;
+    if (!form.delivery_location.trim()) return '请填写送达地点';
+    if (!Number(form.price))
+        return form.type === 'medicine' ? '请填写预计采购金额' : '请填写订单金额';
+    if (Number(form.price) < minimumPrice.value) {
+        return `${orderTypes.find(item => item.value === form.type)?.label || '当前类型'}打底 ¥${minimumPrice.value}`;
+    }
+
+    if (form.type === 'express') {
+        if (!featureForm.express.pickupCode.trim()) return '请填写取件码';
+        if (!featureForm.express.phoneTail.trim()) return '请填写手机尾号';
+    }
+
+    if (form.type === 'food') {
+        if (!featureForm.food.receiverName.trim()) return '请填写取餐人姓名';
+        if (!featureForm.food.phoneTail.trim()) return '请填写手机尾号';
+    }
+
+    if (form.type === 'medicine' && !featureForm.medicine.medicineName.trim())
+        return '请填写药品名称';
+
+    if (form.type === 'daily' && !featureForm.daily.shoppingList.trim()) {
+        return '请填写购物清单';
+    }
+
+    return '';
 };
 
-const confirmLocation = () => {
-    const location = selectedLocation.value || customLocation.value;
-    if (!location) {
-        message.warning('请选择或输入地点');
+const submitOrder = async () => {
+    const error = validateForm();
+    if (error) {
+        message.warning(error);
         return;
     }
 
-    if (currentLocationField.value === 'pickup') {
-        orderForm.pickupLocation = location;
-    } else {
-        orderForm.deliveryLocation = location;
-    }
-
-    showLocationModal.value = false;
-    appStore.hapticFeedback('light');
-};
-
-const disableDate = (ts: number) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return ts < today.getTime();
-};
-
-const disableTime = (ts: number) => {
-    const now = new Date();
-    const selected = new Date(ts);
-
-    // 如果是今天，则禁用过去的时间
-    if (selected.toDateString() === now.toDateString()) {
-        return ts < now.getTime();
-    }
-    return false;
-};
-
-const handlePrescriptionUpload = (options: { fileList: UploadFileInfo[] }) => {
-    prescriptionFiles.value = options.fileList;
-};
-
-const showTerms = () => {
-    message.info('服务条款功能开发中...');
-};
-
-const handleSubmit = async () => {
+    submitting.value = true;
     try {
-        await formRef.value?.validate();
+        const payload = buildOrderPayload();
+        const response = await PickupApi.createOrder(payload);
 
-        submitting.value = true;
+        if (!response.success) {
+            throw new Error(response.message || '创建订单失败');
+        }
+
         appStore.hapticFeedback('medium');
-
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        message.success('订单发布成功！');
-        router.push('/pickup/list');
-
-    } catch (error) {
-        console.error('表单验证失败:', error);
-        message.error('请检查表单信息');
-        appStore.hapticFeedback('heavy');
+        message.success('订单创建成功');
+        router.replace('/pickup/my');
+    } catch (err: any) {
+        message.error(err?.message || '创建订单失败');
     } finally {
         submitting.value = false;
     }
 };
 
-// 初始化
 onMounted(() => {
-    // 从路由参数获取服务类型
-    const type = router.currentRoute.value.query.type as string;
-    if (type && serviceTypes.find(s => s.key === type)) {
-        selectServiceType(type);
+    const routeType = route.query.type;
+    if (typeof routeType === 'string' && orderTypes.some(item => item.value === routeType)) {
+        form.type = routeType as OrderType;
     }
+    form.price = minimumPriceMap[form.type];
+    customContactName.value = userStore.user?.real_name || userStore.user?.username || '';
+    customContactPhone.value = userStore.user?.phone || '';
 });
+
+watch(
+    () => form.type,
+    type => {
+        form.price = minimumPriceMap[type];
+
+        if (type === 'medicine' && !hasShownMedicineNotice.value) {
+            hasShownMedicineNotice.value = true;
+            dialog.warning({
+                title: '药品代购提示',
+                content: '仅支持购买非处方药，处方药请自行购买。',
+                positiveText: '我知道了',
+            });
+        }
+    }
+);
 </script>
 
 <style scoped>
-.create-pickup-page {
-    background: var(--n-body-color);
+.campus-create {
+    --primary: #3b82f6;
+    --cyan: #06b6d4;
+    --grad: linear-gradient(135deg, var(--primary) 0%, var(--cyan) 100%);
+    --surface: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #94a3b8;
     min-height: 100vh;
+    background-color: var(--surface);
+    color: var(--text);
 }
 
-.nav-header {
+/* 顶部导航 */
+.campus-nav-sticky {
     position: sticky;
     top: 0;
     z-index: 100;
+    background: rgba(248, 250, 252, 0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.02);
 }
 
-.form-container {
-    padding: 16px;
-    padding-bottom: 100px;
-}
-
-.section {
-    margin-bottom: 24px;
-}
-
-.section-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 12px 4px;
-}
-
-/* 服务类型选择 */
-.service-types {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    padding: 4px;
-}
-
-.service-type-item {
+.nav-main {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    padding: 16px 12px;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: 2px solid transparent;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
+    padding: 12px 16px;
 }
 
-.service-type-item:active {
-    transform: scale(0.95);
-}
-
-.service-type-item.active {
-    border-color: var(--n-primary-color);
-    background: var(--n-primary-color-suppl);
-}
-
-.service-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
+.back-icon-btn {
+    border: none;
+    background: none;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 8px;
+    color: var(--text);
+    margin-right: 12px;
 }
 
-.service-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--n-text-color-1);
+.nav-title-group .sub-label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
 }
 
-/* 表单样式 */
-.create-pickup-page :deep(.n-form-item) {
+.nav-title-group .main-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+/* 布局容器 */
+.order-viewport {
+    padding: 16px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.config-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-card {
+    background: var(--card);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    animation: slide-up 0.5s ease-out both;
+}
+
+/* 表单元素 */
+.field-node {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.field-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    padding-left: 4px;
+}
+
+.field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.field-stack {
+    margin-top: 16px;
+}
+
+.price-focus :deep(.n-input-number-input) {
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.options-flex {
+    display: flex;
+    gap: 20px;
+    margin: 20px 0;
+    padding: 0 4px;
+}
+
+/* 高级选项切换器 */
+.advanced-trigger {
+    width: 100%;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    transition: all 0.3s;
+}
+
+.advanced-trigger i {
+    width: 6px;
+    height: 6px;
+    border-right: 2px solid var(--muted);
+    border-bottom: 2px solid var(--muted);
+    transform: rotate(45deg);
+    margin-bottom: 2px;
+}
+
+.advanced-trigger i.is-open {
+    transform: rotate(-135deg);
+    margin-bottom: -2px;
+}
+
+.advanced-pane {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px dashed #e2e8f0;
+    animation: fade-in 0.4s ease-out;
+}
+
+/* 底部结算区 */
+.action-footer {
+    margin-top: 32px;
+    background: var(--card);
+    border-radius: 28px;
+    padding: 24px;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.04);
+}
+
+.summary-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
     margin-bottom: 20px;
 }
 
-.create-pickup-page :deep(.n-input),
-.create-pickup-page :deep(.n-input-number),
-.create-pickup-page :deep(.n-select),
-.create-pickup-page :deep(.n-date-picker) {
-    border-radius: 8px;
-}
-
-.create-pickup-page :deep(.n-input__input-el) {
-    font-size: 15px;
-}
-
-/* 上传区域 */
-.upload-area {
-    width: 100%;
-}
-
-.upload-content {
-    text-align: center;
-    padding: 20px;
-    color: var(--n-text-color-2);
-}
-
-.upload-content p {
-    margin: 8px 0 0 0;
-    font-size: 14px;
-}
-
-.upload-hint {
-    font-size: 12px !important;
-    color: var(--n-text-color-3) !important;
-}
-
-/* 费用信息 */
-.fee-info {
-    padding: 4px;
-}
-
-.fee-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-}
-
-.fee-item.total {
-    font-weight: 600;
-    font-size: 16px;
-    color: var(--n-text-color-1);
-}
-
-.fee-label {
-    color: var(--n-text-color-2);
-    font-size: 14px;
-}
-
-.fee-value {
-    color: var(--n-error-color);
-    font-weight: 500;
-}
-
-.fee-divider {
-    height: 1px;
-    background: var(--n-border-color);
-    margin: 8px 0;
-}
-
-/* 服务条款 */
-.terms-section {
-    padding: 4px;
-    text-align: center;
-}
-
-/* 提交按钮 */
-.submit-section {
-    margin-top: 32px;
-}
-
-.submit-section .n-button {
-    height: 50px;
-    font-size: 16px;
-    font-weight: 600;
-    border-radius: 12px;
-}
-
-/* 地点选择弹窗 */
-.location-selector {
-    padding: 16px 0;
-}
-
-.location-selector h4 {
+.total-label {
     font-size: 14px;
     font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 12px 0;
+    color: var(--muted);
 }
 
-.common-locations {
-    margin-bottom: 24px;
+.total-val {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text);
 }
 
-.location-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+.submit-btn {
+    height: 54px;
+    font-size: 17px;
+    font-weight: 700;
+    background: var(--grad) !important;
+    border: none !important;
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
 }
 
-.location-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: 1px solid transparent;
+.mt-16 {
+    margin-top: 16px;
 }
 
-.location-item:hover {
-    background: var(--n-color-target);
-}
-
-.location-item.active {
-    border-color: var(--n-primary-color);
-    background: var(--n-primary-color-suppl);
-}
-
-.location-item span {
-    font-size: 14px;
-    color: var(--n-text-color-1);
-}
-
-.custom-location {
-    padding-top: 16px;
-    border-top: 1px solid var(--n-border-color);
-}
-
-/* 响应式适配 */
-@media (max-width: 375px) {
-    .form-container {
-        padding: 12px;
-        padding-bottom: 100px;
+/* 动画 */
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
     }
-
-    .service-types {
-        gap: 8px;
-    }
-
-    .service-type-item {
-        padding: 12px 8px;
-    }
-
-    .service-icon {
-        width: 40px;
-        height: 40px;
-    }
-
-    .service-label {
-        font-size: 13px;
-    }
-
-    .section-title {
-        font-size: 15px;
-    }
-
-    .submit-section .n-button {
-        height: 46px;
-        font-size: 15px;
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
-/* iOS 安全区域适配 */
-.create-pickup-page.is-ios {
-    padding-bottom: calc(100px + var(--safe-area-bottom, 34px));
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
-/* 加载动画 */
-.create-pickup-page {
-    animation: ios-fade-in 0.4s ease-out;
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+    transition: all 0.3s ease;
+}
+.fade-slide-enter-from {
+    opacity: 0;
+    transform: translateX(10px);
+}
+.fade-slide-leave-to {
+    opacity: 0;
+    transform: translateX(-10px);
 }
 
-.section {
-    animation: ios-fade-in 0.6s ease-out;
-}
-
-.section:nth-child(2) {
-    animation-delay: 0.1s;
-}
-
-.section:nth-child(3) {
-    animation-delay: 0.2s;
-}
-
-.section:nth-child(4) {
-    animation-delay: 0.3s;
-}
-
-/* 深色模式优化 */
-.dark-theme .service-type-item:active {
-    background: var(--ios-dark-gray4);
-}
-
-.light-theme .service-type-item:active {
-    background: var(--ios-gray5);
-}
-
-/* 表单元素样式覆盖 */
-.create-pickup-page :deep(.n-form-item-label) {
-    font-weight: 500;
-    color: var(--n-text-color-1);
-}
-
-.create-pickup-page :deep(.n-input__border),
-.create-pickup-page :deep(.n-input__state-border) {
-    border-radius: 8px;
-}
-
-.create-pickup-page :deep(.n-base-selection) {
-    border-radius: 8px;
+@media (max-width: 768px) {
+    .field-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>

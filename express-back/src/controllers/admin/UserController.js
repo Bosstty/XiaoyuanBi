@@ -113,6 +113,7 @@ class AdminUserController {
         try {
             const { id } = req.params;
             const { status, reason } = req.body;
+            console.log('Received status:', status, 'reason:', reason);
 
             const user = await User.findByPk(id);
 

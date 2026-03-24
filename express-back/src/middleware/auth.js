@@ -6,12 +6,12 @@ const auth = (type = 'user') => {
     return async (req, res, next) => {
         try {
             // 添加调试日志
-            console.log(`🔐 认证检查: ${req.method} ${req.path}, 类型: ${type}`);
+            console.log(`  认证检查: ${req.method} ${req.path}, 类型: ${type}`);
 
             const token = req.headers.authorization?.replace('Bearer ', '');
 
             if (!token) {
-                console.log('❌ 未提供token');
+                console.log('  未提供token');
                 return res.status(401).json({
                     success: false,
                     message: '未提供认证令牌',
@@ -19,16 +19,16 @@ const auth = (type = 'user') => {
                 });
             }
 
-            console.log(`✅ 收到token: ${token.substring(0, 20)}...`);
+            console.log(`  收到token: ${token.substring(0, 20)}...`);
 
             // 验证JWT
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            console.log(`🔍 Token解码:`, decoded);
+            console.log(`  Token解码:`, decoded);
 
             let user;
             if (type === 'admin') {
                 user = await Admin.findByPk(decoded.id);
-                console.log(`👨‍💼 查询管理员: ${decoded.id}, 结果:`, user ? '找到' : '未找到');
+                console.log(`  查询管理员: ${decoded.id}, 结果:`, user ? '找到' : '未找到');
 
                 if (!user || user.status !== 'active') {
                     return res.status(401).json({
@@ -39,7 +39,7 @@ const auth = (type = 'user') => {
                 }
             } else {
                 user = await User.findByPk(decoded.id);
-                console.log(`👤 查询用户: ${decoded.id}, 结果:`, user ? '找到' : '未找到');
+                console.log(` 查询用户: ${decoded.id}, 结果:`, user ? '找到' : '未找到');
 
                 if (!user || user.status !== 'active') {
                     return res.status(401).json({
@@ -56,11 +56,11 @@ const auth = (type = 'user') => {
             }
             req.user = user;
             req.userId = user.id;
-            console.log(`✅ 认证成功: ${user.username || user.email}`);
+            console.log(`  认证成功: ${user.username || user.email}`);
 
             next();
         } catch (error) {
-            console.error('🔐 认证错误:', error.name, error.message);
+            console.error('  认证错误:', error.name, error.message);
 
             if (error.name === 'JsonWebTokenError') {
                 return res.status(401).json({
@@ -90,12 +90,12 @@ const auth = (type = 'user') => {
 const permission = requiredPermissions => {
     return async (req, res, next) => {
         try {
-            console.log(`🔑 权限检查: ${req.method} ${req.path}, 所需权限:`, requiredPermissions);
+            console.log(`  权限检查: ${req.method} ${req.path}, 所需权限:`, requiredPermissions);
 
             const user = req.user;
 
             if (!user) {
-                console.log('❌ 权限检查: 未认证用户');
+                console.log('  权限检查: 未认证用户');
                 return res.status(401).json({
                     success: false,
                     message: '未认证用户',
@@ -106,11 +106,11 @@ const permission = requiredPermissions => {
             // 检查管理员权限
             if (user.permissions) {
                 const userPermissions = user.permissions || [];
-                console.log(`👤 用户权限:`, userPermissions);
+                console.log(` 用户权限:`, userPermissions);
 
                 // 超级管理员或拥有所有权限
                 if (userPermissions.includes('all')) {
-                    console.log('✅ 权限检查: 超级管理员');
+                    console.log('  权限检查: 超级管理员');
                     return next();
                 }
 
@@ -120,7 +120,7 @@ const permission = requiredPermissions => {
                 );
 
                 if (!hasPermission) {
-                    console.log('❌ 权限检查: 权限不足');
+                    console.log('  权限检查: 权限不足');
                     return res.status(403).json({
                         success: false,
                         message: '权限不足',
@@ -130,13 +130,13 @@ const permission = requiredPermissions => {
                     });
                 }
             } else {
-                console.log('⚠️ 权限检查: 用户无权限字段');
+                console.log('  权限检查: 用户无权限字段');
             }
 
-            console.log('✅ 权限检查通过');
+            console.log('  权限检查通过');
             next();
         } catch (error) {
-            console.error('🔑 权限检查错误:', error);
+            console.error('  权限检查错误:', error);
             return res.status(500).json({
                 success: false,
                 message: '权限检查失败',
@@ -153,28 +153,28 @@ const optionalAuth = async (req, res, next) => {
 
         if (token) {
             try {
-                console.log(`🔐 可选认证: 检测到token`);
+                console.log(`  可选认证: 检测到token`);
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
                 const user = await User.findByPk(decoded.id);
 
                 if (user && user.status === 'active') {
                     req.user = user;
                     req.userId = user.id;
-                    console.log(`✅ 可选认证: 用户 ${user.username || user.email} 已设置`);
+                    console.log(`  可选认证: 用户 ${user.username || user.email} 已设置`);
                 } else {
-                    console.log('⚠️ 可选认证: 用户无效或未激活');
+                    console.log('  可选认证: 用户无效或未激活');
                 }
             } catch (error) {
-                console.log('⚠️ 可选认证: token验证失败', error.message);
+                console.log('  可选认证: token验证失败', error.message);
                 // 忽略token错误，继续执行
             }
         } else {
-            console.log('🔐 可选认证: 无token，继续执行');
+            console.log('  可选认证: 无token，继续执行');
         }
 
         next();
     } catch (error) {
-        console.error('🔐 可选认证错误:', error);
+        console.error('  可选认证错误:', error);
         next();
     }
 };

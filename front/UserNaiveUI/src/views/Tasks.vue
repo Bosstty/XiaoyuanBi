@@ -6,9 +6,22 @@
                 <h1>任务中心</h1>
                 <p>让学习、设计、技术和生活互助在校园内快速匹配、协作和结算。</p>
             </div>
-            <button type="button" class="task-center__publish touch-feedback" @click="go('/tasks/create')">
-                发布任务
-            </button>
+            <div class="task-center__hero-actions">
+                <button
+                    type="button"
+                    class="task-center__publish touch-feedback"
+                    @click="go('/tasks/create')"
+                >
+                    发布任务
+                </button>
+                <button
+                    type="button"
+                    class="task-center__publish task-center__publish--ghost touch-feedback"
+                    @click="go('/tasks/my')"
+                >
+                    我的任务
+                </button>
+            </div>
         </section>
 
         <section class="task-center__section">
@@ -18,7 +31,7 @@
             </div>
             <div class="task-center__category-grid">
                 <article
-                    v-for="category in taskCategories"
+                    v-for="category in taskCategoryCards"
                     :key="category.id"
                     class="task-center__category-card touch-feedback"
                     @click="go(category.route)"
@@ -26,16 +39,26 @@
                     <div class="task-center__category-icon" :style="{ background: category.tint }">
                         <NIcon :size="22"><component :is="category.icon" /></NIcon>
                     </div>
-                    <h4>{{ category.title }}</h4>
-                    <p>{{ category.description }}</p>
-                    <span>{{ category.taskCount }} 个任务</span>
+                    <div class="task-center__category-copy">
+                        <h4>{{ category.title }}</h4>
+                        <p>{{ category.description }}</p>
+                        <span>{{ category.taskCount }} 个任务</span>
+                    </div>
+                    <div class="task-center__category-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M9.29 6.71a1 1 0 0 1 1.42 0L15 11l-4.29 4.29a1 1 0 0 1-1.42-1.42L12.17 11 9.29 8.12a1 1 0 0 1 0-1.41z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                    </div>
                 </article>
             </div>
         </section>
 
         <section class="task-center__section">
             <div class="task-center__section-head">
-                <h3>正在招募</h3>
+                <h3>热门任务</h3>
             </div>
             <div class="task-center__list">
                 <article
@@ -46,7 +69,9 @@
                 >
                     <div class="task-center__task-top">
                         <div class="task-center__task-tag">
-                            <NIcon :size="16"><component :is="getCategoryIcon(task.category)" /></NIcon>
+                            <NIcon :size="16">
+                                <component :is="getCategoryIcon(task.category)" />
+                            </NIcon>
                             <span>{{ getCategoryLabel(task.category) }}</span>
                         </div>
                         <NTag size="small" :bordered="false" :type="getStatusType(task.status)">
@@ -56,54 +81,30 @@
                     <h4>{{ task.title }}</h4>
                     <p>{{ task.description }}</p>
                     <div class="task-center__task-stats">
-                        <span><NIcon :size="14"><TimeIcon /></NIcon>{{ formatTime(task.createdAt) }}</span>
-                        <span><NIcon :size="14"><PersonIcon /></NIcon>{{ task.applicants }} 人申请</span>
-                        <span class="task-center__reward">¥{{ task.reward }}</span>
+                        <span>
+                            <NIcon :size="14"><TimeIcon /></NIcon>
+                            {{ formatTime(task.createdAt) }}
+                        </span>
+                        <span>
+                            <NIcon :size="14"><PersonIcon /></NIcon>
+                            {{ task.max_applicants || 0 }} 人上限
+                        </span>
+                        <span class="task-center__reward">¥{{ task.price }}</span>
                     </div>
                 </article>
             </div>
-        </section>
-
-        <section class="task-center__section">
-            <div class="task-center__section-head">
-                <h3>任务趋势</h3>
-            </div>
-            <div class="task-center__trend-grid">
-                <article v-for="stat in myStats" :key="stat.key" class="task-center__trend-card">
-                    <strong :style="{ color: stat.color }">{{ stat.value }}</strong>
-                    <h4>{{ stat.label }}</h4>
-                    <p>{{ stat.note }}</p>
-                </article>
+            <div v-if="!loading && hotTasks.length === 0" class="task-center__empty">
+                <h4>暂无任务</h4>
+                <p>当前没有处于发布中的任务。</p>
             </div>
         </section>
 
-        <section class="task-center__section">
-            <div class="task-center__section-head">
-                <h3>最近活动</h3>
-            </div>
-            <div class="task-center__activity-list">
-                <article v-for="activity in recentActivities" :key="activity.id" class="task-center__activity-card">
-                    <div class="task-center__activity-icon">
-                        <NIcon :size="18"><component :is="activity.icon" /></NIcon>
-                    </div>
-                    <div class="task-center__activity-copy">
-                        <strong>{{ activity.title }}</strong>
-                        <p>{{ activity.description }}</p>
-                    </div>
-                    <span>{{ activity.extra }}</span>
-                </article>
-            </div>
-        </section>
-
-        <button type="button" class="task-center__fab touch-feedback" @click="go('/tasks/create')">
-            <NIcon :size="24"><AddIcon /></NIcon>
-        </button>
         <div class="task-center__safe-space"></div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { NIcon, NTag } from 'naive-ui';
 import {
@@ -115,39 +116,133 @@ import {
     HomeOutline as LifeIcon,
     TimeOutline as TimeIcon,
     PersonOutline as PersonIcon,
-    AddOutline as AddIcon,
-    SparklesOutline as SparklesIcon,
 } from '@vicons/ionicons5';
 import { useAppStore } from '@/stores';
+import { TaskApi } from '@/api';
+import type { Task } from '@/types';
 
 const router = useRouter();
 const appStore = useAppStore();
+const loading = ref(false);
+const tasks = ref<Task[]>([]);
+const categoryStats = ref({
+    study: 0,
+    design: 0,
+    tech: 0,
+    writing: 0,
+    life: 0,
+});
 
 const taskCategories = [
-    { id: 1, title: '学习类', description: '辅导、笔记、论文、研究', icon: StudyIcon, route: '/tasks/list?category=study', taskCount: 128, tint: 'linear-gradient(135deg, rgba(47,107,255,0.16), rgba(75,184,255,0.18))' },
-    { id: 2, title: '设计类', description: '海报、LOGO、视频包装', icon: DesignIcon, route: '/tasks/list?category=design', taskCount: 86, tint: 'linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))' },
-    { id: 3, title: '技术类', description: '编程、网站、小程序、系统', icon: TechIcon, route: '/tasks/list?category=tech', taskCount: 52, tint: 'linear-gradient(135deg, rgba(25,179,107,0.18), rgba(75,184,255,0.12))' },
-    { id: 4, title: '文案类', description: '文章、策划、翻译、简历优化', icon: WritingIcon, route: '/tasks/list?category=writing', taskCount: 94, tint: 'linear-gradient(135deg, rgba(111,95,255,0.14), rgba(75,184,255,0.12))' },
+    {
+        id: 1,
+        key: 'study',
+        title: '学习类',
+        description: '辅导、笔记、论文、研究',
+        icon: StudyIcon,
+        route: '/tasks/list?category=study',
+        tint: 'linear-gradient(135deg, rgba(47,107,255,0.16), rgba(75,184,255,0.18))',
+    },
+    {
+        id: 2,
+        key: 'design',
+        title: '设计类',
+        description: '海报、LOGO、视频包装',
+        icon: DesignIcon,
+        route: '/tasks/list?category=design',
+        tint: 'linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))',
+    },
+    {
+        id: 3,
+        key: 'tech',
+        title: '技术类',
+        description: '编程、网站、小程序、系统',
+        icon: TechIcon,
+        route: '/tasks/list?category=tech',
+        tint: 'linear-gradient(135deg, rgba(25,179,107,0.18), rgba(75,184,255,0.12))',
+    },
+    {
+        id: 4,
+        key: 'writing',
+        title: '文案类',
+        description: '文章、策划、翻译、简历优化',
+        icon: WritingIcon,
+        route: '/tasks/list?category=writing',
+        tint: 'linear-gradient(135deg, rgba(111,95,255,0.14), rgba(75,184,255,0.12))',
+    },
+    {
+        id: 5,
+        key: 'life',
+        title: '生活类',
+        description: '跑腿、搬运、陪同、日常协助',
+        icon: LifeIcon,
+        route: '/tasks/list?category=life',
+        tint: 'linear-gradient(135deg, rgba(90,200,250,0.16), rgba(52,199,89,0.14))',
+    },
 ];
 
-const hotTasks = ref([
-    { id: 1, category: 'study', title: '高等数学作业辅导', description: '需要帮助完成微积分相关题目整理，今晚前确认思路和解题过程。', reward: 50, status: 'open', applicants: 8, createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
-    { id: 2, category: 'design', title: '社团招新海报设计', description: '希望做一版更年轻化、适合朋友圈传播的海报与封面图。', reward: 80, status: 'open', applicants: 12, createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000) },
-    { id: 3, category: 'tech', title: '个人展示网页制作', description: '需要一个可部署的个人介绍页，要求简洁、响应式、带作品模块。', reward: 120, status: 'open', applicants: 5, createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000) },
-]);
+const taskCategoryCards = computed(() =>
+    taskCategories.map(category => ({
+        ...category,
+        taskCount: categoryStats.value[category.key as keyof typeof categoryStats.value] || 0,
+    }))
+);
 
-const myStats = ref([
-    { key: 'published', label: '本周发布', value: '12', color: '#2F6BFF', note: '平均 3 小时内收到申请' },
-    { key: 'completed', label: '已完成', value: '8', color: '#19B36B', note: '任务完成率稳定提升' },
-    { key: 'income', label: '累计收入', value: '¥356', color: '#FF9B3D', note: '接单收益已入账钱包' },
-    { key: 'quality', label: '满意度', value: '4.8', color: '#17304F', note: '评价体系影响后续匹配' },
-]);
+const hotTasks = computed(() => tasks.value.slice(0, 3));
 
-const recentActivities = ref([
-    { id: 1, title: '完成了 PPT 制作任务', description: '发布方已确认并结算报酬。', extra: '2 小时前', icon: SparklesIcon },
-    { id: 2, title: '申请了网站设计任务', description: '等待发布方确认是否录用。', extra: '1 天前', icon: TaskIcon },
-    { id: 3, title: '发布了代写文案需求', description: '已有 3 位同学申请协作。', extra: '2 天前', icon: WritingIcon },
-]);
+const myStats = computed(() => {
+    const publishedCount = tasks.value.filter(task => task.status === 'published').length;
+    const averagePrice =
+        tasks.value.length > 0
+            ? Math.round(
+                  tasks.value.reduce((sum, task) => sum + Number(task.price || 0), 0) /
+                      tasks.value.length
+              )
+            : 0;
+
+    return [
+        {
+            key: 'published',
+            label: '招募中',
+            value: `${publishedCount}`,
+            color: '#2F6BFF',
+            note: '当前开放申请的任务数量',
+        },
+        {
+            key: 'price',
+            label: '平均报酬',
+            value: `¥${averagePrice}`,
+            color: '#17304F',
+            note: '当前任务池的平均预算',
+        },
+    ];
+});
+
+const fetchTasks = async () => {
+    loading.value = true;
+    try {
+        const response = await TaskApi.getTasks({
+            status: 'published',
+            sort: 'created_at',
+            order: 'desc',
+        });
+        tasks.value = response.data?.tasks || [];
+    } catch (error) {
+        console.error('获取任务列表失败:', error);
+        tasks.value = [];
+    } finally {
+        loading.value = false;
+    }
+};
+
+const fetchCategoryStats = async () => {
+    try {
+        const response = await TaskApi.getPublishedCategoryStats();
+        categoryStats.value = response.data?.categories || categoryStats.value;
+    } catch (error) {
+        console.error('获取任务分类统计失败:', error);
+    }
+};
 
 const getCategoryIcon = (category: string) => {
     const iconMap: Record<string, any> = {
@@ -173,26 +268,30 @@ const getCategoryLabel = (category: string) => {
 
 const getStatusType = (status: string) => {
     const typeMap: Record<string, any> = {
-        open: 'success',
-        inProgress: 'info',
+        published: 'success',
+        in_progress: 'info',
         completed: 'default',
         cancelled: 'error',
+        expired: 'warning',
     };
     return typeMap[status] || 'default';
 };
 
 const getStatusLabel = (status: string) => {
     const labelMap: Record<string, string> = {
-        open: '招募中',
-        inProgress: '进行中',
+        published: '招募中',
+        in_progress: '进行中',
         completed: '已完成',
         cancelled: '已取消',
+        expired: '已过期',
     };
     return labelMap[status] || '未知状态';
 };
 
-const formatTime = (date: Date) => {
-    const diff = Date.now() - date.getTime();
+const formatTime = (date: string) => {
+    const target = new Date(date);
+    if (Number.isNaN(target.getTime())) return '--';
+    const diff = Date.now() - target.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
     if (hours < 1) return '刚刚';
     if (hours < 24) return `${hours} 小时前`;
@@ -203,6 +302,11 @@ const go = (route: string) => {
     appStore.hapticFeedback('light');
     router.push(route);
 };
+
+onMounted(() => {
+    fetchCategoryStats();
+    fetchTasks();
+});
 </script>
 
 <style scoped>
@@ -259,6 +363,17 @@ const go = (route: string) => {
     border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
+.task-center__hero-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.task-center__publish--ghost {
+    background: rgba(255, 255, 255, 0.08);
+}
+
 .task-center__section {
     margin-bottom: 24px;
 }
@@ -285,7 +400,7 @@ const go = (route: string) => {
 .task-center__category-grid,
 .task-center__trend-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 12px;
 }
 
@@ -299,7 +414,10 @@ const go = (route: string) => {
 }
 
 .task-center__category-card {
-    padding: 18px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
     border-radius: 24px;
 }
 
@@ -311,14 +429,34 @@ const go = (route: string) => {
     align-items: center;
     justify-content: center;
     color: #17304f;
-    margin-bottom: 16px;
+    flex-shrink: 0;
+}
+
+.task-center__category-copy {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-center__category-arrow {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9fb0c9;
+    flex-shrink: 0;
+}
+
+.task-center__category-arrow svg {
+    width: 20px;
+    height: 20px;
 }
 
 .task-center__category-card h4 {
     font-size: 17px;
     font-weight: 800;
     color: #17304f;
-    margin-bottom: 8px;
+    margin: 0 0 4px;
 }
 
 .task-center__category-card p,
@@ -326,11 +464,12 @@ const go = (route: string) => {
     font-size: 13px;
     line-height: 1.7;
     color: #5b667a;
+    margin: 0;
 }
 
 .task-center__category-card span {
     display: inline-block;
-    margin-top: 12px;
+    margin-top: 6px;
     font-size: 12px;
     color: #7c879d;
 }
@@ -451,22 +590,6 @@ const go = (route: string) => {
     color: #7c879d;
 }
 
-.task-center__fab {
-    position: fixed;
-    right: 22px;
-    bottom: calc(104px + var(--safe-area-bottom, 0px));
-    width: 62px;
-    height: 62px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #2f6bff 0%, #4bb8ff 100%);
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 14px 28px rgba(47, 107, 255, 0.3);
-    z-index: 120;
-}
-
 .task-center__safe-space {
     height: calc(108px + var(--safe-area-bottom, 0px));
 }
@@ -541,8 +664,4 @@ const go = (route: string) => {
     color: #9fc0ff;
 }
 
-.dark-theme .task-center__fab {
-    background: linear-gradient(135deg, #2b62e3 0%, #2e8dd2 100%);
-    box-shadow: 0 16px 28px rgba(0, 0, 0, 0.34);
-}
 </style>

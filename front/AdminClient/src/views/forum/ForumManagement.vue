@@ -173,9 +173,13 @@
                       <el-icon><Hide /></el-icon>
                       隐藏帖子
                     </el-dropdown-item>
-                    <el-dropdown-item command="top">
+                    <el-dropdown-item :command="'top'">
                       <el-icon><Top /></el-icon>
-                      设为置顶
+                      {{ row.is_pinned ? '取消置顶' : '设为置顶' }}
+                    </el-dropdown-item>
+                    <el-dropdown-item command="highlight">
+                      <el-icon><Star /></el-icon>
+                      {{ row.is_highlighted ? '取消加精' : '设为加精' }}
                     </el-dropdown-item>
                     <el-dropdown-item command="delete" divided>
                       <el-icon><Delete /></el-icon>
@@ -224,6 +228,7 @@ import {
   Hide,
   Top,
   Delete,
+  Star,
 } from '@element-plus/icons-vue'
 import { forumManagementApi } from '@/api'
 import { exportCsvFile, normalizeExportValue } from '@/utils/export'
@@ -272,7 +277,7 @@ const fetchPosts = async () => {
 
     const params = {
       page: pagination.page,
-      pageSize: pagination.pageSize,
+      limit: pagination.pageSize,
       ...searchParams,
     }
 
@@ -332,22 +337,80 @@ const viewDetail = (id) => {
 
 const moderatePost = async (command, post) => {
   if (command === 'delete') {
-    try {
-      await ElMessageBox.confirm(`确定要删除帖子 "${post.title}" 吗？`, '确认删除', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
+    ElMessageBox.prompt('请输入删除原因', '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+      inputPlaceholder: '请输入删除原因',
+    })
+      .then(async ({ value }) => {
+        if (!value) {
+          ElMessage.warning('请输入删除原因')
+          return
+        }
+        try {
+          const response = await forumManagementApi.deletePost(post.id, value)
+          if (response.success) {
+            ElMessage.success('删除成功')
+            fetchPosts()
+          }
+        } catch (error) {
+          ElMessage.error('删除失败: ' + error.message)
+        }
       })
-      ElMessage.info('删除功能开发中')
-    } catch {
-      // cancel - 用户取消操作
-    }
+      .catch(() => {})
   } else if (command === 'top') {
-    ElMessage.info('置顶功能开发中')
+    // 置顶/取消置顶
+    const action = post.is_pinned ? 'unpin' : 'pin'
+    try {
+      const response = await forumManagementApi.moderatePost(post.id, action)
+      if (response.success) {
+        ElMessage.success(action === 'pin' ? '置顶成功' : '取消置顶成功')
+        fetchPosts()
+      }
+    } catch (error) {
+      ElMessage.error('操作失败: ' + error.message)
+    }
   } else if (command === 'hide') {
-    ElMessage.info('隐藏功能开发中')
+    ElMessageBox.prompt('请输入隐藏原因', '隐藏帖子', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+      inputPlaceholder: '请输入隐藏原因',
+    })
+      .then(async ({ value }) => {
+        try {
+          const response = await forumManagementApi.moderatePost(post.id, 'hide', value)
+          if (response.success) {
+            ElMessage.success('隐藏成功')
+            fetchPosts()
+          }
+        } catch (error) {
+          ElMessage.error('隐藏失败: ' + error.message)
+        }
+      })
+      .catch(() => {})
   } else if (command === 'approve') {
-    ElMessage.info('审核通过功能开发中')
+    try {
+      const response = await forumManagementApi.moderatePost(post.id, 'approve')
+      if (response.success) {
+        ElMessage.success('审核通过')
+        fetchPosts()
+      }
+    } catch (error) {
+      ElMessage.error('审核失败: ' + error.message)
+    }
+  } else if (command === 'highlight') {
+    try {
+      const action = post.is_highlighted ? 'unhighlight' : 'highlight'
+      const response = await forumManagementApi.moderatePost(post.id, action)
+      if (response.success) {
+        ElMessage.success(action === 'highlight' ? '加精成功' : '取消加精成功')
+        fetchPosts()
+      }
+    } catch (error) {
+      ElMessage.error('操作失败: ' + error.message)
+    }
   }
 }
 

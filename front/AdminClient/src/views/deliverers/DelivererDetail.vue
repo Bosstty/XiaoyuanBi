@@ -10,10 +10,7 @@
           <h3>{{ deliverer.real_name }}</h3>
           <p>{{ deliverer.phone }}</p>
           <div class="tags">
-            <el-tag
-              :type="getApplicationStatusType(deliverer.application_status)"
-              size="small"
-            >
+            <el-tag :type="getApplicationStatusType(deliverer.application_status)" size="small">
               {{ getApplicationStatusText(deliverer.application_status) }}
             </el-tag>
             <el-tag :type="getStatusType(deliverer.status)" size="small">
@@ -71,10 +68,7 @@
           {{ deliverer.id_card || '未填写' }}
         </el-descriptions-item>
         <el-descriptions-item label="认证状态">
-          <el-tag
-            :type="getApplicationStatusType(deliverer.application_status)"
-            size="small"
-          >
+          <el-tag :type="getApplicationStatusType(deliverer.application_status)" size="small">
             {{ getApplicationStatusText(deliverer.application_status) }}
           </el-tag>
         </el-descriptions-item>

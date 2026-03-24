@@ -56,23 +56,15 @@
       </el-col>
     </el-row>
 
-    <!-- 搜索筛选 -->
+    <!-- 筛选卡片 -->
     <el-card class="filter-card" shadow="never">
-      <el-form :model="searchForm" inline>
-        <el-form-item label="配送员姓名">
+      <el-form :model="searchForm" inline class="filter-form">
+        <el-form-item label="关键词搜索">
           <el-input
-            v-model="searchForm.name"
-            placeholder="请输入姓名"
+            v-model="searchForm.keyword"
+            placeholder="姓名/手机号/身份证"
             clearable
             style="width: 180px"
-          />
-        </el-form-item>
-        <el-form-item label="手机号">
-          <el-input
-            v-model="searchForm.phone"
-            placeholder="请输入手机号"
-            clearable
-            style="width: 150px"
           />
         </el-form-item>
         <el-form-item label="状态">
@@ -84,20 +76,9 @@
           >
             <el-option label="全部" value="" />
             <el-option label="在职" value="active" />
-            <el-option label="休息中" value="resting" />
-            <el-option label="已禁用" value="disabled" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="审核状态">
-          <el-select
-            v-model="searchForm.verified"
-            placeholder="全部"
-            clearable
-            style="width: 140px"
-          >
-            <el-option label="全部" value="" />
-            <el-option label="已认证" value="true" />
-            <el-option label="待认证" value="false" />
+            <el-option label="休息中" value="inactive" />
+            <el-option label="暂停服务" value="suspended" />
+            <el-option label="已封禁" value="banned" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -229,26 +210,32 @@
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button link type="primary" size="small" @click="viewDetail(row)">查看</el-button>
-              <el-button
-                v-if="row.application_status === 'pending'"
-                link
-                type="primary"
-                size="small"
-                @click="handleVerify(row)"
-                >审核</el-button
-              >
               <el-dropdown @command="(cmd) => handleAction(cmd, row)">
                 <el-button link type="primary" size="small">
                   更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="edit">编辑信息</el-dropdown-item>
-                    <el-dropdown-item :command="row.status === 'active' ? 'rest' : 'active'">
-                      {{ row.status === 'active' ? '设为休息' : '恢复正常' }}
+                    <el-dropdown-item
+                      v-if="row.status === 'active'"
+                      command="suspend"
+                    >
+                      <el-icon><Lock /></el-icon>
+                      暂停服务
                     </el-dropdown-item>
-                    <el-dropdown-item command="resetPassword">重置密码</el-dropdown-item>
-                    <el-dropdown-item command="ban" divided>
+                    <el-dropdown-item
+                      v-if="row.status === 'suspended' || row.status === 'inactive'"
+                      command="activate"
+                    >
+                      <el-icon><Unlock /></el-icon>
+                      恢复正常
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="row.status !== 'banned'"
+                      command="ban"
+                      divided
+                    >
+                      <el-icon><Delete /></el-icon>
                       <span style="color: #f56c6c">封禁账号</span>
                     </el-dropdown-item>
                   </el-dropdown-menu>
@@ -336,6 +323,9 @@ import {
   Clock,
   TrendCharts,
   ArrowDown,
+  Lock,
+  Unlock,
+  Delete,
 } from '@element-plus/icons-vue'
 import { delivererManagementApi } from '@/api'
 import DelivererDetail from './DelivererDetail.vue'
@@ -344,10 +334,8 @@ const loading = ref(false)
 const delivererList = ref([])
 
 const searchForm = reactive({
-  name: '',
-  phone: '',
+  keyword: '',
   status: '',
-  verified: '',
 })
 
 const pagination = reactive({
@@ -380,17 +368,30 @@ const detailDrawer = reactive({
 const fetchDeliverers = async () => {
   loading.value = true
   try {
+    // 构建查询参数
     const params = {
       page: pagination.page,
-      pageSize: pagination.pageSize,
-      ...searchForm,
+      limit: pagination.pageSize,
+    }
+
+    // 添加关键词搜索
+    if (searchForm.keyword) {
+      params.keyword = searchForm.keyword
+    }
+
+    // 添加状态筛选
+    if (searchForm.status) {
+      params.status = searchForm.status
     }
 
     const response = await delivererManagementApi.getDeliverers(params)
+    console.log('配送员列表响应:', response)
     if (response.success) {
       const data = response.data
-      delivererList.value = data.deliverers || data.list || []
-      pagination.total = data.pagination?.total || 0
+      delivererList.value = data.deliverers || []
+      if (data.pagination) {
+        pagination.total = data.pagination.total || 0
+      }
     }
   } catch (error) {
     console.error('获取配送员列表失败:', error)
@@ -447,15 +448,9 @@ const viewDetail = async (row) => {
       detailDrawer.logs = response.data.logs || []
       detailDrawer.visible = true
     }
-  } catch (error) {
+  } catch {
     ElMessage.error('获取详情失败')
   }
-}
-
-// 审核
-const handleVerify = (row) => {
-  verifyDialog.data = row
-  verifyDialog.visible = true
 }
 
 // 审核结果
@@ -473,7 +468,7 @@ const handleVerifyResult = async (approved) => {
       fetchDeliverers()
       fetchStats()
     }
-  } catch (error) {
+  } catch {
     ElMessage.error('审核失败')
   } finally {
     verifyDialog.loading = false
@@ -483,17 +478,14 @@ const handleVerifyResult = async (approved) => {
 // 操作处理
 const handleAction = async (command, row) => {
   switch (command) {
-    case 'edit':
-      ElMessage.info('编辑功能开发中')
-      break
-    case 'rest':
-      await handleStatusChange(row, 'resting')
-      break
-    case 'active':
+    case 'activate':
       await handleStatusChange(row, 'active')
       break
-    case 'resetPassword':
-      ElMessage.info('重置密码功能开发中')
+    case 'suspend':
+      await handleStatusChange(row, 'suspended')
+      break
+    case 'inactive':
+      await handleStatusChange(row, 'inactive')
       break
     case 'ban':
       await handleBan(row)
@@ -504,18 +496,33 @@ const handleAction = async (command, row) => {
 // 状态变更
 const handleStatusChange = async (row, status) => {
   try {
-    const action = status === 'active' ? '恢复' : '设为休息'
-    await ElMessageBox.confirm(`确定要${action}配送员 "${row.real_name}" 吗？`, '确认操作', {
-      type: 'warning',
-    })
+    const statusText = {
+      active: '在职',
+      inactive: '休息中',
+      suspended: '暂停服务',
+      banned: '已封禁',
+    }
+    const action = statusText[status] || status
+
+    await ElMessageBox.confirm(
+      `确定要将配送员 "${row.real_name}" 的状态改为"${action}"吗？`,
+      '确认操作',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
 
     const response = await delivererManagementApi.updateDelivererStatus(row.id, status)
     if (response.success) {
-      ElMessage.success(`${action}成功`)
+      ElMessage.success(`状态更新成功`)
       fetchDeliverers()
+      fetchStats()
     }
   } catch (error) {
     if (error !== 'cancel') {
+      console.error('状态变更失败:', error)
       ElMessage.error('操作失败')
     }
   }
@@ -527,10 +534,18 @@ const handleBan = async (row) => {
     await ElMessageBox.confirm(
       `确定要封禁配送员 "${row.real_name}" 吗？此操作将禁止其登录系统。`,
       '危险操作',
-      { type: 'error' },
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'error',
+      },
     )
 
-    const response = await delivererManagementApi.deleteDeliverer(row.id)
+    // 封禁时需要传递 reason，但 API 设计是需要 reason 的
+    const response = await delivererManagementApi.deleteDeliverer(row.id, {
+      reason: '管理员封禁',
+      permanent: true,
+    })
     if (response.success) {
       ElMessage.success('封禁成功')
       fetchDeliverers()
@@ -538,7 +553,8 @@ const handleBan = async (row) => {
     }
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('操作失败')
+      console.error('封禁失败:', error)
+      ElMessage.error(error.message || '操作失败')
     }
   }
 }
@@ -559,8 +575,9 @@ const handlePageChange = (newPage) => {
 const getStatusType = (status) => {
   const types = {
     active: 'success',
-    resting: 'warning',
-    disabled: 'danger',
+    inactive: 'warning',
+    suspended: 'danger',
+    banned: 'danger',
   }
   return types[status] || 'info'
 }
@@ -568,8 +585,9 @@ const getStatusType = (status) => {
 const getStatusText = (status) => {
   const texts = {
     active: '在职',
-    resting: '休息中',
-    disabled: '已禁用',
+    inactive: '休息中',
+    suspended: '暂停服务',
+    banned: '已封禁',
   }
   return texts[status] || '未知'
 }
@@ -762,6 +780,13 @@ onMounted(() => {
   margin-bottom: 20px;
   border-radius: var(--radius-xl, 16px);
   border: 1px solid var(--el-border-color-light, #e4e7ed);
+}
+
+/* 子导航 */
+.sub-nav {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
 }
 
 .filter-form {

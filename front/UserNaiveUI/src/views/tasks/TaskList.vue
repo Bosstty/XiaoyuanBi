@@ -1,679 +1,514 @@
 <template>
-    <div class="task-list-page">
-        <!-- 页面头部 -->
-        <div class="page-header">
-            <div class="header-content">
-                <h1 class="page-title">任务大厅</h1>
-                <p class="page-subtitle">学习、设计、技术各类任务</p>
-            </div>
-        </div>
-
-        <!-- 分类标签 -->
-        <div class="category-tabs">
-            <div class="tabs-scroll hide-scrollbar">
-                <div
-                    v-for="tab in categoryTabs"
-                    :key="tab.key"
-                    class="tab-item"
-                    :class="{ active: currentTab === tab.key }"
-                    @click="handleTabChange(tab.key)"
-                >
-                    <div class="tab-icon" :style="{ background: tab.gradient }">
-                        <NIcon :size="16" color="white">
-                            <component :is="tab.icon" />
-                        </NIcon>
-                    </div>
-                    <span class="tab-label">{{ tab.label }}</span>
+    <div class="campus-tasks" :class="{ 'is-dark': appStore.isDark }">
+        <!-- ───── 顶部导航 ───── -->
+        <header class="top-bar">
+            <div class="nav-row">
+                <button type="button" class="back-btn" @click="router.back()">
+                    <svg viewBox="0 0 24 24" width="22" height="22">
+                        <path
+                            d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                </button>
+                <div class="tab-group">
+                    <button
+                        v-for="tab in viewTabs"
+                        :key="tab.key"
+                        type="button"
+                        class="view-tab"
+                        :class="{ active: currentView === tab.key }"
+                        @click="handleViewChange(tab.key)"
+                    >
+                        {{ tab.label }}
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- 搜索栏 -->
-        <div class="search-bar">
-            <NInput
-                v-model:value="searchQuery"
-                placeholder="搜索任务..."
-                size="large"
-                clearable
-                round
-            >
-                <template #prefix>
-                    <NIcon><SearchOutline /></NIcon>
-                </template>
-            </NInput>
-        </div>
+            <!-- 分类筛选条 -->
+            <div class="category-bar">
+                <button
+                    v-for="cat in categoryTabs"
+                    :key="cat.key"
+                    type="button"
+                    class="cat-chip"
+                    :class="{ active: currentCategory === cat.key }"
+                    @click="handleCategoryChange(cat.key)"
+                >
+                    {{ cat.label }}
+                </button>
+            </div>
+        </header>
 
-        <!-- 任务列表 -->
-        <div class="tasks-container">
-            <div v-if="loading" class="loading-state">
+        <!-- ───── 任务列表 ───── -->
+        <main class="list-area">
+            <div v-if="loading" class="state-box">
                 <NSpin size="large" />
             </div>
 
-            <div v-else-if="filteredTasks.length > 0" class="tasks-list">
-                <div
-                    v-for="(task, index) in filteredTasks"
+            <template v-else-if="tasks.length > 0">
+                <article
+                    v-for="(task, index) in tasks"
                     :key="task.id"
-                    class="task-card ios-card"
-                    :style="{ animationDelay: `${index * 80}ms` }"
-                    @click="handleTaskClick(task)"
+                    class="task-card"
+                    :style="{ animationDelay: `${index * 0.05}s` }"
+                    @click="viewTaskDetail(task.id)"
                 >
-                    <!-- 任务头部 -->
-                    <div class="card-header">
-                        <div class="category-badge" :style="{ background: getCategoryGradient(task.category) }">
-                            <NIcon :size="12" color="white">
-                                <component :is="getCategoryIcon(task.category)" />
-                            </NIcon>
-                            <span>{{ getCategoryLabel(task.category) }}</span>
+                    <!-- 头部：分类标签 + 状态 badge -->
+                    <div class="card-head">
+                        <div class="cat-tag" :data-type="task.category">
+                            <span class="cat-bar"></span>
+                            <span class="cat-label">{{ getCategoryLabel(task.category) }}</span>
                         </div>
-                        <NTag :type="getStatusType(task.status)" size="small" :bordered="false">
+                        <span class="status-badge" :class="`s-${task.status}`">
                             {{ getStatusLabel(task.status) }}
-                        </NTag>
+                        </span>
                     </div>
 
-                    <!-- 任务内容 -->
-                    <div class="card-body">
-                        <h3 class="task-title">{{ task.title }}</h3>
-                        <p class="task-desc">{{ task.description }}</p>
-
-                        <!-- 难度星级 -->
-                        <div class="difficulty-row">
-                            <div class="difficulty-stars">
-                                <svg
-                                    v-for="star in 5"
-                                    :key="star"
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    :fill="star <= task.difficulty ? '#FF9500' : 'var(--ios-gray4)'"
-                                >
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    <!-- 标题 + 发布者 -->
+                    <div class="card-title-row">
+                        <h3 class="card-title">{{ task.title }}</h3>
+                        <div class="publisher">
+                            <div class="pub-avatar">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                                        fill="currentColor"
+                                    />
                                 </svg>
                             </div>
-                            <span class="difficulty-text">{{ task.difficulty }}星难度</span>
-                        </div>
-
-                        <!-- 元信息 -->
-                        <div class="task-meta">
-                            <div class="meta-item">
-                                <NIcon :size="14" class="meta-icon"><PersonOutline /></NIcon>
-                                <span>{{ task.applicants }}人申请</span>
-                            </div>
-                            <div class="meta-item">
-                                <NIcon :size="14" class="meta-icon"><TimeOutline /></NIcon>
-                                <span>{{ formatDeadline(task.deadline) }}</span>
-                            </div>
+                            <span>
+                                {{
+                                    task.publisher?.real_name || task.publisher?.username || '匿名'
+                                }}
+                            </span>
                         </div>
                     </div>
 
-                    <!-- 任务底部 -->
-                    <div class="card-footer">
-                        <div class="publisher-info">
-                            <NAvatar :size="24" round />
-                            <div class="publisher-detail">
-                                <span class="publisher-name">{{ task.publisher.name }}</span>
-                                <span class="publisher-rating">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="#FF9500">
-                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                    </svg>
-                                    {{ task.publisher.rating }}
+                    <!-- 描述 -->
+                    <p class="card-desc">{{ task.description }}</p>
+
+                    <!-- meta 标签行 -->
+                    <div class="card-meta">
+                        <span v-if="task.deadline">
+                            <svg viewBox="0 0 24 24" width="13" height="13">
+                                <path
+                                    d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                            截止 {{ formatDateTime(task.deadline) }}
+                        </span>
+                        <span v-if="task.location">
+                            <svg viewBox="0 0 24 24" width="13" height="13">
+                                <path
+                                    d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                            {{ task.location }}
+                        </span>
+                        <span v-if="task.remote_work" class="tag-pill">远程</span>
+                        <span v-if="task.urgent" class="tag-pill urgent">加急</span>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- 底栏：报酬 + 人数 + 发布时间 + 申请按钮 -->
+                    <div class="card-foot">
+                        <div class="foot-info">
+                            <div class="info-item">
+                                <span class="info-label">报酬</span>
+                                <span class="info-price">¥{{ formatAmount(task.price) }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">人数</span>
+                                <span class="info-val">{{ task.max_applicants || 1 }} 人</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">发布</span>
+                                <span class="info-val">
+                                    {{ formatRelativeTime(task.createdAt) }}
                                 </span>
                             </div>
                         </div>
-                        <div class="reward-info">
-                            <span class="reward-label">报酬</span>
-                            <span class="reward-value">¥{{ task.reward }}</span>
+                        <div class="foot-actions" @click.stop>
+                            <NButton
+                                v-if="canChat(task)"
+                                size="small"
+                                class="chat-btn"
+                                round
+                                @click="handleChat(task)"
+                            >
+                                聊一聊
+                            </NButton>
+                            <NButton
+                                v-if="canApply(task)"
+                                size="small"
+                                type="primary"
+                                round
+                                @click="handleApply(task)"
+                            >
+                                申请
+                            </NButton>
+                            <NButton
+                                v-else-if="task.has_applied"
+                                size="small"
+                                round
+                                disabled
+                            >
+                                已申请
+                            </NButton>
                         </div>
                     </div>
-                </div>
-            </div>
+                </article>
 
-            <!-- 空状态 -->
-            <div v-else class="empty-state">
-                <div class="empty-icon">
-                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                        <rect x="12" y="16" width="40" height="32" rx="4" fill="var(--ios-gray6)" />
-                        <path d="M20 28h24M20 36h16" stroke="var(--ios-gray3)" stroke-width="3" stroke-linecap="round"/>
-                    </svg>
+                <div v-if="hasNextPage" class="load-more">
+                    <NButton quaternary round :loading="loadingMore" @click="loadMore">
+                        显示更多
+                    </NButton>
                 </div>
-                <h4 class="empty-title">暂无任务</h4>
-                <p class="empty-desc">快去发布一个任务吧</p>
-                <NButton type="primary" @click="router.push('/tasks/create')">
-                    发布任务
-                </NButton>
-            </div>
-        </div>
+            </template>
 
-        <!-- 发布任务按钮 -->
-        <div class="create-btn-wrap">
-            <NButton type="primary" size="large" circle class="create-btn" @click="router.push('/tasks/create')">
-                <template #icon>
-                    <NIcon size="24"><AddOutline /></NIcon>
-                </template>
-            </NButton>
-        </div>
+            <div v-else class="state-box">
+                <svg viewBox="0 0 24 24" width="48" height="48" style="color: var(--sub)">
+                    <path
+                        d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"
+                        fill="currentColor"
+                    />
+                </svg>
+                <p class="empty-text">暂无任务</p>
+            </div>
+        </main>
+
+        <!-- FAB -->
+        <button type="button" class="fab" @click="router.push('/tasks/create')">
+            <NIcon :size="22"><AddOutline /></NIcon>
+        </button>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, markRaw } from 'vue';
-import { useRouter } from 'vue-router';
-import { NInput, NButton, NIcon, NTag, NAvatar, NSpin } from 'naive-ui';
-import {
-    SearchOutline,
-    PersonOutline,
-    TimeOutline,
-    AddOutline,
-    SchoolOutline,
-    BrushOutline,
-    CodeSlashOutline,
-    DocumentTextOutline,
-    HomeOutline,
-} from '@vicons/ionicons5';
-import { useUserStore, useAppStore } from '@/stores';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { NButton, NIcon, NSpin, useMessage } from 'naive-ui';
+import { AddOutline } from '@vicons/ionicons5';
+import { TaskApi, chatApi } from '@/api';
+import { useAppStore, useUserStore } from '@/stores';
+import type { Task } from '@/types';
+
+type ViewKey = 'all' | 'mine' | 'accepted';
+type CategoryKey = 'all' | 'study' | 'design' | 'tech' | 'writing' | 'life';
 
 const router = useRouter();
-const userStore = useUserStore();
+const route = useRoute();
 const appStore = useAppStore();
+const userStore = useUserStore();
+const message = useMessage();
 
-// 状态
-const searchQuery = ref('');
-const currentTab = ref('all');
-const loading = ref(false);
+const loading = ref(true);
+const loadingMore = ref(false);
+const tasks = ref<Task[]>([]);
+const currentView = ref<ViewKey>('all');
+const currentCategory = ref<CategoryKey>('all');
+const currentPage = ref(1);
+const totalPages = ref(1);
 
-// 分类标签
-const categoryTabs = ref([
-    { key: 'all', label: '全部', icon: markRaw(DocumentTextOutline), gradient: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)' },
-    { key: 'study', label: '学习', icon: markRaw(SchoolOutline), gradient: 'linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%)' },
-    { key: 'design', label: '设计', icon: markRaw(BrushOutline), gradient: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)' },
-    { key: 'tech', label: '技术', icon: markRaw(CodeSlashOutline), gradient: 'linear-gradient(135deg, #34C759 0%, #30D158 100%)' },
-    { key: 'writing', label: '文案', icon: markRaw(DocumentTextOutline), gradient: 'linear-gradient(135deg, #AF52DE 0%, #FF2D92 100%)' },
-    { key: 'life', label: '生活', icon: markRaw(HomeOutline), gradient: 'linear-gradient(135deg, #5AC8FA 0%, #007AFF 100%)' },
-]);
+const viewTabs: Array<{ key: ViewKey; label: string }> = [{ key: 'all', label: '全部任务' }];
 
-// 模拟任务数据
-const tasks = ref([
-    {
-        id: 1,
-        category: 'study',
-        title: '高等数学作业辅导',
-        description: '需要帮助完成微积分相关的作业，要求有较好的数学基础',
-        reward: 50,
-        difficulty: 3,
-        status: 'open',
-        applicants: 8,
-        deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        publisher: { id: 1, name: '张同学', rating: 4.8 },
-    },
-    {
-        id: 2,
-        category: 'design',
-        title: '社团活动海报设计',
-        description: '为社团活动设计一张宣传海报，要求创意新颖',
-        reward: 80,
-        difficulty: 2,
-        status: 'open',
-        applicants: 12,
-        deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        publisher: { id: 2, name: '李社长', rating: 4.9 },
-    },
-    {
-        id: 3,
-        category: 'tech',
-        title: '简单网页制作',
-        description: '制作一个个人展示网页，包含HTML/CSS/JS',
-        reward: 120,
-        difficulty: 4,
-        status: 'open',
-        applicants: 5,
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        publisher: { id: 3, name: '王同学', rating: 4.7 },
-    },
-    {
-        id: 4,
-        category: 'writing',
-        title: '活动策划书撰写',
-        description: '为学院文艺活动撰写策划书，包含活动流程、预算等',
-        reward: 60,
-        difficulty: 2,
-        status: 'inProgress',
-        applicants: 15,
-        deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        publisher: { id: 4, name: '刘老师', rating: 5.0 },
-    },
-    {
-        id: 5,
-        category: 'life',
-        title: '宿舍搬家帮忙',
-        description: '需要帮忙搬宿舍，物品不多，主要是书籍和生活用品',
-        reward: 30,
-        difficulty: 1,
-        status: 'open',
-        applicants: 3,
-        deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 10 * 60 * 60 * 1000),
-        publisher: { id: 5, name: '小美', rating: 4.6 },
-    },
-]);
+const categoryTabs: Array<{ key: CategoryKey; label: string }> = [
+    { key: 'all', label: '全部' },
+    { key: 'study', label: '学习' },
+    { key: 'design', label: '设计' },
+    { key: 'tech', label: '技术' },
+    { key: 'writing', label: '文案' },
+    { key: 'life', label: '生活' },
+];
 
-// 筛选任务
-const filteredTasks = computed(() => {
-    let result = tasks.value;
-
-    if (currentTab.value !== 'all') {
-        result = result.filter(t => t.category === currentTab.value);
+const parseCategoryFromRoute = (value: unknown): CategoryKey => {
+    if (typeof value === 'string' && categoryTabs.some(tab => tab.key === value)) {
+        return value as CategoryKey;
     }
-
-    if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase();
-        result = result.filter(t =>
-            t.title.toLowerCase().includes(query) ||
-            t.description.toLowerCase().includes(query)
-        );
-    }
-
-    return result;
-});
-
-// 获取分类图标
-const getCategoryIcon = (category: string) => {
-    const map: Record<string, any> = {
-        study: SchoolOutline,
-        design: BrushOutline,
-        tech: CodeSlashOutline,
-        writing: DocumentTextOutline,
-        life: HomeOutline,
-    };
-    return map[category] || DocumentTextOutline;
+    return 'all';
 };
 
-// 获取分类渐变
-const getCategoryGradient = (category: string) => {
-    const map: Record<string, string> = {
-        study: 'linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%)',
-        design: 'linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)',
-        tech: 'linear-gradient(135deg, #34C759 0%, #30D158 100%)',
-        writing: 'linear-gradient(135deg, #AF52DE 0%, #FF2D92 100%)',
-        life: 'linear-gradient(135deg, #5AC8FA 0%, #007AFF 100%)',
-    };
-    return map[category] || map.study;
-};
+const hasNextPage = computed(() => currentPage.value < totalPages.value);
 
-// 获取分类标签
-const getCategoryLabel = (category: string) => {
-    const map: Record<string, string> = {
-        study: '学习辅导',
-        design: '设计制作',
-        tech: '技术开发',
-        writing: '文案撰写',
-        life: '生活服务',
-    };
-    return map[category] || '任务';
-};
+const getCategoryLabel = (cat: string) =>
+    ({ study: '学习类', design: '设计类', tech: '技术类', writing: '文案类', life: '生活类' })[
+        cat
+    ] ?? '任务';
 
-// 获取状态类型
-const getStatusType = (status: string) => {
-    const map: Record<string, any> = {
-        open: 'success',
-        inProgress: 'warning',
-        completed: 'info',
-        closed: 'default',
-    };
-    return map[status] || 'default';
-};
-
-// 获取状态标签
-const getStatusLabel = (status: string) => {
-    const map: Record<string, string> = {
-        open: '待接取',
-        inProgress: '进行中',
+const getStatusLabel = (status: string) =>
+    ({
+        published: '招募中',
+        in_progress: '进行中',
         completed: '已完成',
-        closed: '已关闭',
-    };
-    return map[status] || '未知';
+        cancelled: '已取消',
+        expired: '已过期',
+    })[status] ?? status;
+
+const formatAmount = (v?: string | number | null) => Number(v || 0).toFixed(0);
+
+const formatDateTime = (v?: string | null) => {
+    if (!v) return '--';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '--';
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
-// 格式化截止时间
-const formatDeadline = (date: Date) => {
-    const diff = date.getTime() - Date.now();
-    const days = Math.floor(diff / (24 * 60 * 60 * 1000));
-    if (days === 0) return '今天截止';
-    if (days === 1) return '明天截止';
-    if (days < 7) return `${days}天后截止`;
-    return `${Math.floor(days / 7)}周后截止`;
+const formatRelativeTime = (v?: string | null) => {
+    if (!v) return '--';
+    const diff = Date.now() - new Date(v).getTime();
+    if (diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))} 分钟前`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+    return `${Math.floor(diff / 86400000)} 天前`;
 };
 
-// 切换标签
-const handleTabChange = (key: string) => {
-    currentTab.value = key;
-    appStore.hapticFeedback('light');
-};
-
-// 点击任务
-const handleTaskClick = (task: any) => {
-    appStore.hapticFeedback('light');
-    router.push(`/tasks/${task.id}`);
-};
-
-// 加载数据
-onMounted(() => {
-    loading.value = true;
-    setTimeout(() => {
+const fetchTasks = async (page = 1, append = false) => {
+    (page > 1 ? loadingMore : loading).value = true;
+    try {
+        const response = await TaskApi.getTasks({
+            page,
+            limit: 10,
+            category: currentCategory.value === 'all' ? undefined : currentCategory.value,
+            status: 'published',
+            sort: 'created_at',
+            order: 'desc',
+        });
+        if (!response.success) throw new Error(response.message);
+        const list = response.data?.tasks || [];
+        tasks.value = append ? [...tasks.value, ...list] : list;
+        currentPage.value = response.data?.pagination?.current || page;
+        totalPages.value = response.data?.pagination?.totalPages || 1;
+    } catch (e) {
+        console.error(e);
+        if (!append) {
+            tasks.value = [];
+            currentPage.value = 1;
+            totalPages.value = 1;
+        }
+    } finally {
         loading.value = false;
-    }, 500);
+        loadingMore.value = false;
+    }
+};
+
+const handleViewChange = (key: ViewKey) => {
+    currentView.value = key;
+    appStore.hapticFeedback('light');
+    fetchTasks(1, false);
+};
+
+const handleCategoryChange = (key: CategoryKey) => {
+    appStore.hapticFeedback('light');
+    if (key === currentCategory.value && parseCategoryFromRoute(route.query.category) === key) {
+        fetchTasks(1, false);
+        return;
+    }
+
+    currentCategory.value = key;
+    router.push({
+        path: '/tasks/list',
+        query: key === 'all' ? {} : { category: key },
+    });
+};
+
+const loadMore = () => hasNextPage.value && fetchTasks(currentPage.value + 1, true);
+
+const viewTaskDetail = (id: number) => {
+    appStore.hapticFeedback('light');
+    router.push(`/tasks/${id}`);
+};
+
+const canApply = (task: Task) =>
+    task.status === 'published' &&
+    task.publisher_id !== userStore.user?.id &&
+    !task.assignee_id &&
+    !task.has_applied;
+
+const canChat = (task: Task) => task.publisher_id !== userStore.user?.id;
+
+const handleChat = async (task: Task) => {
+    try {
+        const response = await chatApi.createConversation({
+            peer_user_id: task.publisher_id,
+            task_id: task.id,
+            initial_message: `想咨询任务「${task.title}」的具体要求和细节。`,
+        });
+        appStore.hapticFeedback('light');
+        router.push({
+            path: '/chat',
+            query: response.data?.id ? { conversationId: String(response.data.id) } : {},
+        });
+    } catch (e: any) {
+        message.error(e?.message || '打开聊天失败');
+    }
+};
+
+const handleApply = async (task: Task) => {
+    try {
+        const r = await TaskApi.applyTask(task.id, {});
+        if (!r.success) throw new Error(r.message);
+        message.success('申请已提交');
+        task.has_applied = true;
+        task.current_user_application_status = 'pending';
+        appStore.hapticFeedback('medium');
+    } catch (e: any) {
+        message.error(e?.message || '申请失败');
+    }
+};
+
+onMounted(() => {
+    currentCategory.value = parseCategoryFromRoute(route.query.category);
+    fetchTasks(1, false);
 });
+
+watch(
+    () => route.query.category,
+    newCategory => {
+        const nextCategory = parseCategoryFromRoute(newCategory);
+        if (nextCategory === currentCategory.value) return;
+        currentCategory.value = nextCategory;
+        fetchTasks(1, false);
+    }
+);
 </script>
 
 <style scoped>
-.task-list-page {
+.campus-tasks {
+    --blue: #3b82f6;
+    --orange: #f97316;
+    --green: #10b981;
+    --purple: #8b5cf6;
+    --cyan: #06b6d4;
+    --surface: #f5f7fa;
+    --card: #ffffff;
+    --text: #1a1f2e;
+    --sub: #8b95a7;
+    --border: #eef0f4;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+
     min-height: 100vh;
-    background: var(--ios-bg-secondary);
-    padding-bottom: 100px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
 }
 
-/* 页面头部 */
-.page-header {
-    background: linear-gradient(135deg, #34C759 0%, #30D158 100%);
-    padding: 52px 16px 32px;
-    border-radius: 0 0 24px 24px;
+.campus-tasks.is-dark {
+    --surface: #0f172a;
+    --card: #1e293b;
+    --text: #f1f5f9;
+    --sub: #64748b;
+    --border: #334155;
 }
 
-.dark .page-header {
-    background: linear-gradient(135deg, #30D74B 0%, #32D74B 100%);
+/* ── 顶部 ── */
+.top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
 }
 
-.header-content {
-    text-align: center;
-}
-
-.page-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: white;
-    margin: 0 0 4px 0;
-}
-
-.page-subtitle {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.8);
-    margin: 0;
-}
-
-/* 分类标签 */
-.category-tabs {
-    margin-top: -20px;
-    padding: 0 16px;
-    position: relative;
-    z-index: 10;
-}
-
-.tabs-scroll {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    -webkit-overflow-scrolling: touch;
-}
-
-.tab-item {
+.nav-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    background: var(--ios-bg-primary);
-    border-radius: 24px;
-    box-shadow: var(--ios-shadow-sm);
+    padding: 12px 16px 8px;
+    gap: 4px;
+}
+
+.back-btn {
+    border: none;
+    background: none;
+    padding: 4px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
     cursor: pointer;
     flex-shrink: 0;
-    transition: all 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
+    margin-right: 2px;
 }
 
-.tab-item:active {
-    transform: scale(0.96);
-}
-
-.tab-item.active {
-    background: #34C759;
-    box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
-}
-
-.tab-item.active .tab-label {
-    color: white;
-}
-
-.tab-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
+.tab-group {
     display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-.tab-label {
-    font-size: 14px;
+.view-tab {
+    border: none;
+    background: none;
+    padding: 4px 10px;
+    font-size: 15px;
     font-weight: 500;
-    color: var(--ios-text-primary);
+    color: var(--sub);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s;
 }
 
-/* 搜索栏 */
-.search-bar {
-    padding: 20px 16px 12px;
+.view-tab.active {
+    color: var(--text);
+    font-weight: 700;
 }
 
-/* 任务列表 */
-.tasks-container {
-    padding: 0 16px;
+/* ── 分类筛选条 ── */
+.category-bar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.category-bar::-webkit-scrollbar {
+    display: none;
 }
 
-.tasks-list {
+.cat-chip {
+    border: none;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--sub);
+    transition: all 0.18s;
+}
+
+.cat-chip.active {
+    background: var(--blue);
+    color: #fff;
+    font-weight: 600;
+}
+
+/* ── 列表 ── */
+.list-area {
+    padding: 12px 16px 100px;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
+/* ── 任务卡片 ── */
 .task-card {
-    padding: 0;
-    overflow: hidden;
-    animation: ios-fade-in 0.4s ease-out backwards;
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: var(--shadow);
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
+    animation: fade-up 0.3s ease-out both;
+    transition: box-shadow 0.15s;
+}
+.task-card:active {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 16px;
-    border-bottom: 0.5px solid var(--ios-divider);
-}
-
-.category-badge {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    border-radius: 8px;
-    font-size: 11px;
-    font-weight: 600;
-    color: white;
-}
-
-.card-body {
-    padding: 14px 16px;
-}
-
-.task-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--ios-text-primary);
-    margin: 0 0 6px 0;
-}
-
-.task-desc {
-    font-size: 14px;
-    color: var(--ios-text-secondary);
-    margin: 0 0 12px 0;
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.difficulty-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.difficulty-stars {
-    display: flex;
-    gap: 2px;
-}
-
-.difficulty-text {
-    font-size: 11px;
-    color: var(--ios-text-tertiary);
-}
-
-.task-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-}
-
-.meta-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--ios-text-tertiary);
-}
-
-.meta-icon {
-    opacity: 0.7;
-}
-
-.card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    background: var(--ios-gray6);
-}
-
-.dark .card-footer {
-    background: var(--ios-gray5);
-}
-
-.publisher-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.publisher-detail {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.publisher-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--ios-text-primary);
-}
-
-.publisher-rating {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    font-size: 11px;
-    color: var(--ios-text-tertiary);
-}
-
-.reward-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
-}
-
-.reward-label {
-    font-size: 11px;
-    color: var(--ios-text-tertiary);
-}
-
-.reward-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: #34C759;
-}
-
-/* 空状态 */
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-    text-align: center;
-}
-
-.empty-icon {
-    margin-bottom: 20px;
-}
-
-.empty-title {
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--ios-text-primary);
-    margin: 0 0 8px 0;
-}
-
-.empty-desc {
-    font-size: 14px;
-    color: var(--ios-text-tertiary);
-    margin: 0 0 24px 0;
-}
-
-/* 创建按钮 */
-.create-btn-wrap {
-    position: fixed;
-    bottom: 100px;
-    right: 20px;
-    z-index: 100;
-}
-
-.create-btn {
-    width: 56px;
-    height: 56px;
-    box-shadow: 0 8px 24px rgba(52, 199, 89, 0.4);
-}
-
-.dark .create-btn {
-    box-shadow: 0 8px 24px rgba(48, 215, 75, 0.4);
-}
-
-/* 加载状态 */
-.loading-state {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 60px 0;
-}
-
-/* 动画 */
-@keyframes ios-fade-in {
+@keyframes fade-up {
     from {
         opacity: 0;
-        transform: translateY(16px);
+        transform: translateY(8px);
     }
     to {
         opacity: 1;
@@ -681,18 +516,248 @@ onMounted(() => {
     }
 }
 
-/* 小屏优化 */
-@media (max-width: 375px) {
-    .page-title {
-        font-size: 24px;
-    }
+/* 头部 */
+.card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
 
-    .tab-item {
-        padding: 8px 12px;
-    }
+.cat-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
 
-    .tab-label {
-        font-size: 13px;
-    }
+.cat-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--blue);
+}
+.cat-tag[data-type='design'] .cat-bar {
+    background: var(--orange);
+}
+.cat-tag[data-type='tech'] .cat-bar {
+    background: var(--green);
+}
+.cat-tag[data-type='writing'] .cat-bar {
+    background: var(--purple);
+}
+.cat-tag[data-type='life'] .cat-bar {
+    background: var(--cyan);
+}
+
+.cat-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sub);
+}
+
+/* 状态 badge */
+.status-badge {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: #dcfce7;
+    color: #16a34a;
+}
+.status-badge.s-in_progress {
+    background: #dbeafe;
+    color: #2563eb;
+}
+.status-badge.s-completed {
+    background: #f1f5f9;
+    color: #64748b;
+}
+.status-badge.s-cancelled {
+    background: #fee2e2;
+    color: #dc2626;
+}
+.status-badge.s-expired {
+    background: #fef9c3;
+    color: #ca8a04;
+}
+
+/* 标题行 */
+.card-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.card-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.4;
+    flex: 1;
+}
+
+.publisher {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--sub);
+    font-size: 12px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.pub-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sub);
+}
+
+/* 描述 */
+.card-desc {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--sub);
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* meta 行 */
+.card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--sub);
+}
+
+.card-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tag-pill {
+    background: var(--surface);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sub) !important;
+}
+
+.tag-pill.urgent {
+    background: #fff1f0;
+    color: #ef4444 !important;
+}
+
+/* 分割线 */
+.divider {
+    height: 1px;
+    background: var(--border);
+    margin: 12px 0;
+}
+
+/* 底栏 */
+.card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.foot-info {
+    display: flex;
+    gap: 16px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.info-label {
+    font-size: 11px;
+    color: var(--sub);
+}
+
+.info-price {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--blue);
+}
+
+.info-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.foot-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.chat-btn {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--sub) !important;
+}
+
+/* 空/加载 */
+.state-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 72px 20px;
+    color: var(--sub);
+    gap: 12px;
+}
+
+.empty-text {
+    margin: 0;
+    font-size: 15px;
+}
+
+.load-more {
+    display: flex;
+    justify-content: center;
+    padding: 4px 0;
+}
+
+/* FAB */
+.fab {
+    position: fixed;
+    right: 20px;
+    bottom: 88px;
+    width: 52px;
+    height: 52px;
+    border: none;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35);
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+.fab:active {
+    transform: scale(0.93);
 }
 </style>

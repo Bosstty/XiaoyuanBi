@@ -4,14 +4,40 @@ import type {
     CreateTaskData,
     TaskApplication,
     TaskFilters,
-    PaginatedResponse,
     ApiResponse,
 } from '@/types';
 
+export interface TaskListResponse {
+    tasks: Task[];
+    pagination: {
+        current: number;
+        pageSize: number;
+        total: number;
+        totalPages: number;
+    };
+}
+
+export interface TaskCategoryStatsResponse {
+    status: 'published';
+    categories: {
+        study: number;
+        design: number;
+        tech: number;
+        writing: number;
+        life: number;
+    };
+    total: number;
+}
+
 export class TaskApi {
     // 获取任务列表
-    static async getTasks(filters?: TaskFilters): Promise<ApiResponse<PaginatedResponse<Task>>> {
+    static async getTasks(filters?: TaskFilters & { search?: string; sort?: string; order?: 'asc' | 'desc' }): Promise<ApiResponse<TaskListResponse>> {
         return apiClient.get('/tasks', { params: filters });
+    }
+
+    // 获取已发布任务分类统计
+    static async getPublishedCategoryStats(): Promise<ApiResponse<TaskCategoryStatsResponse>> {
+        return apiClient.get('/tasks/stats/categories');
     }
 
     // 创建任务
@@ -69,7 +95,9 @@ export class TaskApi {
     }
 
     // 获取我的任务
-    static async getMyTasks(filters?: TaskFilters): Promise<ApiResponse<PaginatedResponse<Task>>> {
+    static async getMyTasks(
+        filters?: TaskFilters & { type?: 'all' | 'published' | 'assigned' }
+    ): Promise<ApiResponse<TaskListResponse>> {
         return apiClient.get('/tasks/my/tasks', { params: filters });
     }
 

@@ -49,10 +49,10 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="搜索">
+        <el-form-item label="关键词搜索">
           <el-input
-            v-model="filters.search"
-            placeholder="订单号/联系人/手机号"
+            v-model="filters.keyword"
+            placeholder="订单号/标题"
             clearable
             prefix-icon="Search"
             style="width: 180px"
@@ -153,17 +153,26 @@
               <el-button type="primary" size="small" text @click="viewDetail(row.id)">
                 查看
               </el-button>
+              <el-button
+                v-if="row.status === 'pending'"
+                type="success"
+                size="small"
+                text
+                @click="openAssignDialog(row)"
+              >
+                分配
+              </el-button>
               <el-button type="warning" size="small" text @click="editStatus(row)">
                 状态
               </el-button>
               <el-button
+                v-if="!['completed', 'cancelled'].includes(row.status)"
                 type="danger"
                 size="small"
                 text
                 @click="deleteOrder(row)"
-                :disabled="row.status !== 'pending'"
               >
-                删除
+                取消
               </el-button>
             </div>
           </template>
@@ -173,7 +182,7 @@
       <!-- 分页 -->
       <div class="pagination-wrapper">
         <el-pagination
-          v-model:current-page="pagination.current"
+          v-model:current-page="pagination.page"
           v-model:page-size="pagination.pageSize"
           :total="pagination.total"
           :page-sizes="[10, 20, 50, 100]"
@@ -228,6 +237,50 @@
         >
       </template>
     </el-dialog>
+
+    <!-- 分配订单对话框 -->
+    <el-dialog
+      v-model="assignDialog.visible"
+      title="分配订单"
+      width="500px"
+      class="assign-dialog"
+    >
+      <el-form :model="assignDialog.form" label-width="100px">
+        <el-form-item label="订单号">
+          <span>{{ assignDialog.form.orderNo }}</span>
+        </el-form-item>
+        <el-form-item label="订单类型">
+          <el-tag>{{ getTypeText(assignDialog.form.type) }}</el-tag>
+        </el-form-item>
+        <el-form-item label="选择配送员" required>
+          <el-select
+            v-model="assignDialog.form.delivererId"
+            placeholder="请选择配送员"
+            filterable
+            style="width: 100%"
+            :loading="assignDialog.loading"
+          >
+            <el-option
+              v-for="item in assignDialog.deliverers"
+              :key="item.id"
+              :label="`${item.real_name || item.user?.real_name || '未知'} - ${item.phone || item.user?.phone || '无电话'}`"
+              :value="item.id"
+            >
+              <div class="deliverer-option">
+                <span>{{ item.real_name || item.user?.real_name || '未知' }}</span>
+                <span class="deliverer-phone">{{ item.phone || item.user?.phone || '' }}</span>
+              </div>
+            </el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="assignDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="assignOrder" :loading="assignDialog.submitting">
+          确定分配
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -244,7 +297,7 @@ import {
   FirstAidKit,
   Shop,
 } from '@element-plus/icons-vue'
-import { orderManagementApi } from '@/api'
+import { orderManagementApi, delivererManagementApi } from '@/api'
 import { exportCsvFile, normalizeExportValue } from '@/utils/export'
 import DashboardFilterHeader from '../dashboard/components/DashboardFilterHeader.vue'
 
@@ -258,11 +311,11 @@ const filters = reactive({
   type: '',
   status: '',
   paymentStatus: '',
-  search: '',
+  keyword: '',
 })
 
 const pagination = reactive({
-  current: 1,
+  page: 1,
   pageSize: 20,
   total: 0,
 })
@@ -278,6 +331,17 @@ const statusDialog = reactive({
   },
 })
 
+const assignDialog = reactive({
+  visible: false,
+  loading: false,
+  submitting: false,
+  orderId: null,
+  orderNo: '',
+  type: '',
+  delivererId: null,
+  deliverers: [],
+})
+
 const typeIconMap = {
   express: markRaw(Box),
   food: markRaw(Food),
@@ -291,14 +355,14 @@ const getTypeIcon = (type) => {
 
 const queryParams = computed(() => {
   const params = {
-    page: pagination.current,
+    page: pagination.page,
     limit: pagination.pageSize,
   }
 
   if (filters.type) params.type = filters.type
   if (filters.status) params.status = filters.status
   if (filters.paymentStatus) params.payment_status = filters.paymentStatus
-  if (filters.search) params.search = filters.search
+  if (filters.keyword) params.keyword = filters.keyword
   if (dateRange.value?.length === 2) {
     params.start_date = dateRange.value[0]
     params.end_date = dateRange.value[1]
@@ -325,7 +389,7 @@ const fetchOrders = async () => {
 }
 
 const searchOrders = () => {
-  pagination.current = 1
+  pagination.page = 1
   fetchOrders()
 }
 
@@ -333,13 +397,13 @@ const resetFilters = () => {
   filters.type = ''
   filters.status = ''
   filters.paymentStatus = ''
-  filters.search = ''
-  pagination.current = 1
+  filters.keyword = ''
+  pagination.page = 1
   fetchOrders()
 }
 
 const handleDateRangeChange = () => {
-  pagination.current = 1
+  pagination.page = 1
   fetchOrders()
 }
 
@@ -358,6 +422,54 @@ const editStatus = (order) => {
   statusDialog.form.newStatus = order.status
   statusDialog.form.remark = ''
   statusDialog.visible = true
+}
+
+const openAssignDialog = async (order) => {
+  assignDialog.orderId = order.id
+  assignDialog.orderNo = order.order_no
+  assignDialog.type = order.type
+  assignDialog.delivererId = null
+  assignDialog.loading = true
+  assignDialog.visible = true
+
+  try {
+    // 获取在线配送员列表 (状态为 active)
+    const response = await delivererManagementApi.getDeliverers({
+      status: 'active',
+      verified: 'true',
+      limit: 100,
+    })
+    if (response.success) {
+      assignDialog.deliverers = response.data?.deliverers || response.data || []
+    }
+  } catch {
+    ElMessage.error('获取配送员列表失败')
+  } finally {
+    assignDialog.loading = false
+  }
+}
+
+const assignOrder = async () => {
+  if (!assignDialog.delivererId) {
+    ElMessage.warning('请选择配送员')
+    return
+  }
+  assignDialog.submitting = true
+  try {
+    const response = await orderManagementApi.batchAssignOrders({
+      orderIds: [assignDialog.orderId],
+      delivererId: assignDialog.delivererId,
+    })
+    if (response.success) {
+      ElMessage.success('订单分配成功')
+      assignDialog.visible = false
+      fetchOrders()
+    }
+  } catch {
+    ElMessage.error('分配失败')
+  } finally {
+    assignDialog.submitting = false
+  }
 }
 
 const updateStatus = async () => {
@@ -386,22 +498,24 @@ const updateStatus = async () => {
 const deleteOrder = async (order) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除订单 "${order.order_no}" 吗？此操作不可恢复！`,
-      '删除确认',
+      `确定要取消订单 "${order.order_no}" 吗？此操作不可恢复！`,
+      '取消订单',
       {
-        confirmButtonText: '确定删除',
+        confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'error',
+        type: 'warning',
       },
     )
-    const response = await orderManagementApi.deleteOrder(order.id)
+    const response = await orderManagementApi.cancelOrder(order.id, {
+      reason: '管理员取消',
+    })
     if (response.success) {
-      ElMessage.success('订单删除成功')
+      ElMessage.success('订单已取消')
       fetchOrders()
     }
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除订单失败: ' + error.message)
+      ElMessage.error('取消订单失败')
     }
   }
 }
@@ -442,12 +556,12 @@ const exportOrders = async () => {
 
 const handleSizeChange = (val) => {
   pagination.pageSize = val
-  pagination.current = 1
+  pagination.page = 1
   fetchOrders()
 }
 
 const handleCurrentChange = (val) => {
-  pagination.current = val
+  pagination.page = val
   fetchOrders()
 }
 
@@ -679,6 +793,25 @@ onMounted(() => {
 /* 状态对话框 */
 .status-dialog :deep(.el-dialog) {
   border-radius: var(--radius-xl);
+}
+
+/* 分配对话框 */
+.assign-dialog :deep(.el-dialog) {
+  border-radius: var(--radius-xl);
+}
+
+/* 配送员选项 */
+.deliverer-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.deliverer-phone {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: 'Fira Code', monospace;
 }
 
 /* 响应式 */

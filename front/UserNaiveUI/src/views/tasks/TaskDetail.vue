@@ -1,404 +1,276 @@
 <template>
-    <div class="task-detail-page">
-        <!-- 导航栏 -->
-        <div class="nav-header">
-            <MobileNavBar title="任务详情" show-back @back="router.back()">
-                <template #right>
-                    <NButton text @click="showShareModal = true">
-                        <NIcon size="20">
-                            <ShareIcon />
-                        </NIcon>
-                    </NButton>
-                </template>
-            </MobileNavBar>
-        </div>
+    <div class="task-detail-page" :class="{ 'is-dark': appStore.isDark }">
+        <header class="top-bar">
+            <div class="nav-row">
+                <button type="button" class="back-btn" @click="router.back()" aria-label="返回">
+                    <svg viewBox="0 0 24 24" width="22" height="22">
+                        <path
+                            d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                </button>
+                <div class="title-copy">
+                    <span class="eyebrow">Task Detail</span>
+                    <h1>任务详情</h1>
+                </div>
+            </div>
+        </header>
 
-        <!-- 页面内容 -->
-        <div v-if="loading" class="loading-container">
-            <MobileLoading type="default" text="加载中..." />
-        </div>
+        <main class="detail-area">
+            <div v-if="loading" class="state-box">
+                <NSpin size="large" />
+            </div>
 
-        <div v-else-if="task" class="detail-container">
-            <!-- 任务状态 -->
-            <div class="section">
-                <MobileCard>
-                    <div class="status-section">
-                        <div
-                            class="status-icon"
-                            :style="{ backgroundColor: getStatusColor() + '20' }"
+            <div v-else-if="task" class="detail-stack">
+                <section class="hero-card">
+                    <div class="hero-head">
+                        <div class="cat-tag" :data-type="task.category">
+                            <span class="cat-bar"></span>
+                            <span class="cat-label">{{ getCategoryLabel(task.category) }}</span>
+                        </div>
+                        <span class="status-badge" :class="`s-${task.status}`">
+                            {{ getStatusLabel(task.status) }}
+                        </span>
+                    </div>
+
+                    <h2 class="hero-title">{{ task.title }}</h2>
+                    <p class="hero-desc">{{ task.description }}</p>
+
+                    <div class="meta-grid">
+                        <div class="meta-item">
+                            <span class="meta-label">任务编号</span>
+                            <span class="meta-value mono">{{ task.task_no }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">报酬</span>
+                            <span class="meta-value price">¥{{ formatAmount(task.price) }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">截止时间</span>
+                            <span class="meta-value">{{ formatDateTime(task.deadline) }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">发布时间</span>
+                            <span class="meta-value">{{ formatRelativeTime(task.createdAt) }}</span>
+                        </div>
+                    </div>
+
+                    <div class="chip-row">
+                        <span v-if="task.location" class="info-chip">{{ task.location }}</span>
+                        <span v-if="task.remote_work" class="info-chip">远程可做</span>
+                        <span v-if="task.urgent" class="info-chip info-chip--warn">加急</span>
+                        <span class="info-chip">人数上限 {{ task.max_applicants || 1 }}</span>
+                    </div>
+                </section>
+
+                <section v-if="task.requirements || task.skills_required?.length || task.tags?.length" class="panel-card">
+                    <div class="section-head">
+                        <h3>任务要求</h3>
+                    </div>
+
+                    <p v-if="task.requirements" class="requirements-text">
+                        {{ task.requirements }}
+                    </p>
+
+                    <div v-if="task.skills_required?.length" class="pill-group">
+                        <span v-for="skill in task.skills_required" :key="skill" class="pill">
+                            {{ skill }}
+                        </span>
+                    </div>
+
+                    <div v-if="task.tags?.length" class="pill-group">
+                        <span v-for="tag in task.tags" :key="tag" class="pill pill--soft">
+                            #{{ tag }}
+                        </span>
+                    </div>
+                </section>
+
+                <section class="panel-card">
+                    <div class="section-head">
+                        <h3>{{ isPublisher ? '发布者信息' : '雇主信息' }}</h3>
+                        <NButton
+                            v-if="task.publisher && !isPublisher"
+                            size="small"
+                            round
+                            @click="chatWithUser(task.publisher.id, `想咨询任务「${task.title}」的具体要求和细节。`)"
                         >
-                            <NIcon size="48" :color="getStatusColor()">
-                                <component :is="getStatusIcon()" />
-                            </NIcon>
-                        </div>
-                        <div class="status-info">
-                            <h2 class="status-title">{{ getStatusTitle() }}</h2>
-                            <p class="status-desc">{{ getStatusDescription() }}</p>
-                            <div v-if="task.deadline" class="deadline-time">
-                                截止时间：{{ formatDateTime(task.deadline) }}
-                            </div>
-                        </div>
+                            聊一聊
+                        </NButton>
                     </div>
-                </MobileCard>
-            </div>
 
-            <!-- 任务信息 -->
-            <div class="section">
-                <h3 class="section-title">任务信息</h3>
-                <MobileCard>
-                    <div class="task-info">
-                        <div class="task-header">
-                            <div class="task-category">
-                                <NIcon size="20" :color="getCategoryColor()">
-                                    <component :is="getCategoryIcon()" />
-                                </NIcon>
-                                <span class="category-label">{{ getCategoryLabel() }}</span>
-                            </div>
-                            <NTag :type="getStatusType()" size="small">
-                                {{ getStatusLabel() }}
-                            </NTag>
-                        </div>
-
-                        <h4 class="task-title">{{ task.title }}</h4>
-                        <p class="task-description">{{ task.description }}</p>
-
-                        <div class="task-details">
-                            <div class="detail-item">
-                                <span class="detail-label">任务编号</span>
-                                <span class="detail-value">{{ task.taskNumber }}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">发布时间</span>
-                                <span class="detail-value">
-                                    {{ formatDateTime(task.createdAt) }}
-                                </span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">截止时间</span>
-                                <span class="detail-value">
-                                    {{ formatDateTime(task.deadline) }}
-                                </span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">任务难度</span>
-                                <div class="difficulty-stars">
-                                    <NIcon
-                                        v-for="star in 5"
-                                        :key="star"
-                                        size="14"
-                                        :color="
-                                            star <= task.difficulty
-                                                ? 'var(--n-warning-color)'
-                                                : 'var(--n-border-color)'
-                                        "
-                                    >
-                                        <StarIcon />
-                                    </NIcon>
-                                </div>
-                            </div>
-                            <div v-if="task.contact" class="detail-item">
-                                <span class="detail-label">联系方式</span>
-                                <span class="detail-value">{{ task.contact }}</span>
-                            </div>
-                            <div v-if="task.remarks" class="detail-item">
-                                <span class="detail-label">备注说明</span>
-                                <span class="detail-value">{{ task.remarks }}</span>
-                            </div>
-                        </div>
-
-                        <!-- 特殊字段显示 -->
-                        <div v-if="task.category === 'study'" class="special-fields">
-                            <div v-if="task.subject?.length" class="detail-item">
-                                <span class="detail-label">学科领域</span>
-                                <div class="subject-tags">
-                                    <NTag
-                                        v-for="subj in task.subject"
-                                        :key="subj"
-                                        size="small"
-                                        type="info"
-                                    >
-                                        {{ getSubjectLabel(subj) }}
-                                    </NTag>
-                                </div>
-                            </div>
-                            <div v-if="task.teachingMethods?.length" class="detail-item">
-                                <span class="detail-label">教学形式</span>
-                                <div class="method-tags">
-                                    <NTag
-                                        v-for="method in task.teachingMethods"
-                                        :key="method"
-                                        size="small"
-                                        type="success"
-                                    >
-                                        {{ getTeachingMethodLabel(method) }}
-                                    </NTag>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="task.category === 'design'" class="special-fields">
-                            <div v-if="task.designType" class="detail-item">
-                                <span class="detail-label">设计类型</span>
-                                <span class="detail-value">
-                                    {{ getDesignTypeLabel(task.designType) }}
-                                </span>
-                            </div>
-                            <div v-if="task.designRequirements" class="detail-item">
-                                <span class="detail-label">设计要求</span>
-                                <span class="detail-value">{{ task.designRequirements }}</span>
-                            </div>
-                            <div v-if="task.referenceFiles?.length" class="detail-item">
-                                <span class="detail-label">参考文件</span>
-                                <div class="reference-files">
-                                    <div
-                                        v-for="(file, index) in task.referenceFiles"
-                                        :key="index"
-                                        class="reference-file"
-                                        @click="previewFile(file)"
-                                    >
-                                        <NIcon size="16">
-                                            <AttachIcon />
-                                        </NIcon>
-                                        <span>{{ file.name }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="task.category === 'tech'" class="special-fields">
-                            <div v-if="task.techStack?.length" class="detail-item">
-                                <span class="detail-label">技术栈</span>
-                                <div class="tech-tags">
-                                    <NTag
-                                        v-for="tech in task.techStack"
-                                        :key="tech"
-                                        size="small"
-                                        type="primary"
-                                    >
-                                        {{ getTechStackLabel(tech) }}
-                                    </NTag>
-                                </div>
-                            </div>
-                            <div v-if="task.projectType" class="detail-item">
-                                <span class="detail-label">项目类型</span>
-                                <span class="detail-value">
-                                    {{ getProjectTypeLabel(task.projectType) }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div v-if="task.category === 'writing'" class="special-fields">
-                            <div v-if="task.writingType" class="detail-item">
-                                <span class="detail-label">文案类型</span>
-                                <span class="detail-value">
-                                    {{ getWritingTypeLabel(task.writingType) }}
-                                </span>
-                            </div>
-                            <div v-if="task.wordCount" class="detail-item">
-                                <span class="detail-label">字数要求</span>
-                                <span class="detail-value">{{ task.wordCount }}字</span>
-                            </div>
-                        </div>
-
-                        <div v-if="task.category === 'life'" class="special-fields">
-                            <div v-if="task.serviceLocation" class="detail-item">
-                                <span class="detail-label">服务地点</span>
-                                <span class="detail-value">{{ task.serviceLocation }}</span>
-                            </div>
-                            <div v-if="task.serviceTime" class="detail-item">
-                                <span class="detail-label">服务时间</span>
-                                <span class="detail-value">
-                                    {{ formatServiceTime(task.serviceTime) }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </MobileCard>
-            </div>
-
-            <!-- 报酬信息 -->
-            <div class="section">
-                <h3 class="section-title">报酬信息</h3>
-                <MobileCard>
-                    <div class="reward-info">
-                        <div class="reward-main">
-                            <div class="reward-amount">
-                                <span class="reward-label">任务报酬</span>
-                                <span class="reward-value">¥{{ task.reward }}</span>
-                            </div>
-                            <div class="reward-meta">
-                                <div class="meta-item">
-                                    <NIcon size="14">
-                                        <PersonIcon />
-                                    </NIcon>
-                                    <span>{{ task.applicants }}人申请</span>
-                                </div>
-                                <div class="meta-item">
-                                    <NIcon size="14">
-                                        <TimeIcon />
-                                    </NIcon>
-                                    <span>{{ formatTimeAgo(task.createdAt) }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </MobileCard>
-            </div>
-
-            <!-- 发布者信息 -->
-            <div class="section">
-                <h3 class="section-title">发布者信息</h3>
-                <MobileCard>
-                    <div class="publisher-info">
-                        <div class="publisher-avatar">
+                    <div class="user-card">
+                        <div class="user-avatar">
                             <img
-                                :src="task.publisher.avatar || '/default-avatar.png'"
-                                :alt="task.publisher.name"
+                                v-if="task.publisher?.avatar"
+                                :src="task.publisher.avatar"
+                                :alt="publisherName"
                             />
+                            <span v-else>{{ publisherName.charAt(0) }}</span>
                         </div>
-                        <div class="publisher-details">
-                            <h4 class="publisher-name">{{ task.publisher.name }}</h4>
-                            <div class="publisher-meta">
-                                <div class="publisher-rating">
-                                    <NIcon size="14" color="var(--n-warning-color)">
-                                        <StarIcon />
-                                    </NIcon>
-                                    <span>{{ task.publisher.rating || '暂无评分' }}</span>
-                                </div>
-                                <div class="publisher-tasks">
-                                    发布任务：{{ task.publisher.publishedTasks || 0 }}
-                                </div>
+                        <div class="user-copy">
+                            <div class="user-name">{{ publisherName }}</div>
+                            <div class="user-sub">
+                                评分 {{ task.publisher?.rating || '暂无' }}
+                                <span v-if="task.publisher?.major"> · {{ task.publisher.major }}</span>
                             </div>
-                        </div>
-                        <div class="publisher-actions">
-                            <NButton size="small" @click="contactPublisher">
-                                <NIcon size="14">
-                                    <ChatIcon />
-                                </NIcon>
-                                联系
-                            </NButton>
                         </div>
                     </div>
-                </MobileCard>
-            </div>
+                </section>
 
-            <!-- 申请者列表 -->
-            <div v-if="task.status === 'open' && task.applicationList?.length" class="section">
-                <h3 class="section-title">申请者 ({{ task.applicationList.length }})</h3>
-                <MobileCard>
-                    <div class="applicant-list">
-                        <div
-                            v-for="applicant in task.applicationList"
-                            :key="applicant.id"
-                            class="applicant-item"
+                <section
+                    v-if="task.assignee || task.status === 'in_progress' || task.status === 'completed'"
+                    class="panel-card"
+                >
+                    <div class="section-head">
+                        <h3>承接人</h3>
+                        <NButton
+                            v-if="task.assignee"
+                            size="small"
+                            round
+                            @click="chatWithUser(task.assignee.id, `想沟通任务「${task.title}」的执行细节。`)"
                         >
-                            <div class="applicant-avatar">
-                                <img
-                                    :src="applicant.avatar || '/default-avatar.png'"
-                                    :alt="applicant.name"
-                                />
+                            聊一聊
+                        </NButton>
+                    </div>
+
+                    <div v-if="task.assignee" class="user-card">
+                        <div class="user-avatar user-avatar--dark">
+                            <img
+                                v-if="task.assignee?.avatar"
+                                :src="task.assignee.avatar"
+                                :alt="assigneeName"
+                            />
+                            <span v-else>{{ assigneeName.charAt(0) }}</span>
+                        </div>
+                        <div class="user-copy">
+                            <div class="user-name">{{ assigneeName }}</div>
+                            <div class="user-sub">
+                                评分 {{ task.assignee?.rating || '暂无' }}
+                                <span v-if="task.accept_time">
+                                    · 接单于 {{ formatDateTime(task.accept_time) }}
+                                </span>
                             </div>
-                            <div class="applicant-details">
-                                <div class="applicant-name">{{ applicant.name }}</div>
-                                <div class="applicant-meta">
-                                    <div class="applicant-rating">
-                                        <NIcon size="12" color="var(--n-warning-color)">
-                                            <StarIcon />
-                                        </NIcon>
-                                        <span>{{ applicant.rating || '暂无' }}</span>
+                        </div>
+                    </div>
+                    <div v-else class="empty-inline">当前还没有确认承接人。</div>
+                </section>
+
+                <section v-if="isPublisher" class="panel-card">
+                    <div class="section-head">
+                        <h3>申请者列表</h3>
+                        <span class="count-chip">{{ applications.length }}</span>
+                    </div>
+
+                    <div v-if="applicationLoading" class="state-box state-box--inner">
+                        <NSpin size="small" />
+                    </div>
+
+                    <div v-else-if="applications.length" class="application-list">
+                        <article
+                            v-for="application in applications"
+                            :key="application.id"
+                            class="application-card"
+                            :class="`a-${application.status}`"
+                        >
+                            <div class="application-head">
+                                <div class="user-card user-card--compact">
+                                    <div class="user-avatar user-avatar--soft">
+                                        <img
+                                            v-if="application.applicant?.avatar"
+                                            :src="application.applicant.avatar"
+                                            :alt="getApplicantName(application)"
+                                        />
+                                        <span v-else>{{ getApplicantName(application).charAt(0) }}</span>
                                     </div>
-                                    <div class="applicant-time">
-                                        {{ formatTimeAgo(applicant.appliedAt) }}
+                                    <div class="user-copy">
+                                        <div class="user-name">{{ getApplicantName(application) }}</div>
+                                        <div class="user-sub">
+                                            评分 {{ application.applicant?.rating || '暂无' }}
+                                            <span v-if="application.applicant?.major">
+                                                · {{ application.applicant.major }}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div v-if="applicant.message" class="applicant-message">
-                                    {{ applicant.message }}
-                                </div>
+                                <span class="application-status" :class="`s-${application.status}`">
+                                    {{ getApplicationStatusLabel(application.status) }}
+                                </span>
                             </div>
-                            <div v-if="task.isMyTask" class="applicant-actions">
+
+                            <div v-if="application.message" class="message-block">
+                                <span class="message-label">申请留言</span>
+                                <p>{{ application.message }}</p>
+                            </div>
+
+                            <div class="application-meta">
+                                <span>申请时间 {{ formatRelativeTime(application.createdAt) }}</span>
+                                <span v-if="application.expected_completion_time">
+                                    期望完成 {{ formatDateTime(application.expected_completion_time) }}
+                                </span>
+                            </div>
+
+                            <div class="application-actions">
                                 <NButton
                                     size="small"
-                                    type="primary"
-                                    @click="selectApplicant(applicant)"
+                                    round
+                                    @click="
+                                        chatWithUser(
+                                            application.applicant_id,
+                                            `想沟通任务「${task.title}」的申请细节。`
+                                        )
+                                    "
                                 >
-                                    选择
+                                    聊一聊
                                 </NButton>
+                                <template v-if="task.status === 'published' && application.status === 'pending'">
+                                    <NButton
+                                        size="small"
+                                        quaternary
+                                        round
+                                        :loading="processingId === application.id && processingAction === 'reject'"
+                                        @click="processApplication(application, 'reject')"
+                                    >
+                                        拒绝
+                                    </NButton>
+                                    <NButton
+                                        size="small"
+                                        type="primary"
+                                        round
+                                        :loading="processingId === application.id && processingAction === 'accept'"
+                                        @click="processApplication(application, 'accept')"
+                                    >
+                                        同意
+                                    </NButton>
+                                </template>
                             </div>
-                        </div>
+                        </article>
                     </div>
-                </MobileCard>
-            </div>
 
-            <!-- 任务进度 -->
-            <div v-if="task.status !== 'open'" class="section">
-                <h3 class="section-title">任务进度</h3>
-                <MobileCard>
-                    <div class="progress-timeline">
-                        <div
-                            v-for="(step, index) in taskSteps"
-                            :key="index"
-                            class="timeline-item"
-                            :class="{ active: step.active, completed: step.completed }"
-                        >
-                            <div class="timeline-dot">
-                                <NIcon v-if="step.completed" size="12">
-                                    <CheckIcon />
-                                </NIcon>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="timeline-title">{{ step.title }}</div>
-                                <div v-if="step.time" class="timeline-time">{{ step.time }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </MobileCard>
-            </div>
+                    <div v-else class="empty-inline">暂时还没有人申请这个任务。</div>
+                </section>
 
-            <!-- 操作按钮 -->
-            <div class="action-section">
-                <div
-                    v-if="task.status === 'open' && !task.isMyTask && !task.hasApplied"
-                    class="action-buttons"
-                >
+                <section class="action-bar">
                     <NButton
+                        v-if="canApply"
                         type="primary"
                         size="large"
                         block
                         :loading="applying"
-                        @click="showApplyModal = true"
+                        @click="applyTask"
                     >
                         申请任务
                     </NButton>
-                </div>
-
-                <div
-                    v-else-if="task.status === 'open' && !task.isMyTask && task.hasApplied"
-                    class="action-buttons"
-                >
                     <NButton
-                        type="warning"
+                        v-else-if="task.has_applied"
                         size="large"
                         block
-                        :loading="cancelling"
-                        @click="cancelApplication"
+                        disabled
                     >
-                        取消申请
-                    </NButton>
-                </div>
-
-                <div v-else-if="task.status === 'inProgress'" class="action-buttons">
-                    <NButton
-                        v-if="task.isMyTask"
-                        type="warning"
-                        size="large"
-                        block
-                        :loading="cancelling"
-                        @click="cancelTask"
-                    >
-                        取消任务
+                        已申请
                     </NButton>
                     <NButton
-                        v-else-if="task.isAcceptedByMe"
+                        v-else-if="canComplete"
                         type="primary"
                         size="large"
                         block
@@ -407,1131 +279,714 @@
                     >
                         完成任务
                     </NButton>
-                </div>
-
-                <div
-                    v-else-if="task.status === 'completed' && !task.isMyTask && task.isAcceptedByMe"
-                    class="action-buttons"
-                >
-                    <NButton type="primary" size="large" block @click="showRateModal = true">
-                        评价任务
-                    </NButton>
-                </div>
+                </section>
             </div>
-        </div>
 
-        <!-- 错误状态 -->
-        <div v-else class="error-container">
-            <MobileEmpty
-                type="error"
-                title="任务不存在"
-                description="该任务可能已被删除或您没有权限查看"
-                :show-action="true"
-                action-text="返回列表"
-                @action="router.push('/tasks/list')"
-            />
-        </div>
-
-        <!-- 申请弹窗 -->
-        <MobileModal v-model:show="showApplyModal" title="申请任务" @confirm="submitApplication">
-            <div class="apply-form">
-                <NInput
-                    v-model:value="applicationMessage"
-                    type="textarea"
-                    placeholder="请简要说明您的优势和完成计划..."
-                    :rows="4"
-                    maxlength="200"
-                    show-count
-                />
+            <div v-else class="state-box">
+                <p class="empty-title">任务不存在</p>
+                <p class="empty-sub">这条任务可能已被删除。</p>
             </div>
-        </MobileModal>
-
-        <!-- 分享弹窗 -->
-        <MobileModal v-model:show="showShareModal" title="分享任务" @confirm="shareTask">
-            <div class="share-options">
-                <div class="share-option" @click="shareToWeChat">
-                    <NIcon size="24" color="#09bb07">
-                        <LogoWechat />
-                    </NIcon>
-                    <span>微信</span>
-                </div>
-                <div class="share-option" @click="copyLink">
-                    <NIcon size="24" color="var(--n-primary-color)">
-                        <LinkIcon />
-                    </NIcon>
-                    <span>复制链接</span>
-                </div>
-            </div>
-        </MobileModal>
-
-        <!-- 评价弹窗 -->
-        <MobileModal v-model:show="showRateModal" title="评价任务" @confirm="submitRating">
-            <div class="rating-form">
-                <div class="rating-stars">
-                    <div
-                        v-for="star in 5"
-                        :key="star"
-                        class="rating-star"
-                        :class="{ active: star <= rating }"
-                        @click="rating = star"
-                    >
-                        <NIcon size="24">
-                            <StarIcon />
-                        </NIcon>
-                    </div>
-                </div>
-                <NInput
-                    v-model:value="ratingComment"
-                    type="textarea"
-                    placeholder="请输入评价内容..."
-                    :rows="3"
-                    maxlength="200"
-                    show-count
-                />
-            </div>
-        </MobileModal>
+        </main>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { NButton, NIcon, NTag, NInput, useMessage } from 'naive-ui';
-import {
-    ShareOutline as ShareIcon,
-    ChatbubbleOutline as ChatIcon,
-    CheckmarkOutline as CheckIcon,
-    StarOutline as StarIcon,
-    LinkOutline as LinkIcon,
-    PersonOutline as PersonIcon,
-    TimeOutline as TimeIcon,
-    AttachOutline as AttachIcon,
-    SchoolOutline as StudyIcon,
-    BrushOutline as DesignIcon,
-    CodeSlashOutline as TechIcon,
-    DocumentTextOutline as WritingIcon,
-    HomeOutline as LifeIcon,
-    CheckmarkCircleOutline as CompletedIcon,
-    SyncOutline as ProcessingIcon,
-    ClockOutline as OpenIcon,
-    CloseCircleOutline as CancelledIcon,
-    LogoWechat,
-} from '@vicons/ionicons5';
-import {
-    MobileNavBar,
-    MobileCard,
-    MobileLoading,
-    MobileEmpty,
-    MobileModal,
-} from '@/components/mobile';
-import { useUserStore, useAppStore } from '@/stores';
+import { computed, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { NButton, NSpin, useDialog, useMessage } from 'naive-ui';
+import { TaskApi, chatApi } from '@/api';
+import { useAppStore, useUserStore } from '@/stores';
+import type { Task, TaskApplication } from '@/types';
 
-const router = useRouter();
 const route = useRoute();
-const userStore = useUserStore();
+const router = useRouter();
 const appStore = useAppStore();
+const userStore = useUserStore();
 const message = useMessage();
+const dialog = useDialog();
 
-// 数据状态
 const loading = ref(true);
+const applicationLoading = ref(false);
 const applying = ref(false);
-const cancelling = ref(false);
 const completing = ref(false);
-const showApplyModal = ref(false);
-const showShareModal = ref(false);
-const showRateModal = ref(false);
-const applicationMessage = ref('');
-const rating = ref(0);
-const ratingComment = ref('');
+const processingId = ref<number | null>(null);
+const processingAction = ref<'accept' | 'reject' | null>(null);
 
-// 任务数据
-const task = ref(null);
+const task = ref<Task | null>(null);
+const applications = ref<TaskApplication[]>([]);
 
-// 模拟任务数据
-const mockTask = {
-    id: 1,
-    taskNumber: 'TK20240930001',
-    category: 'tech',
-    title: '简单网页制作',
-    description:
-        '制作一个个人展示网页，包含基本的HTML/CSS/JS，响应式设计，需要有良好的用户体验和现代化的界面设计。项目需求包含首页、关于页面、作品展示页面等，预计开发周期为1-2周。',
-    reward: 120,
-    difficulty: 4,
-    status: 'open',
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
-    deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    contact: '15800000003',
-    remarks: '希望接单者有相关作品展示，完成后会有详细的验收标准',
-    applicants: 5,
-    techStack: ['html', 'js', 'vue'],
-    projectType: 'website',
-    isMyTask: false,
-    hasApplied: false,
-    isAcceptedByMe: false,
-    publisher: {
-        id: 3,
-        name: '王同学',
-        avatar: '',
-        rating: 4.7,
-        publishedTasks: 28,
-    },
-    applicationList: [
-        {
-            id: 101,
-            name: '张开发',
-            avatar: '',
-            rating: 4.8,
-            appliedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-            message: '我有3年前端开发经验，擅长Vue和React，可以提供类似作品参考。',
-        },
-        {
-            id: 102,
-            name: '李前端',
-            avatar: '',
-            rating: 4.5,
-            appliedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-            message: '熟练掌握HTML/CSS/JS，有多个个人网站项目经验。',
-        },
-    ],
-};
+const taskId = computed(() => Number(route.params.id || 0));
+const currentUserId = computed(() => Number(userStore.user?.id || 0));
+const isPublisher = computed(() => task.value?.publisher_id === currentUserId.value);
+const isAssignee = computed(() => task.value?.assignee_id === currentUserId.value);
+const canApply = computed(
+    () =>
+        !!task.value &&
+        task.value.status === 'published' &&
+        !isPublisher.value &&
+        !task.value.assignee_id &&
+        !task.value.has_applied
+);
+const canComplete = computed(
+    () => !!task.value && task.value.status === 'in_progress' && isAssignee.value
+);
 
-// 计算属性
-const taskSteps = computed(() => {
-    if (!task.value) return [];
+const publisherName = computed(
+    () =>
+        task.value?.publisher?.real_name ||
+        task.value?.publisher?.username ||
+        '匿名用户'
+);
 
-    const steps = [
-        {
-            title: '任务发布',
-            time: formatDateTime(task.value.createdAt),
-            completed: true,
-            active: false,
-        },
-        {
-            title: '接受申请',
-            time:
-                task.value.status !== 'open'
-                    ? formatDateTime(new Date(task.value.createdAt.getTime() + 30 * 60 * 1000))
-                    : null,
-            completed: task.value.status !== 'open',
-            active: task.value.status === 'inProgress',
-        },
-        {
-            title: '进行中',
-            time: task.value.status === 'inProgress' ? formatDateTime(new Date()) : null,
-            completed: task.value.status === 'completed',
-            active: task.value.status === 'inProgress',
-        },
-        {
-            title: '任务完成',
-            time: task.value.status === 'completed' ? formatDateTime(new Date()) : null,
-            completed: task.value.status === 'completed',
-            active: false,
-        },
-    ];
+const assigneeName = computed(
+    () =>
+        task.value?.assignee?.real_name ||
+        task.value?.assignee?.username ||
+        '承接人'
+);
 
-    return steps;
-});
+const getCategoryLabel = (cat: string) =>
+    ({ study: '学习类', design: '设计类', tech: '技术类', writing: '文案类', life: '生活类' })[
+        cat
+    ] ?? '任务';
 
-// 方法
-const getStatusIcon = () => {
-    const iconMap = {
-        open: OpenIcon,
-        inProgress: ProcessingIcon,
-        completed: CompletedIcon,
-        cancelled: CancelledIcon,
-    };
-    return iconMap[task.value?.status] || OpenIcon;
-};
-
-const getStatusColor = () => {
-    const colorMap = {
-        open: 'var(--n-success-color)',
-        inProgress: 'var(--n-info-color)',
-        completed: 'var(--n-primary-color)',
-        cancelled: 'var(--n-error-color)',
-    };
-    return colorMap[task.value?.status] || 'var(--n-success-color)';
-};
-
-const getStatusTitle = () => {
-    const titleMap = {
-        open: '招募中',
-        inProgress: '进行中',
+const getStatusLabel = (status: string) =>
+    ({
+        published: '招募中',
+        in_progress: '进行中',
         completed: '已完成',
         cancelled: '已取消',
-    };
-    return titleMap[task.value?.status] || '未知状态';
+        expired: '已过期',
+    })[status] ?? status;
+
+const getApplicationStatusLabel = (status: string) =>
+    ({ pending: '待处理', accepted: '已同意', rejected: '已拒绝' })[status] ?? status;
+
+const formatAmount = (value?: string | number | null) => Number(value || 0).toFixed(0);
+
+const formatDateTime = (value?: string | null) => {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(
+        2,
+        '0'
+    )}:${String(date.getMinutes()).padStart(2, '0')}`;
 };
 
-const getStatusDescription = () => {
-    const descMap = {
-        open: '任务正在招募合适的执行者',
-        inProgress: '任务正在执行中，请关注进度',
-        completed: '任务已成功完成',
-        cancelled: '任务已被取消',
-    };
-    return descMap[task.value?.status] || '';
+const formatRelativeTime = (value?: string | null) => {
+    if (!value) return '--';
+    const diff = Date.now() - new Date(value).getTime();
+    if (diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))} 分钟前`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+    return `${Math.floor(diff / 86400000)} 天前`;
 };
 
-const getCategoryIcon = () => {
-    const iconMap = {
-        study: StudyIcon,
-        design: DesignIcon,
-        tech: TechIcon,
-        writing: WritingIcon,
-        life: LifeIcon,
-    };
-    return iconMap[task.value?.category] || StudyIcon;
-};
+const getApplicantName = (application: TaskApplication) =>
+    application.applicant?.real_name || application.applicant?.username || '申请者';
 
-const getCategoryColor = () => {
-    const colorMap = {
-        study: 'var(--n-primary-color)',
-        design: 'var(--n-warning-color)',
-        tech: 'var(--n-info-color)',
-        writing: 'var(--n-success-color)',
-        life: 'var(--n-error-color)',
-    };
-    return colorMap[task.value?.category] || 'var(--n-primary-color)';
-};
-
-const getCategoryLabel = () => {
-    const labelMap = {
-        study: '学习类',
-        design: '设计类',
-        tech: '技术类',
-        writing: '文案类',
-        life: '生活服务',
-    };
-    return labelMap[task.value?.category] || '其他';
-};
-
-const getStatusType = () => {
-    const typeMap = {
-        open: 'success',
-        inProgress: 'info',
-        completed: 'default',
-        cancelled: 'error',
-    };
-    return typeMap[task.value?.status] || 'default';
-};
-
-const getStatusLabel = () => {
-    const labelMap = {
-        open: '招募中',
-        inProgress: '进行中',
-        completed: '已完成',
-        cancelled: '已取消',
-    };
-    return labelMap[task.value?.status] || '未知状态';
-};
-
-const getSubjectLabel = (subject: string) => {
-    const subjectMap = {
-        math: '高等数学',
-        english: '英语',
-        cs: '计算机科学',
-        physics: '物理学',
-        chemistry: '化学',
-        economics: '经济学',
-        other: '其他',
-    };
-    return subjectMap[subject] || subject;
-};
-
-const getTeachingMethodLabel = (method: string) => {
-    const methodMap = {
-        online: '线上教学',
-        offline: '线下面授',
-        homework: '作业辅导',
-    };
-    return methodMap[method] || method;
-};
-
-const getDesignTypeLabel = (type: string) => {
-    const typeMap = {
-        logo: 'LOGO设计',
-        poster: '海报设计',
-        ui: 'UI/UX设计',
-        card: '名片设计',
-        video: '视频制作',
-        other: '其他设计',
-    };
-    return typeMap[type] || type;
-};
-
-const getTechStackLabel = (tech: string) => {
-    const techMap = {
-        html: 'HTML/CSS',
-        js: 'JavaScript',
-        vue: 'Vue.js',
-        react: 'React',
-        python: 'Python',
-        java: 'Java',
-        php: 'PHP',
-        other: '其他',
-    };
-    return techMap[tech] || tech;
-};
-
-const getProjectTypeLabel = (type: string) => {
-    const typeMap = {
-        website: '网站开发',
-        app: '移动应用',
-        script: '脚本工具',
-        other: '其他',
-    };
-    return typeMap[type] || type;
-};
-
-const getWritingTypeLabel = (type: string) => {
-    const typeMap = {
-        article: '文章写作',
-        plan: '策划方案',
-        translation: '翻译服务',
-        copywriting: '文案撰写',
-        other: '其他',
-    };
-    return typeMap[type] || type;
-};
-
-const formatDateTime = (date: Date) => {
-    if (!date) return '';
-    return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-};
-
-const formatTimeAgo = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-
-    if (hours < 1) {
-        return '刚刚';
-    } else if (hours < 24) {
-        return `${hours}小时前`;
-    } else {
-        return date.toLocaleDateString();
-    }
-};
-
-const formatServiceTime = (timeRange: [number, number]) => {
-    if (!timeRange) return '';
-    const start = new Date(timeRange[0]);
-    const end = new Date(timeRange[1]);
-    return `${formatDateTime(start)} - ${formatDateTime(end)}`;
-};
-
-const previewFile = (file: any) => {
-    console.log('预览文件:', file);
-    message.info('文件预览功能开发中...');
-};
-
-const contactPublisher = () => {
-    message.info('联系功能开发中...');
-    appStore.hapticFeedback('light');
-};
-
-const selectApplicant = (applicant: any) => {
-    message.success(`已选择 ${applicant.name} 执行任务`);
-    task.value.status = 'inProgress';
-    appStore.hapticFeedback('medium');
-};
-
-const submitApplication = async () => {
-    if (!applicationMessage.value.trim()) {
-        message.warning('请输入申请理由');
+const fetchTask = async () => {
+    if (!taskId.value) {
+        loading.value = false;
         return;
     }
 
-    applying.value = true;
-    try {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        task.value.hasApplied = true;
-        task.value.applicants += 1;
-        message.success('申请提交成功！');
-        showApplyModal.value = false;
-        applicationMessage.value = '';
-        appStore.hapticFeedback('medium');
-    } catch (error) {
-        message.error('申请失败');
-    } finally {
-        applying.value = false;
-    }
-};
-
-const cancelApplication = async () => {
-    cancelling.value = true;
-    try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        task.value.hasApplied = false;
-        task.value.applicants -= 1;
-        message.success('已取消申请');
-        appStore.hapticFeedback('medium');
-    } catch (error) {
-        message.error('取消失败');
-    } finally {
-        cancelling.value = false;
-    }
-};
-
-const cancelTask = async () => {
-    cancelling.value = true;
-    try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        task.value.status = 'cancelled';
-        message.success('任务已取消');
-        appStore.hapticFeedback('medium');
-    } catch (error) {
-        message.error('取消失败');
-    } finally {
-        cancelling.value = false;
-    }
-};
-
-const completeTask = async () => {
-    completing.value = true;
-    try {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        task.value.status = 'completed';
-        message.success('任务完成！');
-        appStore.hapticFeedback('medium');
-    } catch (error) {
-        message.error('操作失败');
-    } finally {
-        completing.value = false;
-    }
-};
-
-const shareTask = () => {
-    showShareModal.value = false;
-};
-
-const shareToWeChat = () => {
-    message.info('微信分享功能开发中...');
-    showShareModal.value = false;
-};
-
-const copyLink = () => {
-    const link = `${window.location.origin}/tasks/${task.value.id}`;
-    navigator.clipboard
-        .writeText(link)
-        .then(() => {
-            message.success('链接已复制到剪贴板');
-        })
-        .catch(() => {
-            message.error('复制失败');
-        });
-    showShareModal.value = false;
-};
-
-const submitRating = () => {
-    if (rating.value === 0) {
-        message.warning('请选择评分');
-        return;
-    }
-
-    message.success('评价提交成功');
-    showRateModal.value = false;
-    rating.value = 0;
-    ratingComment.value = '';
-};
-
-// 获取任务详情
-const fetchTaskDetail = async () => {
     loading.value = true;
     try {
-        const taskId = route.params.id;
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // 这里应该调用真实的API
-        // const response = await taskApi.getTaskDetail(taskId);
-        // task.value = response.data;
-
-        // 模拟数据
-        task.value = mockTask;
-    } catch (error) {
-        console.error('获取任务详情失败:', error);
+        const response = await TaskApi.getTask(taskId.value);
+        if (!response.success || !response.data) {
+            throw new Error(response.message || '获取任务详情失败');
+        }
+        task.value = response.data;
+    } catch (error: any) {
+        message.error(error?.message || '获取任务详情失败');
         task.value = null;
     } finally {
         loading.value = false;
     }
 };
 
-onMounted(() => {
-    fetchTaskDetail();
+const fetchApplications = async () => {
+    if (!taskId.value || !isPublisher.value) {
+        applications.value = [];
+        return;
+    }
+
+    applicationLoading.value = true;
+    try {
+        const response = await TaskApi.getTaskApplications(taskId.value);
+        if (!response.success) {
+            throw new Error(response.message || '获取申请列表失败');
+        }
+        applications.value = Array.isArray(response.data) ? response.data : [];
+    } catch (error: any) {
+        applications.value = [];
+        message.error(error?.message || '获取申请列表失败');
+    } finally {
+        applicationLoading.value = false;
+    }
+};
+
+const refreshDetail = async () => {
+    await fetchTask();
+    await fetchApplications();
+};
+
+const applyTask = async () => {
+    if (!task.value || applying.value) return;
+    applying.value = true;
+    try {
+        const response = await TaskApi.applyTask(task.value.id, {
+            message: `想承接任务「${task.value.title}」，可以进一步沟通细节。`,
+        });
+        if (!response.success) throw new Error(response.message || '申请失败');
+        message.success('申请已提交');
+        if (task.value) {
+            task.value.has_applied = true;
+            task.value.current_user_application_status = 'pending';
+        }
+        await chatWithUser(task.value.publisher_id, `想咨询任务「${task.value.title}」的具体要求和细节。`, false);
+        await refreshDetail();
+    } catch (error: any) {
+        message.error(error?.message || '申请失败');
+    } finally {
+        applying.value = false;
+    }
+};
+
+const completeTask = async () => {
+    if (!task.value || completing.value) return;
+    completing.value = true;
+    try {
+        const response = await TaskApi.completeTask(task.value.id, {});
+        if (!response.success) throw new Error(response.message || '提交失败');
+        message.success('任务已提交完成');
+        await refreshDetail();
+    } catch (error: any) {
+        message.error(error?.message || '提交失败');
+    } finally {
+        completing.value = false;
+    }
+};
+
+const processApplication = (application: TaskApplication, action: 'accept' | 'reject') => {
+    if (!task.value) return;
+
+    dialog.warning({
+        title: action === 'accept' ? '同意申请' : '拒绝申请',
+        content:
+            action === 'accept'
+                ? `确认选择 ${getApplicantName(application)} 承接这个任务吗？`
+                : `确认拒绝 ${getApplicantName(application)} 的申请吗？`,
+        positiveText: '确认',
+        negativeText: '取消',
+        async onPositiveClick() {
+            processingId.value = application.id;
+            processingAction.value = action;
+            try {
+                const response = await TaskApi.processApplication(
+                    task.value!.id,
+                    application.id,
+                    action
+                );
+                if (!response.success) {
+                    throw new Error(response.message || '处理申请失败');
+                }
+                message.success(action === 'accept' ? '已同意申请' : '已拒绝申请');
+                await refreshDetail();
+            } catch (error: any) {
+                message.error(error?.message || '处理申请失败');
+            } finally {
+                processingId.value = null;
+                processingAction.value = null;
+            }
+        },
+    });
+};
+
+const chatWithUser = async (
+    peerUserId: number,
+    initialMessage: string,
+    navigate = true
+) => {
+    if (!peerUserId || peerUserId === currentUserId.value) return;
+    try {
+        const response = await chatApi.createConversation({
+            peer_user_id: peerUserId,
+            task_id: taskId.value,
+            initial_message: initialMessage,
+        });
+        if (!response.success || !response.data?.id) {
+            throw new Error(response.message || '打开会话失败');
+        }
+        if (navigate) {
+            router.push(`/chat?conversationId=${response.data.id}`);
+        }
+    } catch (error: any) {
+        message.error(error?.message || '打开会话失败');
+    }
+};
+
+onMounted(async () => {
+    await refreshDetail();
 });
 </script>
 
 <style scoped>
 .task-detail-page {
-    background: var(--n-body-color);
     min-height: 100vh;
+    background:
+        radial-gradient(circle at top right, rgba(75, 184, 255, 0.12), transparent 28%),
+        linear-gradient(180deg, #f5f8fd 0%, #edf3fb 100%);
+    color: #17304f;
 }
 
-.nav-header {
-    position: sticky;
-    top: 0;
-    z-index: 100;
+.top-bar {
+    padding: 14px 16px 10px;
 }
 
-.loading-container {
-    padding: 100px 0;
-    text-align: center;
-}
-
-.error-container {
-    padding: 100px 20px;
-}
-
-.detail-container {
-    padding: 16px;
-    padding-bottom: 100px;
-}
-
-.section {
-    margin-bottom: 24px;
-}
-
-.section-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 12px 4px;
-}
-
-/* 状态区域 */
-.status-section {
+.nav-row {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 4px;
+    gap: 12px;
 }
 
-.status-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 16px;
+.back-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #17304f;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
 }
 
-.status-info {
-    flex: 1;
-}
-
-.status-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 4px 0;
-}
-
-.status-desc {
-    font-size: 14px;
-    color: var(--n-text-color-2);
-    margin: 0 0 8px 0;
-    line-height: 1.4;
-}
-
-.deadline-time {
-    font-size: 13px;
-    color: var(--n-error-color);
-    font-weight: 500;
-}
-
-/* 任务信息 */
-.task-info {
-    padding: 4px;
-}
-
-.task-header {
+.title-copy {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.task-category {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.category-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--n-text-color-1);
-}
-
-.task-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 8px 0;
-    line-height: 1.4;
-}
-
-.task-description {
-    font-size: 14px;
-    color: var(--n-text-color-2);
-    margin: 0 0 16px 0;
-    line-height: 1.5;
-}
-
-.task-details,
-.special-fields {
-    border-top: 1px solid var(--n-border-color);
-    padding-top: 16px;
-    margin-top: 16px;
-}
-
-.detail-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 8px 0;
-    gap: 16px;
-}
-
-.detail-label {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-    flex-shrink: 0;
-    min-width: 80px;
-}
-
-.detail-value {
-    font-size: 14px;
-    color: var(--n-text-color-1);
-    text-align: right;
-    word-break: break-all;
-}
-
-.difficulty-stars {
-    display: flex;
+    flex-direction: column;
     gap: 2px;
 }
 
-/* 标签 */
-.subject-tags,
-.method-tags,
-.tech-tags {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
+.title-copy h1 {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1.05;
+    font-weight: 900;
 }
 
-.reference-files {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.reference-file {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px;
-    background: var(--n-color-target);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--n-text-color-2);
-}
-
-.reference-file:hover {
-    background: var(--n-color-target-hover);
-}
-
-/* 报酬信息 */
-.reward-info {
-    padding: 4px;
-}
-
-.reward-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.reward-amount {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.reward-label {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-}
-
-.reward-value {
-    font-size: 24px;
+.eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #94a2ba;
     font-weight: 700;
-    color: var(--n-error-color);
 }
 
-.reward-meta {
+.detail-area {
+    padding: 0 16px 28px;
+}
+
+.detail-stack {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
+    gap: 14px;
+}
+
+.hero-card,
+.panel-card,
+.action-bar {
+    border: 1px solid rgba(79, 128, 212, 0.12);
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 16px 40px rgba(23, 48, 79, 0.07);
+}
+
+.hero-card,
+.panel-card {
+    padding: 18px 18px 20px;
+}
+
+.hero-head,
+.section-head,
+.application-head,
+.application-actions,
+.user-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.hero-head,
+.section-head {
+    margin-bottom: 14px;
+}
+
+.section-head h3 {
+    margin: 0;
+    font-size: 21px;
+    font-weight: 900;
+}
+
+.cat-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    color: #8fa1bc;
+}
+
+.cat-bar {
+    width: 4px;
+    height: 28px;
+    border-radius: 999px;
+    background: #2f6bff;
+}
+
+.cat-tag[data-type='design'] .cat-bar {
+    background: #ff8a3d;
+}
+
+.cat-tag[data-type='tech'] .cat-bar {
+    background: #00b894;
+}
+
+.cat-tag[data-type='writing'] .cat-bar {
+    background: #6c5ce7;
+}
+
+.cat-tag[data-type='life'] .cat-bar {
+    background: #22b573;
+}
+
+.status-badge,
+.application-status,
+.count-chip,
+.info-chip,
+.pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.status-badge,
+.application-status {
+    min-height: 34px;
+    padding: 0 14px;
+    font-size: 14px;
+}
+
+.s-published,
+.s-pending {
+    background: #fff2df;
+    color: #ff9900;
+}
+
+.s-in_progress,
+.s-accepted {
+    background: #e4f0ff;
+    color: #2f6bff;
+}
+
+.s-completed {
+    background: #e4f7ee;
+    color: #17a05d;
+}
+
+.s-cancelled,
+.s-rejected,
+.s-expired {
+    background: #eef2f7;
+    color: #8a97ab;
+}
+
+.hero-title {
+    margin: 0 0 10px;
+    font-size: 38px;
+    line-height: 1.08;
+    font-weight: 900;
+    color: #1d2d44;
+}
+
+.hero-desc,
+.requirements-text,
+.message-block p {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #61718b;
+}
+
+.meta-grid {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
 }
 
 .meta-item {
     display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--n-text-color-3);
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px;
+    border-radius: 20px;
+    background: #f6f8fc;
 }
 
-/* 发布者信息 */
-.publisher-info {
+.meta-label,
+.message-label {
+    font-size: 13px;
+    color: #95a3b8;
+    font-weight: 700;
+}
+
+.meta-value {
+    font-size: 16px;
+    font-weight: 800;
+    color: #1d2d44;
+}
+
+.mono {
+    word-break: break-all;
+}
+
+.price {
+    color: #2f6bff;
+    font-size: 22px;
+}
+
+.chip-row,
+.pill-group,
+.application-list {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 4px;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-.publisher-avatar {
+.chip-row {
+    margin-top: 16px;
+}
+
+.info-chip,
+.pill {
+    min-height: 34px;
+    padding: 0 14px;
+    background: #eef4ff;
+    color: #476386;
+    font-size: 13px;
+}
+
+.info-chip--warn {
+    background: #fff2df;
+    color: #ff9900;
+}
+
+.pill--soft {
+    background: #f2f5f9;
+    color: #6c7c96;
+}
+
+.user-card {
+    justify-content: flex-start;
+}
+
+.user-card--compact {
+    flex: 1;
+}
+
+.user-avatar {
     width: 48px;
     height: 48px;
-    border-radius: 12px;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-.publisher-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.publisher-details {
-    flex: 1;
-}
-
-.publisher-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 4px 0;
-}
-
-.publisher-meta {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 13px;
-    color: var(--n-text-color-3);
-}
-
-.publisher-rating {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.publisher-actions {
-    flex-shrink: 0;
-}
-
-/* 申请者列表 */
-.applicant-list {
-    padding: 4px;
-}
-
-.applicant-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--n-border-color);
-}
-
-.applicant-item:last-child {
-    border-bottom: none;
-}
-
-.applicant-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-.applicant-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.applicant-details {
-    flex: 1;
-}
-
-.applicant-name {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--n-text-color-1);
-    margin-bottom: 4px;
-}
-
-.applicant-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 12px;
-    color: var(--n-text-color-3);
-    margin-bottom: 6px;
-}
-
-.applicant-rating {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-}
-
-.applicant-message {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-    line-height: 1.4;
-}
-
-.applicant-actions {
-    flex-shrink: 0;
-}
-
-/* 任务进度 */
-.progress-timeline {
-    padding: 4px;
-}
-
-.timeline-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px 0;
-    position: relative;
-}
-
-.timeline-item:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    left: 15px;
-    top: 36px;
-    width: 2px;
-    height: calc(100% - 12px);
-    background: var(--n-border-color);
-}
-
-.timeline-item.completed::after {
-    background: var(--n-success-color);
-}
-
-.timeline-dot {
-    width: 20px;
-    height: 20px;
     border-radius: 50%;
-    border: 2px solid var(--n-border-color);
+    background: linear-gradient(135deg, #2f6bff 0%, #4bb8ff 100%);
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--n-body-color);
+    font-size: 18px;
+    font-weight: 800;
+    overflow: hidden;
     flex-shrink: 0;
-    margin-top: 2px;
 }
 
-.timeline-item.completed .timeline-dot {
-    border-color: var(--n-success-color);
-    background: var(--n-success-color);
-    color: white;
+.user-avatar--dark {
+    background: linear-gradient(135deg, #17304f 0%, #2f6bff 100%);
 }
 
-.timeline-item.active .timeline-dot {
-    border-color: var(--n-primary-color);
+.user-avatar--soft {
+    background: linear-gradient(135deg, #dfe9ff 0%, #edf5ff 100%);
+    color: #2f6bff;
 }
 
-.timeline-content {
-    flex: 1;
-    padding-top: 2px;
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-.timeline-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--n-text-color-1);
-    margin-bottom: 4px;
+.user-copy {
+    min-width: 0;
 }
 
-.timeline-item.completed .timeline-title {
-    color: var(--n-success-color);
+.user-name {
+    font-size: 17px;
+    font-weight: 800;
+    color: #1d2d44;
 }
 
-.timeline-time {
-    font-size: 12px;
-    color: var(--n-text-color-3);
+.user-sub,
+.application-meta {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #95a3b8;
 }
 
-/* 操作按钮 */
-.action-section {
-    margin-top: 32px;
+.application-list {
+    flex-direction: column;
 }
 
-.action-buttons .n-button {
-    height: 50px;
-    font-size: 16px;
-    font-weight: 600;
-    border-radius: 12px;
+.application-card {
+    padding: 16px;
+    border-radius: 22px;
+    background: #f7f9fc;
+    border: 1px solid transparent;
 }
 
-/* 弹窗 */
-.apply-form {
-    padding: 16px 0;
+.application-card.a-pending {
+    border-color: rgba(255, 153, 0, 0.14);
 }
 
-.share-options {
+.application-card.a-accepted {
+    border-color: rgba(47, 107, 255, 0.14);
+}
+
+.application-card.a-rejected {
+    border-color: rgba(138, 151, 171, 0.12);
+}
+
+.message-block {
+    margin: 14px 0 10px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.85);
+}
+
+.application-meta {
     display: flex;
-    justify-content: center;
-    gap: 40px;
-    padding: 20px 0;
+    flex-wrap: wrap;
+    gap: 8px 14px;
 }
 
-.share-option {
+.application-actions {
+    margin-top: 14px;
+    justify-content: flex-end;
+}
+
+.count-chip {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 10px;
+    background: #eef4ff;
+    color: #2f6bff;
+    font-size: 13px;
+}
+
+.action-bar {
+    padding: 14px;
+    position: sticky;
+    bottom: 14px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.state-box {
+    min-height: 240px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    padding: 12px;
-    border-radius: 12px;
-    transition: all 0.2s ease;
-}
-
-.share-option:hover {
-    background: var(--n-color-target);
-}
-
-.share-option span {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-}
-
-.rating-form {
-    padding: 16px 0;
-}
-
-.rating-stars {
-    display: flex;
     justify-content: center;
-    gap: 8px;
-    margin-bottom: 20px;
+    gap: 10px;
+    color: #8fa1bc;
 }
 
-.rating-star {
-    cursor: pointer;
-    color: var(--n-border-color);
-    transition: all 0.2s ease;
+.state-box--inner {
+    min-height: 120px;
 }
 
-.rating-star.active {
-    color: var(--n-warning-color);
+.empty-inline {
+    font-size: 14px;
+    color: #95a3b8;
 }
 
-.rating-star:hover {
-    transform: scale(1.1);
+.empty-title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 900;
 }
 
-/* 响应式适配 */
-@media (max-width: 375px) {
-    .detail-container {
-        padding: 12px;
-        padding-bottom: 100px;
+.empty-sub {
+    margin: 0;
+    color: #95a3b8;
+}
+
+.is-dark {
+    background:
+        radial-gradient(circle at top right, rgba(75, 184, 255, 0.12), transparent 28%),
+        linear-gradient(180deg, #0f1726 0%, #111a2b 100%);
+    color: #eef4ff;
+}
+
+.is-dark .back-btn,
+.is-dark .title-copy h1,
+.is-dark .hero-title,
+.is-dark .section-head h3,
+.is-dark .user-name,
+.is-dark .meta-value {
+    color: #eef4ff;
+}
+
+.is-dark .hero-card,
+.is-dark .panel-card,
+.is-dark .action-bar {
+    background: rgba(17, 26, 43, 0.92);
+    border-color: rgba(111, 145, 214, 0.12);
+    box-shadow: none;
+}
+
+.is-dark .meta-item,
+.is-dark .application-card,
+.is-dark .message-block {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.is-dark .hero-desc,
+.is-dark .requirements-text,
+.is-dark .message-block p,
+.is-dark .user-sub,
+.is-dark .application-meta,
+.is-dark .empty-inline,
+.is-dark .empty-sub,
+.is-dark .eyebrow,
+.is-dark .meta-label,
+.is-dark .message-label {
+    color: #8ea0bf;
+}
+
+@media (max-width: 480px) {
+    .title-copy h1 {
+        font-size: 30px;
     }
 
-    .status-section {
-        gap: 12px;
+    .hero-title {
+        font-size: 28px;
     }
 
-    .status-icon {
-        width: 64px;
-        height: 64px;
+    .meta-grid {
+        grid-template-columns: 1fr;
     }
-
-    .status-title {
-        font-size: 16px;
-    }
-
-    .reward-main {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    .reward-meta {
-        align-items: flex-start;
-    }
-
-    .publisher-info {
-        gap: 8px;
-    }
-
-    .publisher-avatar {
-        width: 40px;
-        height: 40px;
-    }
-
-    .action-buttons .n-button {
-        height: 46px;
-        font-size: 15px;
-    }
-}
-
-/* iOS 安全区域适配 */
-.task-detail-page.is-ios {
-    padding-bottom: calc(100px + var(--safe-area-bottom, 34px));
-}
-
-/* 加载动画 */
-.task-detail-page {
-    animation: ios-fade-in 0.4s ease-out;
-}
-
-.section {
-    animation: ios-fade-in 0.6s ease-out;
-}
-
-.section:nth-child(2) {
-    animation-delay: 0.1s;
-}
-
-.section:nth-child(3) {
-    animation-delay: 0.2s;
-}
-
-.section:nth-child(4) {
-    animation-delay: 0.3s;
-}
-
-/* 深色模式优化 */
-.dark-theme .share-option:hover,
-.dark-theme .reference-file:hover {
-    background: var(--ios-dark-gray4);
-}
-
-.light-theme .share-option:hover,
-.light-theme .reference-file:hover {
-    background: var(--ios-gray5);
 }
 </style>

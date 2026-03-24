@@ -4,6 +4,16 @@ export interface ApiResponse<T = any> {
     message?: string;
     data?: T;
     code?: string;
+    pagination?: PaginationMeta;
+}
+
+export interface PaginationMeta {
+    current_page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
 }
 
 // 用户相关类型
@@ -12,6 +22,8 @@ export interface User {
     student_id: string;
     username: string;
     email: string;
+    is_deliverer?: boolean;
+    deliverer_id?: number | null;
     phone?: string;
     real_name?: string;
     avatar?: string;
@@ -154,6 +166,9 @@ export interface Task {
     publisher?: User;
     assignee?: User;
     applications?: TaskApplication[];
+    has_applied?: boolean;
+    current_user_application_status?: 'pending' | 'accepted' | 'rejected' | null;
+    current_user_application?: TaskApplication | null;
     createdAt: string;
     updatedAt: string;
 }

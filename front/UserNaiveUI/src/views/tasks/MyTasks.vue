@@ -1,1048 +1,682 @@
 <template>
-    <div class="my-tasks-page">
-        <!-- 导航栏 -->
-        <div class="nav-header">
-            <MobileNavBar title="我的任务" show-back @back="router.back()" />
-        </div>
-
-        <!-- 筛选标签 -->
-        <div class="filter-section">
-            <MobileCard :padding="'12px 16px'">
-                <div class="filter-tabs">
-                    <div
-                        v-for="tab in filterTabs"
+    <div class="campus-my-tasks" :class="{ 'is-dark': appStore.isDark }">
+        <!-- ───── 顶部导航 ───── -->
+        <header class="top-bar">
+            <div class="nav-row">
+                <button type="button" class="back-btn" @click="router.back()">
+                    <svg viewBox="0 0 24 24" width="22" height="22">
+                        <path
+                            d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                </button>
+                <div class="tab-group">
+                    <button
+                        v-for="tab in tabs"
                         :key="tab.key"
-                        class="filter-tab"
-                        :class="{ active: currentTab === tab.key }"
-                        @click="handleTabChange(tab.key)"
+                        type="button"
+                        class="view-tab"
+                        :class="{ active: currentType === tab.key }"
+                        @click="changeType(tab.key)"
                     >
-                        <span class="tab-label">{{ tab.label }}</span>
-                        <span v-if="tab.count > 0" class="tab-count">{{ tab.count }}</span>
-                    </div>
+                        {{ tab.label }}
+                    </button>
                 </div>
-            </MobileCard>
-        </div>
+            </div>
 
-        <!-- 搜索框 -->
-        <div class="search-section">
-            <MobileCard :padding="'12px 16px'">
-                <NInput
-                    v-model:value="searchQuery"
-                    placeholder="搜索我的任务..."
-                    size="medium"
-                    clearable
-                    @update:value="handleSearch"
+            <!-- 状态筛选条 -->
+            <div class="status-bar">
+                <button
+                    v-for="item in statusOptions"
+                    :key="item.value"
+                    type="button"
+                    class="status-chip"
+                    :class="{ active: currentStatus === item.value }"
+                    @click="changeStatus(item.value)"
                 >
-                    <template #prefix>
-                        <NIcon size="16">
-                            <SearchIcon />
-                        </NIcon>
-                    </template>
-                </NInput>
-            </MobileCard>
-        </div>
+                    {{ item.label }}
+                </button>
+            </div>
+        </header>
 
-        <!-- 任务列表 -->
-        <div class="tasks-section">
-            <div v-if="loading" class="loading-container">
-                <MobileLoading type="default" text="加载中..." />
+        <!-- ───── 列表 ───── -->
+        <main class="list-area">
+            <div v-if="loading" class="state-box">
+                <NSpin size="large" />
             </div>
 
-            <div v-else-if="filteredTasks.length > 0">
-                <div v-for="task in filteredTasks" :key="task.id" class="task-item">
-                    <MobileCard :hoverable="true" @click="viewTaskDetail(task)">
-                        <div class="task-content">
-                            <!-- 任务头部 -->
-                            <div class="task-header">
-                                <div class="task-category">
-                                    <NIcon size="18" :color="getCategoryColor(task.category)">
-                                        <component :is="getCategoryIcon(task.category)" />
-                                    </NIcon>
-                                    <span class="category-label">
-                                        {{ getCategoryLabel(task.category) }}
-                                    </span>
-                                </div>
-                                <div class="task-status">
-                                    <NTag :type="getStatusType(task.status)" size="small">
-                                        {{ getStatusLabel(task.status) }}
-                                    </NTag>
-                                </div>
-                            </div>
-
-                            <!-- 任务信息 -->
-                            <div class="task-info">
-                                <h4 class="task-title">{{ task.title }}</h4>
-                                <p class="task-description">{{ task.description }}</p>
-
-                                <div class="task-meta">
-                                    <div class="meta-item">
-                                        <NIcon size="12">
-                                            <TimeIcon />
-                                        </NIcon>
-                                        <span>{{ formatTime(task.createdAt) }}</span>
-                                    </div>
-                                    <div class="meta-item">
-                                        <NIcon size="12">
-                                            <PersonIcon />
-                                        </NIcon>
-                                        <span>{{ task.applicants }}人申请</span>
-                                    </div>
-                                    <div class="meta-item">
-                                        <NIcon size="12">
-                                            <CalendarIcon />
-                                        </NIcon>
-                                        <span>{{ formatDeadline(task.deadline) }}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 任务底部 -->
-                            <div class="task-footer">
-                                <div class="reward-info">
-                                    <span class="reward-label">
-                                        {{ task.role === 'publisher' ? '支付：' : '收入：' }}
-                                    </span>
-                                    <span class="reward-value">¥{{ task.reward }}</span>
-                                </div>
-                                <div class="difficulty-info">
-                                    <span class="difficulty-label">难度：</span>
-                                    <div class="difficulty-stars">
-                                        <NIcon
-                                            v-for="star in 5"
-                                            :key="star"
-                                            size="12"
-                                            :color="
-                                                star <= task.difficulty
-                                                    ? 'var(--n-warning-color)'
-                                                    : 'var(--n-border-color)'
-                                            "
-                                        >
-                                            <StarIcon />
-                                        </NIcon>
-                                    </div>
-                                </div>
-                                <div class="task-actions">
-                                    <NButton
-                                        v-if="task.status === 'open' && task.role === 'publisher'"
-                                        size="small"
-                                        type="warning"
-                                        @click.stop="cancelTask(task)"
-                                    >
-                                        取消任务
-                                    </NButton>
-                                    <NButton
-                                        v-else-if="
-                                            task.status === 'inProgress' && task.role === 'accepter'
-                                        "
-                                        size="small"
-                                        type="primary"
-                                        @click.stop="completeTask(task)"
-                                    >
-                                        完成任务
-                                    </NButton>
-                                    <NButton
-                                        v-else-if="
-                                            task.status === 'completed' &&
-                                            task.role === 'publisher' &&
-                                            !task.rated
-                                        "
-                                        size="small"
-                                        type="primary"
-                                        @click.stop="rateTask(task)"
-                                    >
-                                        评价
-                                    </NButton>
-                                    <NButton v-else size="small" @click.stop="contactUser(task)">
-                                        联系
-                                    </NButton>
-                                </div>
-                            </div>
+            <template v-else-if="tasks.length > 0">
+                <article
+                    v-for="(task, index) in tasks"
+                    :key="task.id"
+                    class="task-card"
+                    :style="{ animationDelay: `${index * 0.05}s` }"
+                    @click="viewTaskDetail(task.id)"
+                >
+                    <!-- 头部：分类标签 + 状态 badge -->
+                    <div class="card-head">
+                        <div class="cat-tag" :data-type="task.category">
+                            <span class="cat-bar"></span>
+                            <span class="cat-label">{{ getCategoryLabel(task.category) }}</span>
                         </div>
-                    </MobileCard>
-                </div>
+                        <span class="status-badge" :class="`s-${task.status}`">
+                            {{ getStatusLabel(task.status) }}
+                        </span>
+                    </div>
 
-                <!-- 加载更多 -->
-                <div v-if="hasMore" class="load-more">
-                    <NButton block :loading="loadingMore" @click="loadMore">加载更多</NButton>
+                    <!-- 标题 -->
+                    <h3 class="card-title">{{ task.title }}</h3>
+
+                    <!-- 描述 -->
+                    <p class="card-desc">{{ task.description }}</p>
+
+                    <!-- 四格信息 -->
+                    <div class="card-grid">
+                        <div class="grid-item">
+                            <span class="gi-label">任务编号</span>
+                            <span class="gi-val mono">{{ task.task_no }}</span>
+                        </div>
+                        <div class="grid-item">
+                            <span class="gi-label">{{ isPublisher(task) ? '支付' : '收入' }}</span>
+                            <span class="gi-val price">¥{{ formatAmount(task.price) }}</span>
+                        </div>
+                        <div class="grid-item">
+                            <span class="gi-label">截止时间</span>
+                            <span class="gi-val">{{ formatDateTime(task.deadline) }}</span>
+                        </div>
+                        <div class="grid-item">
+                            <span class="gi-label">发布时间</span>
+                            <span class="gi-val">{{ formatRelativeTime(task.createdAt) }}</span>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- 底栏：对方信息 + 操作 -->
+                    <div class="card-foot">
+                        <div class="partner">
+                            <div class="partner-avatar">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
+                                        fill="currentColor"
+                                    />
+                                </svg>
+                            </div>
+                            <span>{{ partnerLabel(task) }}：{{ partnerName(task) }}</span>
+                        </div>
+
+                        <div class="foot-actions" @click.stop>
+                            <NButton
+                                v-if="canDelete(task)"
+                                size="small"
+                                class="del-btn"
+                                @click="handleDelete(task)"
+                            >
+                                删除
+                            </NButton>
+                            <NButton
+                                v-if="canComplete(task)"
+                                size="small"
+                                type="primary"
+                                round
+                                @click="handleComplete(task)"
+                            >
+                                完成任务
+                            </NButton>
+                        </div>
+                    </div>
+                </article>
+
+                <div v-if="hasNextPage" class="load-more">
+                    <NButton quaternary round :loading="loadingMore" @click="loadMore">
+                        显示更多
+                    </NButton>
                 </div>
+            </template>
+
+            <div v-else class="state-box">
+                <svg viewBox="0 0 24 24" width="48" height="48" style="color: var(--sub)">
+                    <path
+                        d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"
+                        fill="currentColor"
+                    />
+                </svg>
+                <p class="empty-title">{{ emptyTitle }}</p>
+                <p class="empty-sub">{{ emptyDescription }}</p>
             </div>
-
-            <!-- 空状态 -->
-            <div v-else>
-                <MobileEmpty
-                    :type="getEmptyType()"
-                    :title="getEmptyTitle()"
-                    :description="getEmptyDescription()"
-                    :show-action="currentTab === 'published'"
-                    action-text="发布任务"
-                    @action="router.push('/tasks/create')"
-                />
-            </div>
-        </div>
-
-        <!-- 统计信息 -->
-        <div v-if="!loading && stats" class="stats-section">
-            <MobileCard>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-value">{{ stats.published }}</div>
-                        <div class="stat-label">发布任务</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">{{ stats.accepted }}</div>
-                        <div class="stat-label">接受任务</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">{{ stats.completed }}</div>
-                        <div class="stat-label">完成任务</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">¥{{ stats.totalEarnings }}</div>
-                        <div class="stat-label">总收入</div>
-                    </div>
-                </div>
-            </MobileCard>
-        </div>
-
-        <!-- 确认弹窗 -->
-        <MobileModal
-            v-model:show="showConfirmModal"
-            :title="confirmModalData.title"
-            @confirm="handleConfirm"
-        >
-            <p>{{ confirmModalData.content }}</p>
-        </MobileModal>
-
-        <!-- 评价弹窗 -->
-        <MobileModal v-model:show="showRatingModal" title="评价任务" @confirm="submitRating">
-            <div class="rating-form">
-                <div class="rating-stars">
-                    <div
-                        v-for="star in 5"
-                        :key="star"
-                        class="rating-star"
-                        :class="{ active: star <= rating }"
-                        @click="rating = star"
-                    >
-                        <NIcon size="24">
-                            <StarIcon />
-                        </NIcon>
-                    </div>
-                </div>
-                <NInput
-                    v-model:value="ratingComment"
-                    type="textarea"
-                    placeholder="请输入评价内容..."
-                    :rows="3"
-                    maxlength="200"
-                    show-count
-                />
-            </div>
-        </MobileModal>
+        </main>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NInput, NButton, NIcon, NTag, useMessage } from 'naive-ui';
-import {
-    SearchOutline as SearchIcon,
-    TimeOutline as TimeIcon,
-    PersonOutline as PersonIcon,
-    CalendarOutline as CalendarIcon,
-    StarOutline as StarIcon,
-    SchoolOutline as StudyIcon,
-    BrushOutline as DesignIcon,
-    CodeSlashOutline as TechIcon,
-    DocumentTextOutline as WritingIcon,
-    HomeOutline as LifeIcon,
-} from '@vicons/ionicons5';
-import {
-    MobileNavBar,
-    MobileCard,
-    MobileLoading,
-    MobileEmpty,
-    MobileModal,
-} from '@/components/mobile';
-import { useUserStore, useAppStore } from '@/stores';
+import { NButton, NSpin, useDialog, useMessage } from 'naive-ui';
+import { TaskApi } from '@/api';
+import { useAppStore, useUserStore } from '@/stores';
+import type { Task } from '@/types';
+
+type TaskTypeFilter = 'all' | 'published' | 'assigned';
+type TaskStatusFilter = '' | Task['status'];
 
 const router = useRouter();
-const userStore = useUserStore();
-const appStore = useAppStore();
+const dialog = useDialog();
 const message = useMessage();
+const appStore = useAppStore();
+const userStore = useUserStore();
 
-// 数据状态
 const loading = ref(true);
 const loadingMore = ref(false);
-const hasMore = ref(true);
-const currentTab = ref('all');
-const searchQuery = ref('');
-const showConfirmModal = ref(false);
-const showRatingModal = ref(false);
-const rating = ref(0);
-const ratingComment = ref('');
-const currentTask = ref(null);
+const currentType = ref<TaskTypeFilter>('all');
+const currentStatus = ref<TaskStatusFilter>('');
+const tasks = ref<Task[]>([]);
+const currentPage = ref(1);
+const totalPages = ref(1);
 
-// 确认弹窗数据
-const confirmModalData = ref({
-    title: '',
-    content: '',
-    action: '',
-});
-
-// 筛选标签
-const filterTabs = [
-    { key: 'all', label: '全部', count: 0 },
-    { key: 'published', label: '我发布的', count: 0 },
-    { key: 'accepted', label: '我接受的', count: 0 },
-    { key: 'open', label: '招募中', count: 0 },
-    { key: 'inProgress', label: '进行中', count: 0 },
-    { key: 'completed', label: '已完成', count: 0 },
+const tabs = [
+    { key: 'all' as TaskTypeFilter, label: '全部任务' },
+    { key: 'published' as TaskTypeFilter, label: '我发布的' },
+    { key: 'assigned' as TaskTypeFilter, label: '我接的' },
 ];
 
-// 模拟任务数据
-const tasks = ref([
-    {
-        id: 1,
-        category: 'study',
-        title: '高等数学作业辅导',
-        description: '需要帮助完成微积分相关的作业，要求有较好的数学基础',
-        reward: 50,
-        difficulty: 3,
-        status: 'completed',
-        role: 'publisher', // 'publisher' 或 'accepter'
-        applicants: 8,
-        deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        rated: true,
-        accepter: {
-            id: 3,
-            name: '李辅导',
-            avatar: '',
-        },
-    },
-    {
-        id: 2,
-        category: 'design',
-        title: '社团活动海报设计',
-        description: '为社团活动设计一张宣传海报，要求创意新颖',
-        reward: 80,
-        difficulty: 2,
-        status: 'inProgress',
-        role: 'accepter',
-        applicants: 12,
-        deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        rated: false,
-        publisher: {
-            id: 2,
-            name: '张社长',
-            avatar: '',
-        },
-    },
-    {
-        id: 3,
-        category: 'tech',
-        title: '简单网页制作',
-        description: '制作一个个人展示网页，包含基本的HTML/CSS/JS',
-        reward: 120,
-        difficulty: 4,
-        status: 'open',
-        role: 'publisher',
-        applicants: 5,
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        rated: false,
-    },
-    {
-        id: 4,
-        category: 'writing',
-        title: '活动策划书撰写',
-        description: '为学院举办的文艺活动撰写策划书',
-        reward: 60,
-        difficulty: 2,
-        status: 'completed',
-        role: 'accepter',
-        applicants: 15,
-        deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        rated: false,
-        publisher: {
-            id: 4,
-            name: '刘老师',
-            avatar: '',
-        },
-    },
-    {
-        id: 5,
-        category: 'life',
-        title: '宿舍清洁服务',
-        description: '需要帮忙打扫宿舍，主要是整理和清洁',
-        reward: 30,
-        difficulty: 1,
-        status: 'open',
-        role: 'accepter',
-        applicants: 3,
-        deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(Date.now() - 10 * 60 * 60 * 1000),
-        rated: false,
-        publisher: {
-            id: 5,
-            name: '小美',
-            avatar: '',
-        },
-    },
-]);
+const statusOptions: Array<{ label: string; value: TaskStatusFilter }> = [
+    { label: '全部状态', value: '' },
+    { label: '招募中', value: 'published' },
+    { label: '进行中', value: 'in_progress' },
+    { label: '已完成', value: 'completed' },
+    { label: '已取消', value: 'cancelled' },
+    { label: '已过期', value: 'expired' },
+];
 
-// 统计数据
-const stats = ref({
-    published: 18,
-    accepted: 25,
-    completed: 42,
-    totalEarnings: 456.5,
+const hasNextPage = computed(() => currentPage.value < totalPages.value);
+
+const emptyTitle = computed(() => {
+    if (currentType.value === 'published') return '暂无发布任务';
+    if (currentType.value === 'assigned') return '暂无承接任务';
+    return '暂无任务记录';
 });
 
-// 计算属性
-const filteredTasks = computed(() => {
-    let result = tasks.value;
+const emptyDescription = computed(() =>
+    currentStatus.value ? '当前筛选条件下没有匹配的任务。' : '后续你发布或承接的任务会显示在这里。'
+);
 
-    // 按标签筛选
-    if (currentTab.value !== 'all') {
-        if (currentTab.value === 'published') {
-            result = result.filter(task => task.role === 'publisher');
-        } else if (currentTab.value === 'accepted') {
-            result = result.filter(task => task.role === 'accepter');
-        } else {
-            result = result.filter(task => task.status === currentTab.value);
-        }
-    }
-
-    // 按搜索关键词筛选
-    if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase();
-        result = result.filter(
-            task =>
-                task.title.toLowerCase().includes(query) ||
-                task.description.toLowerCase().includes(query)
-        );
-    }
-
-    return result;
-});
-
-// 方法
-const getCategoryIcon = (category: string) => {
-    const iconMap = {
-        study: StudyIcon,
-        design: DesignIcon,
-        tech: TechIcon,
-        writing: WritingIcon,
-        life: LifeIcon,
-    };
-    return iconMap[category] || StudyIcon;
-};
-
-const getCategoryColor = (category: string) => {
-    const colorMap = {
-        study: 'var(--n-primary-color)',
-        design: 'var(--n-warning-color)',
-        tech: 'var(--n-info-color)',
-        writing: 'var(--n-success-color)',
-        life: 'var(--n-error-color)',
-    };
-    return colorMap[category] || 'var(--n-primary-color)';
-};
-
-const getCategoryLabel = (category: string) => {
-    const labelMap = {
-        study: '学习类',
-        design: '设计类',
-        tech: '技术类',
-        writing: '文案类',
-        life: '生活服务',
-    };
-    return labelMap[category] || '其他';
-};
-
-const getStatusType = (status: string) => {
-    const typeMap = {
-        open: 'success',
-        inProgress: 'info',
-        completed: 'default',
-        cancelled: 'error',
-    };
-    return typeMap[status] || 'default';
-};
-
-const getStatusLabel = (status: string) => {
-    const labelMap = {
-        open: '招募中',
-        inProgress: '进行中',
-        completed: '已完成',
-        cancelled: '已取消',
-    };
-    return labelMap[status] || '未知状态';
-};
-
-const formatTime = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-
-    if (hours < 1) {
-        return '刚刚';
-    } else if (hours < 24) {
-        return `${hours}小时前`;
-    } else {
-        return date.toLocaleDateString();
-    }
-};
-
-const formatDeadline = (date: Date) => {
-    const now = new Date();
-    const diff = date.getTime() - now.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (days < 0) {
-        return '已截止';
-    } else if (days === 0) {
-        return '今天截止';
-    } else if (days === 1) {
-        return '明天截止';
-    } else {
-        return `${days}天后截止`;
-    }
-};
-
-const getEmptyType = () => {
-    return searchQuery.value.trim() ? 'search' : 'data';
-};
-
-const getEmptyTitle = () => {
-    return searchQuery.value.trim() ? '暂无搜索结果' : '暂无任务';
-};
-
-const getEmptyDescription = () => {
-    return searchQuery.value.trim() ? '尝试调整搜索条件或关键词' : '您还没有相关的任务记录';
-};
-
-// 更新标签数量
-const updateTabCounts = () => {
-    filterTabs[0].count = tasks.value.length; // 全部
-    filterTabs[1].count = tasks.value.filter(t => t.role === 'publisher').length; // 我发布的
-    filterTabs[2].count = tasks.value.filter(t => t.role === 'accepter').length; // 我接受的
-    filterTabs[3].count = tasks.value.filter(t => t.status === 'open').length; // 招募中
-    filterTabs[4].count = tasks.value.filter(t => t.status === 'inProgress').length; // 进行中
-    filterTabs[5].count = tasks.value.filter(t => t.status === 'completed').length; // 已完成
-};
-
-// 事件处理
-const handleTabChange = (tabKey: string) => {
-    currentTab.value = tabKey;
-    appStore.hapticFeedback('light');
-};
-
-const handleSearch = (value: string) => {
-    // 实际应用中这里可以添加防抖
-    console.log('搜索:', value);
-};
-
-const viewTaskDetail = (task: any) => {
-    appStore.hapticFeedback('light');
-    router.push(`/tasks/${task.id}`);
-};
-
-const cancelTask = (task: any) => {
-    currentTask.value = task;
-    confirmModalData.value = {
-        title: '取消任务',
-        content: '确定要取消这个任务吗？取消后无法恢复。',
-        action: 'cancel',
-    };
-    showConfirmModal.value = true;
-};
-
-const completeTask = (task: any) => {
-    currentTask.value = task;
-    confirmModalData.value = {
-        title: '完成任务',
-        content: '确认已经完成这个任务了吗？',
-        action: 'complete',
-    };
-    showConfirmModal.value = true;
-};
-
-const rateTask = (task: any) => {
-    currentTask.value = task;
-    rating.value = 0;
-    ratingComment.value = '';
-    showRatingModal.value = true;
-};
-
-const contactUser = (task: any) => {
-    message.info('联系功能开发中...');
-    appStore.hapticFeedback('light');
-};
-
-const handleConfirm = async () => {
-    if (!currentTask.value) return;
-
+const fetchTasks = async (page = 1, append = false) => {
+    (page > 1 ? loadingMore : loading).value = true;
     try {
-        if (confirmModalData.value.action === 'cancel') {
-            // 模拟取消任务
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            currentTask.value.status = 'cancelled';
-            message.success('任务已取消');
-        } else if (confirmModalData.value.action === 'complete') {
-            // 模拟完成任务
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            currentTask.value.status = 'completed';
-            message.success('任务已完成');
+        const response = await TaskApi.getMyTasks({
+            page,
+            limit: 10,
+            type: currentType.value,
+            status: currentStatus.value || undefined,
+        });
+        if (!response.success) throw new Error(response.message || '获取任务失败');
+        const list = response.data?.tasks || [];
+        tasks.value = append ? [...tasks.value, ...list] : list;
+        currentPage.value = response.data?.pagination?.current || page;
+        totalPages.value = response.data?.pagination?.totalPages || 1;
+    } catch (error: any) {
+        message.error(error?.message || '获取任务失败');
+        if (!append) {
+            tasks.value = [];
+            currentPage.value = 1;
+            totalPages.value = 1;
         }
-
-        updateTabCounts();
-        appStore.hapticFeedback('medium');
-    } catch (error) {
-        message.error('操作失败');
     } finally {
-        showConfirmModal.value = false;
-        currentTask.value = null;
-    }
-};
-
-const submitRating = () => {
-    if (rating.value === 0) {
-        message.warning('请选择评分');
-        return;
-    }
-
-    if (currentTask.value) {
-        currentTask.value.rated = true;
-    }
-
-    message.success('评价提交成功');
-    showRatingModal.value = false;
-    currentTask.value = null;
-    rating.value = 0;
-    ratingComment.value = '';
-};
-
-const loadMore = async () => {
-    loadingMore.value = true;
-    try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        // 这里应该加载更多数据
-        hasMore.value = false; // 暂时设置为没有更多数据
-    } catch (error) {
-        message.error('加载失败');
-    } finally {
+        loading.value = false;
         loadingMore.value = false;
     }
 };
 
-// 获取任务列表
-const fetchTasks = async () => {
-    loading.value = true;
-    try {
-        // 这里应该调用API获取真实数据
-        await new Promise(resolve => setTimeout(resolve, 800));
-        updateTabCounts();
-    } catch (error) {
-        message.error('获取任务列表失败');
-    } finally {
-        loading.value = false;
-    }
+const changeType = (value: TaskTypeFilter) => {
+    currentType.value = value;
+    appStore.hapticFeedback('light');
+    fetchTasks(1, false);
 };
 
-onMounted(() => {
-    fetchTasks();
-});
+const changeStatus = (value: TaskStatusFilter) => {
+    currentStatus.value = value;
+    appStore.hapticFeedback('light');
+    fetchTasks(1, false);
+};
+
+const loadMore = () => hasNextPage.value && fetchTasks(currentPage.value + 1, true);
+
+const isPublisher = (task: Task) => task.publisher_id === userStore.user?.id;
+
+const getCategoryLabel = (cat: string) =>
+    ({ study: '学习类', design: '设计类', tech: '技术类', writing: '文案类', life: '生活类' })[
+        cat
+    ] ?? '任务';
+
+const getStatusLabel = (status: string) =>
+    ({
+        published: '招募中',
+        in_progress: '进行中',
+        completed: '已完成',
+        cancelled: '已取消',
+        expired: '已过期',
+    })[status] ?? status;
+
+const formatAmount = (v?: string | number | null) => Number(v || 0).toFixed(0);
+
+const formatDateTime = (v?: string | null) => {
+    if (!v) return '--';
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '--';
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+const formatRelativeTime = (v?: string | null) => {
+    if (!v) return '--';
+    const diff = Date.now() - new Date(v).getTime();
+    if (diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))} 分钟前`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+    return `${Math.floor(diff / 86400000)} 天前`;
+};
+
+const partnerLabel = (task: Task) => (isPublisher(task) ? '承接人' : '发布人');
+const partnerName = (task: Task) => {
+    if (isPublisher(task)) return task.assignee?.real_name || task.assignee?.username || '暂未指派';
+    return task.publisher?.real_name || task.publisher?.username || '匿名用户';
+};
+
+const canDelete = (task: Task) => isPublisher(task) && task.status === 'published';
+const canComplete = (task: Task) => !isPublisher(task) && task.status === 'in_progress';
+
+const viewTaskDetail = (id: number) => {
+    appStore.hapticFeedback('light');
+    router.push(`/tasks/${id}`);
+};
+
+const handleDelete = (task: Task) => {
+    dialog.warning({
+        title: '删除任务',
+        content: '确认删除这条任务吗？',
+        positiveText: '确认',
+        negativeText: '取消',
+        async onPositiveClick() {
+            try {
+                const r = await TaskApi.deleteTask(task.id);
+                if (!r.success) throw new Error(r.message || '删除失败');
+                message.success('任务已删除');
+                fetchTasks(1, false);
+            } catch (e: any) {
+                message.error(e?.message || '删除失败');
+            }
+        },
+    });
+};
+
+const handleComplete = (task: Task) => {
+    dialog.info({
+        title: '完成任务',
+        content: '确认提交该任务为已完成？',
+        positiveText: '确认',
+        negativeText: '取消',
+        async onPositiveClick() {
+            try {
+                const r = await TaskApi.completeTask(task.id, {});
+                if (!r.success) throw new Error(r.message || '提交失败');
+                message.success('任务已提交完成');
+                fetchTasks(1, false);
+            } catch (e: any) {
+                message.error(e?.message || '提交失败');
+            }
+        },
+    });
+};
+
+onMounted(() => fetchTasks());
 </script>
 
 <style scoped>
-.my-tasks-page {
-    background: var(--n-body-color);
+/* ──────────── CSS 变量（与 TaskList 完全统一） ──────────── */
+.campus-my-tasks {
+    --blue: #3b82f6;
+    --orange: #f97316;
+    --green: #10b981;
+    --purple: #8b5cf6;
+    --cyan: #06b6d4;
+    --surface: #f5f7fa;
+    --card: #ffffff;
+    --text: #1a1f2e;
+    --sub: #8b95a7;
+    --border: #eef0f4;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+
     min-height: 100vh;
+    background: var(--surface);
+    color: var(--text);
+    font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
 }
 
-.nav-header {
+.campus-my-tasks.is-dark {
+    --surface: #0f172a;
+    --card: #1e293b;
+    --text: #f1f5f9;
+    --sub: #64748b;
+    --border: #334155;
+}
+
+/* ──────────── 顶部导航 ──────────── */
+.top-bar {
     position: sticky;
     top: 0;
     z-index: 100;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
 }
 
-.filter-section,
-.search-section {
-    margin: 16px 16px 0 16px;
-}
-
-.search-section {
-    margin-top: 8px;
-}
-
-/* 筛选标签 */
-.filter-tabs {
+.nav-row {
     display: flex;
+    align-items: center;
+    padding: 12px 16px 10px;
     gap: 4px;
+}
+
+.back-btn {
+    border: none;
+    background: none;
+    padding: 4px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.tab-group {
+    display: flex;
+    gap: 0;
+}
+
+.view-tab {
+    border: none;
+    background: none;
+    padding: 4px 12px;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--sub);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s;
+}
+
+.view-tab.active {
+    color: var(--text);
+    font-weight: 700;
+}
+
+/* 状态筛选条 */
+.status-bar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px 12px;
     overflow-x: auto;
     scrollbar-width: none;
-    -ms-overflow-style: none;
 }
-
-.filter-tabs::-webkit-scrollbar {
+.status-bar::-webkit-scrollbar {
     display: none;
 }
 
-.filter-tab {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 8px 12px;
+.status-chip {
+    border: none;
     border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-    flex-shrink: 0;
-    border: 1px solid var(--n-border-color);
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.filter-tab:hover {
-    background: var(--n-color-target);
-}
-
-.filter-tab.active {
-    background: var(--n-primary-color);
-    border-color: var(--n-primary-color);
-    color: white;
-}
-
-.tab-label {
+    padding: 6px 14px;
     font-size: 13px;
     font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--sub);
+    transition: all 0.18s;
 }
 
-.tab-count {
-    font-size: 12px;
-    background: rgba(255, 255, 255, 0.3);
-    padding: 2px 6px;
-    border-radius: 10px;
-    min-width: 16px;
-    text-align: center;
+.status-chip.active {
+    background: var(--blue);
+    color: #fff;
+    font-weight: 600;
 }
 
-.filter-tab:not(.active) .tab-count {
-    background: var(--n-primary-color);
-    color: white;
-}
-
-/* 任务列表 */
-.tasks-section {
-    margin: 16px;
-    margin-bottom: 32px;
-}
-
-.loading-container {
-    padding: 60px 0;
-    text-align: center;
-}
-
-.task-item {
-    margin-bottom: 12px;
-}
-
-.task-item:last-child {
-    margin-bottom: 0;
-}
-
-.task-content {
-    padding: 4px;
-}
-
-/* 任务头部 */
-.task-header {
+/* ──────────── 列表区域 ──────────── */
+.list-area {
+    padding: 12px 16px 100px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+    flex-direction: column;
+    gap: 12px;
 }
 
-.task-category {
+/* ──────────── 任务卡片 ──────────── */
+.task-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    animation: fade-up 0.3s ease-out both;
+    transition: box-shadow 0.15s;
+}
+.task-card:active {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+@keyframes fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 头部 */
+.card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.cat-tag {
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.category-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--n-text-color-1);
+.cat-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--blue);
+}
+.cat-tag[data-type='design'] .cat-bar {
+    background: var(--orange);
+}
+.cat-tag[data-type='tech'] .cat-bar {
+    background: var(--green);
+}
+.cat-tag[data-type='writing'] .cat-bar {
+    background: var(--purple);
+}
+.cat-tag[data-type='life'] .cat-bar {
+    background: var(--cyan);
 }
 
-/* 任务信息 */
-.task-info {
-    margin-bottom: 12px;
-}
-
-.task-title {
-    font-size: 15px;
+.cat-label {
+    font-size: 12px;
     font-weight: 600;
-    color: var(--n-text-color-1);
-    margin: 0 0 6px 0;
-    line-height: 1.3;
+    color: var(--sub);
 }
 
-.task-description {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-    margin: 0 0 8px 0;
+/* 状态 badge */
+.status-badge {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: #dcfce7;
+    color: #16a34a;
+}
+.status-badge.s-in_progress {
+    background: #dbeafe;
+    color: #2563eb;
+}
+.status-badge.s-completed {
+    background: #f1f5f9;
+    color: #64748b;
+}
+.status-badge.s-cancelled {
+    background: #fee2e2;
+    color: #dc2626;
+}
+.status-badge.s-expired {
+    background: #fef9c3;
+    color: #ca8a04;
+}
+
+/* 标题 */
+.card-title {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 700;
     line-height: 1.4;
+}
+
+/* 描述 */
+.card-desc {
+    margin: 0 0 14px;
+    font-size: 13px;
+    color: var(--sub);
+    line-height: 1.6;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-.task-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
+/* 四格信息 */
+.card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
 }
 
-.meta-item {
+.grid-item {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 8px 10px;
     display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--n-text-color-3);
+    flex-direction: column;
+    gap: 3px;
 }
 
-/* 任务底部 */
-.task-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 12px;
-    border-top: 1px solid var(--n-border-color);
-    flex-wrap: wrap;
-    gap: 8px;
+.gi-label {
+    font-size: 11px;
+    color: var(--sub);
+    font-weight: 500;
 }
 
-.reward-info {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.reward-label {
+.gi-val {
     font-size: 13px;
-    color: var(--n-text-color-2);
-}
-
-.reward-value {
-    font-size: 15px;
     font-weight: 600;
-    color: var(--n-error-color);
+    color: var(--text);
+    word-break: break-all;
 }
 
-.difficulty-info {
+.gi-val.mono {
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+}
+
+.gi-val.price {
+    color: var(--blue);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+/* 分割线 */
+.divider {
+    height: 1px;
+    background: var(--border);
+    margin: 12px 0;
+}
+
+/* 底栏 */
+.card-foot {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: space-between;
+    gap: 8px;
 }
 
-.difficulty-label {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-}
-
-.difficulty-stars {
+.partner {
     display: flex;
-    gap: 2px;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    color: var(--sub);
 }
 
-.task-actions {
+.partner-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sub);
+    flex-shrink: 0;
+}
+
+.foot-actions {
     display: flex;
     gap: 8px;
+    align-items: center;
+}
+
+.del-btn {
+    border: 1px solid var(--border) !important;
+    background: var(--card) !important;
+    color: var(--sub) !important;
+    border-radius: 8px !important;
+}
+
+/* ──────────── 空状态 / 加载 ──────────── */
+.state-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 72px 20px;
+    color: var(--sub);
+    gap: 8px;
+    text-align: center;
+}
+
+.empty-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.empty-sub {
+    margin: 0;
+    font-size: 13px;
+    color: var(--sub);
 }
 
 /* 加载更多 */
 .load-more {
-    margin-top: 20px;
-}
-
-/* 统计信息 */
-.stats-section {
-    margin: 0 16px 32px 16px;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    padding: 4px;
-}
-
-.stat-item {
-    text-align: center;
-    padding: 16px 8px;
-}
-
-.stat-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--n-primary-color);
-    line-height: 1;
-    margin-bottom: 4px;
-}
-
-.stat-label {
-    font-size: 13px;
-    color: var(--n-text-color-2);
-    font-weight: 500;
-}
-
-/* 评价表单 */
-.rating-form {
-    padding: 16px 0;
-}
-
-.rating-stars {
     display: flex;
     justify-content: center;
-    gap: 8px;
-    margin-bottom: 20px;
-}
-
-.rating-star {
-    cursor: pointer;
-    color: var(--n-border-color);
-    transition: all 0.2s ease;
-}
-
-.rating-star.active {
-    color: var(--n-warning-color);
-}
-
-.rating-star:hover {
-    transform: scale(1.1);
-}
-
-/* 响应式适配 */
-@media (max-width: 375px) {
-    .filter-section,
-    .search-section,
-    .tasks-section,
-    .stats-section {
-        margin-left: 12px;
-        margin-right: 12px;
-    }
-
-    .task-content {
-        padding: 2px;
-    }
-
-    .task-title {
-        font-size: 14px;
-    }
-
-    .task-description {
-        font-size: 12px;
-    }
-
-    .stats-grid {
-        gap: 16px;
-    }
-
-    .stat-value {
-        font-size: 18px;
-    }
-
-    .filter-tab {
-        padding: 6px 10px;
-    }
-
-    .tab-label {
-        font-size: 12px;
-    }
-
-    .task-meta {
-        gap: 8px;
-    }
-
-    .meta-item {
-        font-size: 11px;
-    }
-
-    .task-footer {
-        gap: 6px;
-    }
-
-    .reward-value {
-        font-size: 14px;
-    }
-}
-
-/* iOS 安全区域适配 */
-.my-tasks-page.is-ios {
-    padding-bottom: calc(100px + var(--safe-area-bottom, 34px));
-}
-
-/* 加载动画 */
-.my-tasks-page {
-    animation: ios-fade-in 0.4s ease-out;
-}
-
-.filter-section,
-.search-section,
-.tasks-section {
-    animation: ios-fade-in 0.6s ease-out;
-}
-
-.filter-section {
-    animation-delay: 0.1s;
-}
-
-.search-section {
-    animation-delay: 0.2s;
-}
-
-.tasks-section {
-    animation-delay: 0.3s;
-}
-
-/* 深色模式优化 */
-.dark-theme .filter-tab:hover {
-    background: var(--ios-dark-gray4);
-}
-
-.light-theme .filter-tab:hover {
-    background: var(--ios-gray5);
-}
-
-/* 卡片悬停效果 */
-.task-item .mobile-card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.dark-theme .task-item .mobile-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* 按钮样式覆盖 */
-.load-more :deep(.n-button) {
-    border-radius: 8px;
-    height: 40px;
-    font-weight: 500;
-}
-
-.task-actions :deep(.n-button) {
-    border-radius: 6px;
-    height: 28px;
-    font-size: 12px;
+    padding: 4px 0;
 }
 </style>

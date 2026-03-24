@@ -1,4 +1,5 @@
 const { ForumPost: Post, ForumComment: Comment, User } = require('../../models');
+const { Op } = require('sequelize');
 
 /**
  * 论坛管理控制器
@@ -33,14 +34,18 @@ class ForumController {
 
       if (start_date || end_date) {
         where.createdAt = {};
-        if (start_date) where.createdAt.$gte = new Date(start_date);
-        if (end_date) where.createdAt.$lte = new Date(end_date);
+        if (start_date) where.createdAt[Op.gte] = new Date(start_date);
+        if (end_date) {
+          const endDateObj = new Date(end_date);
+          endDateObj.setHours(23, 59, 59, 999);
+          where.createdAt[Op.lte] = endDateObj;
+        }
       }
 
       if (search) {
-        where.$or = [
-          { title: { $regex: search, $options: 'i' } },
-          { content: { $regex: search, $options: 'i' } }
+        where[Op.or] = [
+          { title: { [Op.like]: `%${search}%` } },
+          { content: { [Op.like]: `%${search}%` } }
         ];
       }
 
@@ -52,7 +57,8 @@ class ForumController {
           {
             model: User,
             as: 'author',
-            attributes: ['id', 'username', 'real_name', 'avatar', 'phone']
+            attributes: ['id', 'username', 'real_name', 'avatar', 'phone'],
+            required: false
           }
         ],
         order: [[sortBy, 'DESC']]
@@ -326,12 +332,16 @@ class ForumController {
 
       if (startDate || endDate) {
         where.createdAt = {};
-        if (startDate) where.createdAt.$gte = new Date(startDate);
-        if (endDate) where.createdAt.$lte = new Date(endDate);
+        if (startDate) where.createdAt[Op.gte] = new Date(startDate);
+        if (endDate) {
+          const endDateObj = new Date(endDate);
+          endDateObj.setHours(23, 59, 59, 999);
+          where.createdAt[Op.lte] = endDateObj;
+        }
       }
 
       if (keyword) {
-        where.content = { $regex: keyword, $options: 'i' };
+        where.content = { [Op.like]: `%${keyword}%` };
       }
 
       const { count, rows: comments } = await Comment.findAndCountAll({
@@ -452,8 +462,12 @@ class ForumController {
 
       if (startDate || endDate) {
         where.createdAt = {};
-        if (startDate) where.createdAt.$gte = new Date(startDate);
-        if (endDate) where.createdAt.$lte = new Date(endDate);
+        if (startDate) where.createdAt[Op.gte] = new Date(startDate);
+        if (endDate) {
+          const endDateObj = new Date(endDate);
+          endDateObj.setHours(23, 59, 59, 999);
+          where.createdAt[Op.lte] = endDateObj;
+        }
       }
 
       const { count, rows: reports } = await Report.findAndCountAll({

@@ -93,6 +93,12 @@ const router = createRouter({
           component: () => import('../views/deliverers/DelivererManagement.vue'),
           meta: { roles: ['admin'] },
         },
+        {
+          path: 'deliverers/verification',
+          name: 'deliverer-verification',
+          component: () => import('../views/deliverers/DelivererVerification.vue'),
+          meta: { roles: ['admin'] },
+        },
         // 工单管理（管理员专用）
         {
           path: 'tickets',
