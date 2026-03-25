@@ -166,7 +166,7 @@
                     <button
                         type="button"
                         class="touch-feedback"
-                        @click="handleMenuClick('/pickup/list')"
+                        @click="handleMenuClick('/pickup/hall')"
                     >
                         去抢单大厅
                     </button>
@@ -943,7 +943,7 @@ const handleCourierAction = () => {
     }
 
     if (courierEnabled.value) {
-        router.push('/pickup/list');
+        router.push('/pickup/hall');
         return;
     }
 

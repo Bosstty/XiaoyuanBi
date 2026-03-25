@@ -1780,6 +1780,7 @@
 }
 
 .account-center__courier-actions {
+    display: flex;
     gap: 12px;
     margin-top: 18px;
 }
@@ -1870,7 +1871,7 @@
     }
 
     .account-center__courier-actions {
-        flex-direction: column;
+        flex-direction: row;
     }
 }
 
@@ -1885,7 +1886,6 @@
 .account-center__section-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
 }
 
 .account-center__masthead {
@@ -2839,8 +2839,7 @@
     overflow: hidden;
     border: 1px dashed rgba(47, 107, 255, 0.18);
     background:
-        linear-gradient(135deg, rgba(47, 107, 255, 0.06), rgba(75, 184, 255, 0.08)),
-        #ffffff;
+        linear-gradient(135deg, rgba(47, 107, 255, 0.06), rgba(75, 184, 255, 0.08)), #ffffff;
 }
 
 .courier-upload-card__image {

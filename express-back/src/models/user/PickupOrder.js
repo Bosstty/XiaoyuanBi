@@ -157,10 +157,20 @@ const PickupOrder = sequelize.define(
             allowNull: true,
             comment: '取货完成时间',
         },
+        pickup_photo: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            comment: '取货/代购完成照片',
+        },
         delivery_complete_time: {
             type: DataTypes.DATE,
             allowNull: true,
             comment: '送达完成时间',
+        },
+        delivery_photo: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            comment: '送达照片',
         },
         cancel_reason: {
             type: DataTypes.TEXT,

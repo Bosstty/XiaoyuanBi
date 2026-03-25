@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User, Admin } = require('../models');
+const { User, Admin, Deliverer } = require('../models');
 
 // JWT认证中间件
 const auth = (type = 'user') => {
@@ -47,6 +47,28 @@ const auth = (type = 'user') => {
                         message: '用户账号无效或已被禁用',
                         code: 'USER_INVALID',
                     });
+                }
+
+                const delivererProfile = await Deliverer.findOne({
+                    where: {
+                        user_id: user.id,
+                        application_status: 'approved',
+                        status: 'active',
+                        isDeleted: false,
+                    },
+                    attributes: ['id'],
+                });
+
+                if (delivererProfile) {
+                    user.setDataValue('deliverer_id', delivererProfile.id);
+                    user.setDataValue('is_deliverer', true);
+                    user.deliverer_id = delivererProfile.id;
+                    user.is_deliverer = true;
+                } else {
+                    user.setDataValue('deliverer_id', null);
+                    user.setDataValue('is_deliverer', false);
+                    user.deliverer_id = null;
+                    user.is_deliverer = false;
                 }
             }
 

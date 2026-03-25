@@ -166,7 +166,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NInput, NModal, NTag, useDialog, useMessage } from 'naive-ui';
-import { PickupApi } from '@/api';
+import { DelivererOrderApi, PickupApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
 import type { PaginationMeta, PickupOrder } from '@/types';
 
@@ -192,10 +192,14 @@ const currentOrder = ref<PickupOrder | null>(null);
 const rating = ref(5);
 const ratingComment = ref('');
 
-const tabs = [
-    { key: 'published' as OrderTypeFilter, label: '我发布的' },
-    { key: 'accepted' as OrderTypeFilter, label: '我接的' },
-];
+const tabs = computed(() =>
+    userStore.user?.is_deliverer
+        ? [
+              { key: 'published' as OrderTypeFilter, label: '我发布的' },
+              { key: 'accepted' as OrderTypeFilter, label: '我接的' },
+          ]
+        : [{ key: 'published' as OrderTypeFilter, label: '我发布的' }]
+);
 
 const statusOptions: Array<{ label: string; value: OrderStatusFilter }> = [
     { label: '全部状态', value: '' },
@@ -225,12 +229,19 @@ const fetchOrders = async (page = 1, append = false) => {
     target.value = true;
 
     try {
-        const response = await PickupApi.getMyOrders({
-            page,
-            limit: 10,
-            type: currentType.value,
-            status: currentStatus.value || undefined,
-        });
+        const response =
+            currentType.value === 'accepted' && userStore.user?.is_deliverer
+                ? await DelivererOrderApi.getMyOrders({
+                      page,
+                      limit: 10,
+                      status: currentStatus.value || undefined,
+                  })
+                : await PickupApi.getMyOrders({
+                      page,
+                      limit: 10,
+                      type: currentType.value,
+                      status: currentStatus.value || undefined,
+                  });
 
         if (!response.success) {
             throw new Error(response.message || '获取订单失败');
@@ -323,7 +334,7 @@ const partnerName = (order: PickupOrder) => {
 };
 
 const canCancel = (order: PickupOrder) =>
-    isPublisher(order) && ['pending', 'accepted'].includes(order.status);
+    isPublisher(order) && order.status === 'pending';
 
 const canConfirm = (order: PickupOrder) => isPublisher(order) && order.status === 'delivering';
 
@@ -409,6 +420,9 @@ const submitRating = async () => {
 };
 
 onMounted(async () => {
+    if (!userStore.user?.is_deliverer && currentType.value === 'accepted') {
+        currentType.value = 'published';
+    }
     await fetchOrders();
 });
 </script>

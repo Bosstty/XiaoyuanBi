@@ -14,11 +14,13 @@ class DelivererAuthController {
                 where: {
                     [Op.or]: [{ email }, { student_id: email }],
                 },
-                include: [{
-                    model: Deliverer,
-                    as: 'deliverer',
-                    required: true,
-                }]
+                include: [
+                    {
+                        model: Deliverer,
+                        as: 'deliverer',
+                        required: true,
+                    },
+                ],
             });
 
             if (!user || !user.deliverer) {
@@ -81,11 +83,13 @@ class DelivererAuthController {
             const user = req.user;
             const deliverer = await Deliverer.findOne({
                 where: { user_id: user.id },
-                include: [{
-                    model: User,
-                    as: 'user',
-                    attributes: { exclude: ['password'] }
-                }]
+                include: [
+                    {
+                        model: User,
+                        as: 'user',
+                        attributes: { exclude: ['password'] },
+                    },
+                ],
             });
 
             if (!deliverer) {
@@ -118,7 +122,7 @@ class DelivererAuthController {
                 bank_name,
                 account_holder,
                 service_areas,
-                availability_hours
+                availability_hours,
             } = req.body;
 
             // 更新配送员信息
@@ -131,7 +135,7 @@ class DelivererAuthController {
                 bank_name,
                 account_holder,
                 service_areas,
-                availability_hours
+                availability_hours,
             });
 
             res.json(responseUtils.success(deliverer, '更新成功'));

@@ -27,6 +27,12 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '代取订单', level: 1 },
             },
             {
+                path: 'pickup/hall',
+                name: 'PickupHall',
+                component: () => import('@/views/pickup/PickupHall.vue'),
+                meta: { title: '接单大厅', requiresAuth: true, level: 1, hideTabBar: true },
+            },
+            {
                 path: 'pickup/create',
                 name: 'CreatePickup',
                 component: () => import('@/views/pickup/CreatePickup.vue'),

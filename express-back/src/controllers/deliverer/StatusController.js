@@ -86,7 +86,12 @@ class DelivererStatusController {
 
             const deliverer = await Deliverer.findOne({
                 where: { user_id: userId },
-                attributes: ['status', 'current_latitude', 'current_longitude', 'last_location_update'],
+                attributes: [
+                    'status',
+                    'current_latitude',
+                    'current_longitude',
+                    'last_location_update',
+                ],
             });
 
             if (!deliverer) {

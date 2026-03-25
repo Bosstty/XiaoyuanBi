@@ -197,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
     NButton,
@@ -209,7 +209,7 @@ import {
     useDialog,
     useMessage,
 } from 'naive-ui';
-import { PickupApi } from '@/api';
+import { PickupApi, WalletApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
 import type { CreatePickupOrderData } from '@/types';
 
@@ -226,6 +226,8 @@ const submitting = ref(false);
 const showAdvanced = ref(false);
 const pickupTime = ref<number | null>(null);
 const deliveryTime = ref<number | null>(null);
+const paymentPassword = ref('');
+const setupPaymentPassword = ref('');
 
 const orderTypes = [
     { value: 'express', label: '快递代取', note: '驿站、快递柜、代收点' },
@@ -421,6 +423,126 @@ const validateForm = () => {
     return '';
 };
 
+const createOrderWithPassword = async (password: string) => {
+    submitting.value = true;
+    try {
+        const payload = {
+            ...buildOrderPayload(),
+            payment_password: password,
+        };
+        const response = await PickupApi.createOrder(payload);
+
+        if (!response.success) {
+            throw new Error(response.message || '创建订单失败');
+        }
+
+        if (userStore.user) {
+            userStore.user.balance = Number(
+                Math.max(0, Number(userStore.user.balance || 0) - Number(totalAmount.value))
+            );
+        }
+        appStore.hapticFeedback('medium');
+        message.success(response.message || `订单创建成功，已冻结 ¥${totalAmount.value}`);
+        router.replace('/pickup/my');
+        return true;
+    } catch (err: any) {
+        message.error(err?.message || '创建订单失败');
+        return false;
+    } finally {
+        submitting.value = false;
+    }
+};
+
+const openPaymentPasswordDialog = () => {
+    paymentPassword.value = '';
+
+    dialog.warning({
+        title: '确认冻结订单金额',
+        positiveText: '确认创建',
+        negativeText: '取消',
+        content: () =>
+            h('div', { style: 'display:flex;flex-direction:column;gap:12px;' }, [
+                h(
+                    'p',
+                    { style: 'margin:0;color:#0f172a;font-size:14px;font-weight:600;' },
+                    `本次将冻结 ¥${totalAmount.value} 作为订单担保金，订单完成后自动转给配送员。`
+                ),
+                h(
+                    'p',
+                    { style: 'margin:0;color:#64748b;font-size:13px;line-height:1.6;' },
+                    '请输入6位支付密码后创建订单。若订单取消，冻结金额会退回余额。'
+                ),
+                h(NInput, {
+                    value: paymentPassword.value,
+                    type: 'password',
+                    maxlength: 6,
+                    showPasswordOn: 'click',
+                    placeholder: '请输入6位支付密码',
+                    onUpdateValue: (value: string) => {
+                        paymentPassword.value = value.replace(/\D/g, '').slice(0, 6);
+                    },
+                }),
+            ]),
+        async onPositiveClick() {
+            if (!/^\d{6}$/.test(paymentPassword.value)) {
+                message.warning('请输入6位数字支付密码');
+                return false;
+            }
+
+            return await createOrderWithPassword(paymentPassword.value);
+        },
+    });
+};
+
+const openSetPaymentPasswordDialog = () => {
+    setupPaymentPassword.value = '';
+
+    dialog.info({
+        title: '设置支付密码',
+        positiveText: '保存并继续',
+        negativeText: '取消',
+        content: () =>
+            h('div', { style: 'display:flex;flex-direction:column;gap:12px;' }, [
+                h(
+                    'p',
+                    { style: 'margin:0;color:#64748b;font-size:14px;line-height:1.6;' },
+                    '创建代取订单前需要先设置6位数字支付密码，用于冻结订单金额。'
+                ),
+                h(NInput, {
+                    value: setupPaymentPassword.value,
+                    type: 'password',
+                    maxlength: 6,
+                    showPasswordOn: 'click',
+                    placeholder: '请输入6位数字支付密码',
+                    onUpdateValue: (value: string) => {
+                        setupPaymentPassword.value = value.replace(/\D/g, '').slice(0, 6);
+                    },
+                }),
+            ]),
+        async onPositiveClick() {
+            if (!/^\d{6}$/.test(setupPaymentPassword.value)) {
+                message.warning('请填写6位数字支付密码');
+                return false;
+            }
+
+            try {
+                const response = await WalletApi.setPaymentPassword({
+                    payment_password: setupPaymentPassword.value,
+                });
+                if (!response.success) {
+                    throw new Error(response.message || '设置支付密码失败');
+                }
+                message.success('支付密码设置成功');
+                openPaymentPasswordDialog();
+                return true;
+            } catch (error: any) {
+                message.error(error?.message || '设置支付密码失败');
+                return false;
+            }
+        },
+    });
+};
+
 const submitOrder = async () => {
     const error = validateForm();
     if (error) {
@@ -428,22 +550,33 @@ const submitOrder = async () => {
         return;
     }
 
-    submitting.value = true;
-    try {
-        const payload = buildOrderPayload();
-        const response = await PickupApi.createOrder(payload);
+    if (submitting.value) {
+        return;
+    }
 
-        if (!response.success) {
-            throw new Error(response.message || '创建订单失败');
+    try {
+        const overviewResponse = await WalletApi.getOverview();
+        if (!overviewResponse.success || !overviewResponse.data) {
+            throw new Error(overviewResponse.message || '获取钱包信息失败');
         }
 
-        appStore.hapticFeedback('medium');
-        message.success('订单创建成功');
-        router.replace('/pickup/my');
+        const availableBalance = Number(
+            overviewResponse.data.summary?.available_balance ?? userStore.user?.balance ?? 0
+        );
+        const requiredAmount = Number(totalAmount.value);
+
+        if (availableBalance < requiredAmount) {
+            throw new Error(`余额不足，当前余额 ¥${availableBalance.toFixed(2)}，请先充值`);
+        }
+
+        if (!overviewResponse.data.wallet?.payment_password_set) {
+            openSetPaymentPasswordDialog();
+            return;
+        }
+
+        openPaymentPasswordDialog();
     } catch (err: any) {
         message.error(err?.message || '创建订单失败');
-    } finally {
-        submitting.value = false;
     }
 };
 

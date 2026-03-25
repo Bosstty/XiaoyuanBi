@@ -1,5 +1,6 @@
 import ApiClient from './client';
 import type { ApiResponse } from '@/types';
+import type { PickupOrder, PaginationMeta } from '@/types';
 
 const delivererApiClient = new ApiClient('/api/deliverer');
 
@@ -62,5 +63,78 @@ export class DelivererApplicationApi {
         return delivererApiClient.put('/application/update', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }) as Promise<ApiResponse<any>>;
+    }
+}
+
+export interface DelivererOrderFilters {
+    page?: number;
+    limit?: number;
+    type?: PickupOrder['type'] | 'all';
+    status?: PickupOrder['status'];
+    urgent?: boolean;
+}
+
+export interface DelivererOrderListResponse {
+    data: PickupOrder[];
+    pagination?: PaginationMeta;
+}
+
+export class DelivererOrderApi {
+    static async getAvailableOrders(filters?: DelivererOrderFilters) {
+        return delivererApiClient.get('/orders/available', {
+            params: {
+                ...filters,
+                type: filters?.type === 'all' ? undefined : filters?.type,
+            },
+        }) as Promise<ApiResponse<PickupOrder[]>>;
+    }
+
+    static async getMyOrders(filters?: DelivererOrderFilters) {
+        return delivererApiClient.get('/orders/my-orders', {
+            params: filters,
+        }) as Promise<ApiResponse<PickupOrder[]>>;
+    }
+
+    static async getOrderDetail(id: number) {
+        return delivererApiClient.get(`/orders/${id}`) as Promise<ApiResponse<PickupOrder>>;
+    }
+
+    static async acceptOrder(id: number) {
+        return delivererApiClient.post(`/orders/${id}/accept`) as Promise<ApiResponse<PickupOrder>>;
+    }
+
+    static async updateOrderStatus(
+        id: number,
+        status: PickupOrder['status'],
+        data?: Record<string, unknown>
+    ) {
+        return delivererApiClient.put(`/orders/${id}/status`, {
+            status,
+            ...data,
+        }) as Promise<ApiResponse<PickupOrder>>;
+    }
+
+    static async startPickup(id: number) {
+        return delivererApiClient.post(`/orders/${id}/start-pickup`) as Promise<ApiResponse<PickupOrder>>;
+    }
+
+    static async confirmPickup(id: number, pickup_photo?: string) {
+        return delivererApiClient.post(`/orders/${id}/confirm-pickup`, {
+            pickup_photo,
+        }) as Promise<ApiResponse<PickupOrder>>;
+    }
+
+    static async startDelivery(id: number) {
+        return delivererApiClient.post(`/orders/${id}/start-delivery`) as Promise<ApiResponse<PickupOrder>>;
+    }
+
+    static async confirmDelivery(id: number, payload?: { delivery_photo?: string }) {
+        return delivererApiClient.post(`/orders/${id}/confirm-delivery`, payload) as Promise<ApiResponse<PickupOrder>>;
+    }
+
+    static async requestCancel(id: number, reason?: string) {
+        return delivererApiClient.post(`/orders/${id}/request-cancel`, {
+            reason,
+        }) as Promise<ApiResponse<PickupOrder>>;
     }
 }

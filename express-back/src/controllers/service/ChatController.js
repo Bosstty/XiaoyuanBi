@@ -288,7 +288,22 @@ class ServiceChatController {
                     });
                 }
             } else {
-                const peerUserId = Number(peer_user_id || deliverer_id);
+                let peerUserId = Number(peer_user_id || 0);
+
+                if (!peerUserId && deliverer_id) {
+                    const deliverer = await Deliverer.findByPk(Number(deliverer_id), {
+                        attributes: ['id', 'user_id'],
+                    });
+
+                    if (!deliverer) {
+                        return res.status(404).json({
+                            success: false,
+                            message: '配送员不存在',
+                        });
+                    }
+
+                    peerUserId = Number(deliverer.user_id || 0);
+                }
 
                 if (!peerUserId || peerUserId === Number(currentUserId)) {
                     return res.status(400).json({

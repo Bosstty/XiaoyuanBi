@@ -55,12 +55,19 @@ class PermissionMiddleware {
 
                 const roles = Array.isArray(roleCodes) ? roleCodes : [roleCodes];
                 const directPermissions = Array.isArray(user.permissions) ? user.permissions : [];
+                const delivererId =
+                    user.deliverer_id ??
+                    (typeof user.get === 'function' ? user.get('deliverer_id') : null);
+                const isDeliverer =
+                    user.is_deliverer ??
+                    (typeof user.get === 'function' ? user.get('is_deliverer') : false);
 
                 // 管理员表的角色/权限直接放行
                 if (
                     user.role === 'super_admin' ||
                     directPermissions.includes('all') ||
-                    roles.includes(user.role)
+                    roles.includes(user.role) ||
+                    (roles.includes('deliverer') && (Boolean(delivererId) || Boolean(isDeliverer)))
                 ) {
                     return next();
                 }

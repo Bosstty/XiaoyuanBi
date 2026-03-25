@@ -6,58 +6,38 @@
                 <h1>订单中心</h1>
                 <p>{{ heroDescription }}</p>
             </div>
-            <button
-                type="button"
-                class="order-center__hero-btn touch-feedback"
-                @click="router.push('/pickup/create')"
-            >
-                发布订单
-            </button>
-        </section>
-
-        <section v-if="isDeliverer" class="order-center__section">
-            <div class="order-center__section-head">
-                <h3>服务筛选</h3>
-            </div>
-            <div class="order-center__tabs">
+            <div class="order-center__hero-actions">
                 <button
-                    v-for="tab in categoryTabs"
-                    :key="tab.key"
+                    v-if="isDeliverer"
                     type="button"
-                    class="order-center__tab touch-feedback"
-                    :class="{ active: currentTab === tab.key }"
-                    @click="handleTabChange(tab.key)"
+                    class="order-center__hero-btn order-center__hero-btn--ghost touch-feedback"
+                    @click="router.push('/pickup/hall')"
                 >
-                    <NIcon :size="18"><component :is="tab.icon" /></NIcon>
-                    <span>{{ tab.label }}</span>
+                    订单中心
+                </button>
+                <button
+                    type="button"
+                    class="order-center__hero-btn touch-feedback"
+                    @click="router.push('/pickup/create')"
+                >
+                    发布订单
                 </button>
             </div>
         </section>
 
         <section v-if="isDeliverer" class="order-center__section">
-            <NInput
-                v-model:value="searchQuery"
-                placeholder="搜索订单、地点或需求"
-                size="large"
-                clearable
-                round
-            >
-                <template #prefix>
-                    <NIcon><SearchOutline /></NIcon>
-                </template>
-            </NInput>
-        </section>
-
-        <section v-if="isDeliverer" class="order-center__section">
             <div class="order-center__section-head">
-                <h3>可接订单</h3>
+                <h3>可接订单预览</h3>
+                <button type="button" class="order-center__link-btn" @click="router.push('/pickup/hall')">
+                    进入大厅
+                </button>
             </div>
             <div v-if="loading" class="loading-state">
                 <NSpin size="large" />
             </div>
             <div v-else-if="filteredOrders.length > 0" class="order-center__list">
                 <article
-                    v-for="order in filteredOrders"
+                    v-for="order in filteredOrders.slice(0, 3)"
                     :key="order.id"
                     class="order-center__card touch-feedback"
                     @click="handleOrderClick(order)"
@@ -82,7 +62,7 @@
                     <div class="order-center__meta">
                         <span>
                             <NIcon :size="14"><LocationOutline /></NIcon>
-                            {{ order.location }}
+                            {{ order.pickup_location }}
                         </span>
                         <span>
                             <NIcon :size="14"><TimeOutline /></NIcon>
@@ -92,9 +72,9 @@
                     <div class="order-center__card-foot">
                         <div class="order-center__publisher">
                             <NAvatar :size="28" round />
-                            <span>{{ order.publisher.name }}</span>
+                            <span>{{ order.user?.username || order.user?.real_name || '匿名用户' }}</span>
                         </div>
-                        <strong>¥{{ order.fee }}</strong>
+                        <strong>¥{{ formatMoney(order.price) }}</strong>
                     </div>
                 </article>
             </div>
@@ -197,31 +177,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, markRaw } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { NInput, NButton, NIcon, NTag, NAvatar, NSpin } from 'naive-ui';
+import { NButton, NIcon, NTag, NAvatar, NSpin, useMessage } from 'naive-ui';
 import {
-    SearchOutline,
-    LocationOutline,
-    TimeOutline,
     BagHandleOutline,
-    FastFoodOutline,
-    MedicalOutline,
     CartOutline,
+    FastFoodOutline,
+    LocationOutline,
+    MedicalOutline,
+    TimeOutline,
 } from '@vicons/ionicons5';
-import { PickupApi } from '@/api';
+import { DelivererOrderApi, PickupApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
 import type { PickupOrder } from '@/types';
 
 const router = useRouter();
 const appStore = useAppStore();
 const userStore = useUserStore();
+const message = useMessage();
 
-const searchQuery = ref('');
-const currentTab = ref('all');
 const loading = ref(false);
 const loadingMyOrders = ref(false);
 const myOrders = ref<PickupOrder[]>([]);
+const orders = ref<PickupOrder[]>([]);
 const isDeliverer = computed(() => Boolean(userStore.user?.is_deliverer));
 const heroDescription = computed(() =>
     isDeliverer.value
@@ -229,80 +208,7 @@ const heroDescription = computed(() =>
         : '当前账号可查看我的订单并发布新订单，接单能力仅对已认证配送员开放。'
 );
 
-const categoryTabs = ref([
-    { key: 'all', label: '全部', icon: markRaw(BagHandleOutline) },
-    { key: 'express', label: '快递', icon: markRaw(BagHandleOutline) },
-    { key: 'food', label: '外卖', icon: markRaw(FastFoodOutline) },
-    { key: 'medicine', label: '药品', icon: markRaw(MedicalOutline) },
-    { key: 'daily', label: '生活', icon: markRaw(CartOutline) },
-]);
-
-const orders = ref([
-    {
-        id: 1,
-        type: 'express',
-        title: '快递代取 - 菜鸟驿站',
-        description: '帮忙取一个包裹，取件码：1234，重量较轻。',
-        location: '菜鸟驿站 · 宿舍楼下',
-        fee: 3,
-        status: 'pending',
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        publisher: { id: 1, name: '张同学' },
-    },
-    {
-        id: 2,
-        type: 'food',
-        title: '外卖代取 - 沙县小吃',
-        description: '帮忙买一份沙县小吃，蒸饺加炒河粉，越快越好。',
-        location: '沙县小吃 · 南门店',
-        fee: 5,
-        status: 'processing',
-        createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        publisher: { id: 2, name: '李同学' },
-    },
-    {
-        id: 3,
-        type: 'medicine',
-        title: '药品代购 - 感冒药',
-        description: '帮忙买一盒感冒灵，有明确药品名称和规格。',
-        location: '校医院药房',
-        fee: 2,
-        status: 'pending',
-        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        publisher: { id: 3, name: '王同学' },
-    },
-    {
-        id: 4,
-        type: 'daily',
-        title: '生活用品代购',
-        description: '帮忙买一瓶海飞丝洗发水和一包纸巾。',
-        location: '校园超市',
-        fee: 2,
-        status: 'pending',
-        createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        publisher: { id: 4, name: '赵同学' },
-    },
-]);
-
-const filteredOrders = computed(() => {
-    let result = orders.value;
-
-    if (currentTab.value !== 'all') {
-        result = result.filter(o => o.type === currentTab.value);
-    }
-
-    if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase();
-        result = result.filter(
-            o =>
-                o.title.toLowerCase().includes(query) ||
-                o.description.toLowerCase().includes(query) ||
-                o.location.toLowerCase().includes(query)
-        );
-    }
-
-    return result;
-});
+const filteredOrders = computed(() => orders.value);
 
 const activeOrder = computed<PickupOrder | null>(() => {
     const statusPriority: PickupOrder['status'][] = ['delivering', 'picking', 'accepted', 'pending'];
@@ -371,11 +277,6 @@ const formatTime = (date: string | Date | null | undefined) => {
     return `${Math.floor(diff / 86400000)} 天前`;
 };
 
-const handleTabChange = (key: string) => {
-    currentTab.value = key;
-    appStore.hapticFeedback('light');
-};
-
 const handleOrderClick = (order: { id: number }) => {
     appStore.hapticFeedback('light');
     router.push(`/pickup/${order.id}`);
@@ -386,33 +287,56 @@ const formatMoney = (value: string | number | null | undefined) => {
     return amount.toFixed(2);
 };
 
-const fetchMyOrders = async () => {
-    loadingMyOrders.value = true;
+const fetchAvailableOrders = async () => {
+    if (!isDeliverer.value) {
+        orders.value = [];
+        return;
+    }
+
+    loading.value = true;
     try {
-        const response = await PickupApi.getMyOrders({
-            type: 'all',
+        const response = await DelivererOrderApi.getAvailableOrders({
+            page: 1,
             limit: 20,
         });
+        if (!response.success) {
+            throw new Error(response.message || '获取可接订单失败');
+        }
+        orders.value = Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+        console.error('获取可接订单失败:', error);
+        message.error(error instanceof Error ? error.message : '获取可接订单失败');
+        orders.value = [];
+    } finally {
+        loading.value = false;
+    }
+};
+
+const fetchMyOrders = async () => {
+    if (!userStore.isAuthenticated) {
+        myOrders.value = [];
+        loadingMyOrders.value = false;
+        return;
+    }
+
+    loadingMyOrders.value = true;
+    try {
+        const response = isDeliverer.value
+            ? await DelivererOrderApi.getMyOrders({ limit: 20 })
+            : await PickupApi.getMyOrders({ type: 'published', limit: 20 });
         myOrders.value = Array.isArray(response.data) ? response.data : [];
     } catch (error) {
         console.error('获取当前用户订单状态失败:', error);
+        message.error(error instanceof Error ? error.message : '获取当前用户订单状态失败');
         myOrders.value = [];
     } finally {
         loadingMyOrders.value = false;
     }
 };
 
-onMounted(() => {
-    fetchMyOrders();
-
-    if (!isDeliverer.value) {
-        return;
-    }
-
-    loading.value = true;
-    setTimeout(() => {
-        loading.value = false;
-    }, 500);
+onMounted(async () => {
+    await fetchMyOrders();
+    await fetchAvailableOrders();
 });
 </script>
 
@@ -433,6 +357,25 @@ onMounted(() => {
     --action-card-text: rgba(226, 232, 240, 0.82);
     --action-card-hover-border: rgba(96, 165, 250, 0.4);
     --action-card-hover-shadow: 0 18px 40px rgba(2, 6, 23, 0.32);
+}
+
+.order-center__hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.order-center__hero-btn--ghost {
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.order-center__link-btn {
+    border: 0;
+    background: transparent;
+    color: #3b82f6;
+    font-size: 14px;
+    font-weight: 700;
 }
 
 .order-center__action-grid {
@@ -482,27 +425,6 @@ onMounted(() => {
     margin: 0 0 8px;
     font-size: 20px;
     line-height: 1.4;
-}
-
-.order-center__status-desc {
-    margin: 0 0 14px;
-    font-size: 14px;
-    line-height: 1.7;
-    color: var(--action-card-text);
-}
-
-.order-center__status-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 16px;
-    font-size: 13px;
-    color: var(--action-card-text);
-}
-
-.order-center__status-meta span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
 }
 
 .order-center__status-fields {
@@ -572,10 +494,7 @@ onMounted(() => {
 
 .order-center__status-card--active {
     cursor: pointer;
-    transition:
-        transform 0.2s ease,
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .order-center__status-card--active:hover {
@@ -603,10 +522,7 @@ onMounted(() => {
     cursor: pointer;
     background: var(--action-card-bg);
     color: var(--action-card-title);
-    transition:
-        transform 0.2s ease,
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .order-center__action-card strong {
@@ -629,6 +545,15 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
+    .order-center__hero-actions {
+        width: 100%;
+    }
+
+    .order-center__hero-actions .order-center__hero-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
     .order-center__action-grid {
         grid-template-columns: 1fr;
     }

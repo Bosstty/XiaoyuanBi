@@ -109,11 +109,14 @@ export interface PickupOrder {
     rating_comment?: string;
     accept_time?: string;
     pickup_complete_time?: string;
+    pickup_photo?: string;
     delivery_complete_time?: string;
+    delivery_photo?: string;
     cancel_reason?: string;
     cancel_time?: string;
     user?: User;
     deliverer?: User;
+    delivererInfo?: any;
     createdAt: string;
     updatedAt: string;
 }
@@ -139,6 +142,7 @@ export interface CreatePickupOrderData {
     is_anonymous?: boolean;
     images?: string[];
     notes?: string;
+    payment_password?: string;
 }
 
 // 任务类型
