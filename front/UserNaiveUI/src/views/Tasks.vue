@@ -89,7 +89,7 @@
                             <NIcon :size="14"><PersonIcon /></NIcon>
                             {{ task.max_applicants || 0 }} 人上限
                         </span>
-                        <span class="task-center__reward">¥{{ task.price }}</span>
+                        <span class="task-center__reward">¥{{ Number(task.price || 0).toFixed(2) }}</span>
                     </div>
                 </article>
             </div>
@@ -194,10 +194,8 @@ const myStats = computed(() => {
     const publishedCount = tasks.value.filter(task => task.status === 'published').length;
     const averagePrice =
         tasks.value.length > 0
-            ? Math.round(
-                  tasks.value.reduce((sum, task) => sum + Number(task.price || 0), 0) /
-                      tasks.value.length
-              )
+            ? tasks.value.reduce((sum, task) => sum + Number(task.price || 0), 0) /
+              tasks.value.length
             : 0;
 
     return [
@@ -211,7 +209,7 @@ const myStats = computed(() => {
         {
             key: 'price',
             label: '平均报酬',
-            value: `¥${averagePrice}`,
+            value: `¥${averagePrice.toFixed(2)}`,
             color: '#17304F',
             note: '当前任务池的平均预算',
         },
@@ -279,6 +277,7 @@ const getStatusType = (status: string) => {
 
 const getStatusLabel = (status: string) => {
     const labelMap: Record<string, string> = {
+        pending: '审核中',
         published: '招募中',
         in_progress: '进行中',
         completed: '已完成',

@@ -1,5 +1,46 @@
-const { Deliverer, User, PickupOrder } = require('../../models');
+const { Deliverer, User, PickupOrder, ChatConversation, ChatMessage } = require('../../models');
 const { Op } = require('sequelize');
+
+const DEFAULT_SERVICE_ID = 1;
+
+const sendDelivererVerificationMessage = async (userId, adminId, content) => {
+    const serviceId = adminId || DEFAULT_SERVICE_ID;
+
+    let conversation = await ChatConversation.findOne({
+        where: {
+            type: 'user_service',
+            user_id: userId,
+            service_id: serviceId,
+            status: 'open',
+        },
+    });
+
+    if (!conversation) {
+        conversation = await ChatConversation.create({
+            user_id: userId,
+            service_id: serviceId,
+            type: 'user_service',
+            status: 'open',
+            last_message: content,
+            last_message_at: new Date(),
+        });
+    }
+
+    await ChatMessage.create({
+        conversation_id: conversation.id,
+        sender_id: serviceId,
+        sender_type: 'service',
+        receiver_type: 'user',
+        content,
+        type: 'system',
+        is_read: false,
+    });
+
+    await conversation.update({
+        last_message: content,
+        last_message_at: new Date(),
+    });
+};
 
 /**
  * 配送员管理控制器
@@ -17,7 +58,10 @@ class DelivererController {
                 limit = 10,
                 pageSize, // 兼容前端参数
                 status,
+                application_status,
                 verified,
+                online,
+                is_online,
                 keyword,
                 name, // 兼容前端参数
                 phone, // 兼容前端参数
@@ -28,16 +72,27 @@ class DelivererController {
             // 使用 pageSize 如果 limit 未提供
             const actualLimit = pageSize || limit;
             const offset = (page - 1) * actualLimit;
-            const where = {};
+            const where = { isDeleted: false };
 
             // 构建查询条件
             if (status) where.status = status;
+            if (application_status) where.application_status = application_status;
             if (verified !== undefined && verified !== '') where.verified = verified === 'true';
+            if (online !== undefined && online !== '') where.is_online = online === 'true';
+            if (is_online !== undefined && is_online !== '') where.is_online = is_online === 'true';
 
             if (startDate || endDate) {
                 where.createdAt = {};
-                if (startDate) where.createdAt[Op.gte] = new Date(startDate);
-                if (endDate) where.createdAt[Op.lte] = new Date(endDate);
+                if (startDate) {
+                    const start = new Date(startDate);
+                    start.setHours(0, 0, 0, 0);
+                    where.createdAt[Op.gte] = start;
+                }
+                if (endDate) {
+                    const end = new Date(endDate);
+                    end.setHours(23, 59, 59, 999);
+                    where.createdAt[Op.lte] = end;
+                }
             }
 
             // 兼容 name, phone, keyword 参数
@@ -216,20 +271,29 @@ class DelivererController {
 
             // 更新审核状态
             deliverer.verified = approved;
-            deliverer.verifyReason = reason;
-            deliverer.verifyRemark = remark;
+            deliverer.application_status = approved ? 'approved' : 'rejected';
+            deliverer.rejection_reason = approved ? null : reason || null;
             deliverer.verifiedAt = new Date();
             deliverer.verifiedBy = adminUser.id;
+            deliverer.approval_time = new Date();
+            deliverer.approval_admin_id = adminUser.id;
 
             if (approved) {
                 deliverer.status = 'active';
             } else {
-                deliverer.status = 'rejected';
+                deliverer.status = 'inactive';
+                deliverer.is_online = false;
             }
 
             await deliverer.save();
 
-            // TODO: 发送通知给配送员
+            await sendDelivererVerificationMessage(
+                deliverer.user_id,
+                req.admin?.id || req.user?.id,
+                approved
+                    ? '配送员申请已通过，您现在可以进入接单中心开始接单。'
+                    : `配送员申请未通过，原因：${reason || '不符合配送员申请条件'}`
+            );
 
             return res.json({
                 success: true,

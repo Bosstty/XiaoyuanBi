@@ -3,16 +3,19 @@ const { ChatConversation, ChatMessage, User, Deliverer, PickupOrder } = require(
 
 const DEFAULT_SERVICE_ID = 1;
 const DIRECT_CHAT_TYPE = 'user_deliverer';
+const getCurrentRole = req => req.userRole || (req.admin ? 'service' : 'user');
 
 const normalizeUserPair = (leftId, rightId) =>
     Number(leftId) <= Number(rightId) ? [Number(leftId), Number(rightId)] : [Number(rightId), Number(leftId)];
 
 const hasConversationAccess = (conversation, userId, userRole = 'user') => {
-    if (!conversation || !userId) return false;
+    if (!conversation) return false;
 
     if (userRole === 'service') {
         return conversation.type === 'user_service' || conversation.type === 'deliverer_service';
     }
+
+    if (!userId) return false;
 
     if (conversation.type === DIRECT_CHAT_TYPE) {
         return conversation.user_id === userId || conversation.service_id === userId;
@@ -21,12 +24,12 @@ const hasConversationAccess = (conversation, userId, userRole = 'user') => {
     return conversation.user_id === userId;
 };
 
-const getSenderType = req => (req.userRole === 'service' ? 'service' : 'user');
+const getSenderType = req => (getCurrentRole(req) === 'service' ? 'service' : 'user');
 const getServiceScopeId = req => req.serviceScopeId || req.user?.id || DEFAULT_SERVICE_ID;
 
 const getReceiverType = (conversation, req) => {
-    if (req.userRole === 'service') {
-        return conversation.type === DIRECT_CHAT_TYPE ? 'user' : 'user';
+    if (getCurrentRole(req) === 'service') {
+        return conversation.type === 'deliverer_service' ? 'deliverer' : 'user';
     }
 
     if (conversation.type === 'user_service' || conversation.type === 'deliverer_service') {
@@ -170,6 +173,7 @@ class ServiceChatController {
             const currentUserId = req.user?.id;
             const {
                 peer_user_id,
+                user_id,
                 deliverer_id,
                 order_id,
                 task_id,
@@ -186,8 +190,84 @@ class ServiceChatController {
 
             let conversation;
             const trimmedMessage = initial_message ? String(initial_message).trim() : '';
+            const serviceId = getServiceScopeId(req);
 
-            if (type === 'user_service' || (!peer_user_id && !deliverer_id)) {
+            if (getCurrentRole(req) === 'service') {
+                const targetUserId = Number(user_id || peer_user_id || 0);
+                const targetDelivererId = Number(deliverer_id || 0);
+
+                if (targetDelivererId) {
+                    const deliverer = await Deliverer.findByPk(targetDelivererId, {
+                        attributes: ['id'],
+                    });
+
+                    if (!deliverer) {
+                        return res.status(404).json({
+                            success: false,
+                            message: '配送员不存在',
+                        });
+                    }
+
+                    conversation = await ChatConversation.findOne({
+                        where: {
+                            type: 'deliverer_service',
+                            deliverer_id: targetDelivererId,
+                            service_id: serviceId,
+                            status: 'open',
+                        },
+                    });
+
+                    if (!conversation) {
+                        conversation = await ChatConversation.create({
+                            user_id: null,
+                            deliverer_id: targetDelivererId,
+                            service_id: serviceId,
+                            order_id: order_id || null,
+                            type: 'deliverer_service',
+                            status: 'open',
+                            last_message: trimmedMessage || '您好，这里是在线客服。',
+                            last_message_at: new Date(),
+                        });
+                    }
+                } else if (targetUserId) {
+                    const targetUser = await User.findByPk(targetUserId, {
+                        attributes: ['id'],
+                    });
+
+                    if (!targetUser) {
+                        return res.status(404).json({
+                            success: false,
+                            message: '用户不存在',
+                        });
+                    }
+
+                    conversation = await ChatConversation.findOne({
+                        where: {
+                            type: 'user_service',
+                            user_id: targetUserId,
+                            service_id: serviceId,
+                            status: 'open',
+                        },
+                    });
+
+                    if (!conversation) {
+                        conversation = await ChatConversation.create({
+                            user_id: targetUserId,
+                            service_id: serviceId,
+                            order_id: order_id || task_id || null,
+                            type: 'user_service',
+                            status: 'open',
+                            last_message: trimmedMessage || '您好，这里是在线客服。',
+                            last_message_at: new Date(),
+                        });
+                    }
+                } else {
+                    return res.status(400).json({
+                        success: false,
+                        message: '请指定要联系的用户或配送员',
+                    });
+                }
+            } else if (type === 'user_service' || (!peer_user_id && !deliverer_id)) {
                 conversation = await ChatConversation.findOne({
                     where: {
                         type: 'user_service',
@@ -199,7 +279,7 @@ class ServiceChatController {
                 if (!conversation) {
                     conversation = await ChatConversation.create({
                         user_id: currentUserId,
-                        service_id: DEFAULT_SERVICE_ID,
+                        service_id: serviceId,
                         order_id: order_id || null,
                         type: 'user_service',
                         status: 'open',
@@ -269,7 +349,7 @@ class ServiceChatController {
                 });
             }
 
-            const data = await decorateConversation(conversation, currentUserId, req.userRole);
+            const data = await decorateConversation(conversation, currentUserId, getCurrentRole(req));
 
             res.status(201).json({
                 success: true,
@@ -289,14 +369,12 @@ class ServiceChatController {
     async getConversations(req, res) {
         try {
             const { page = 1, limit = 20 } = req.query;
-            const serviceId = getServiceScopeId(req);
 
             const { count, rows } = await ChatConversation.findAndCountAll({
                 where: {
                     type: {
                         [Op.in]: ['user_service', 'deliverer_service'],
                     },
-                    service_id: serviceId,
                 },
                 order: [['last_message_at', 'DESC']],
                 limit: parseInt(limit, 10),
@@ -304,9 +382,21 @@ class ServiceChatController {
             });
 
             const conversations = await Promise.all(
-                rows.map(async conversation =>
-                    decorateConversation(conversation, serviceId, req.userRole)
-                )
+                rows.map(async conversation => {
+                    const data = await decorateConversation(
+                        conversation,
+                        getServiceScopeId(req),
+                        getCurrentRole(req)
+                    );
+                    data.unread_count = await ChatMessage.count({
+                        where: {
+                            conversation_id: conversation.id,
+                            is_read: false,
+                            receiver_type: 'service',
+                        },
+                    });
+                    return data;
+                })
             );
 
             res.json({
@@ -331,7 +421,8 @@ class ServiceChatController {
     async getConversationDetail(req, res) {
         try {
             const conversation = await ChatConversation.findByPk(req.params.id);
-            const currentUserId = req.user?.id;
+            const currentUserId = req.user?.id || req.admin?.id;
+            const currentRole = getCurrentRole(req);
 
             if (!conversation) {
                 return res.status(404).json({
@@ -340,7 +431,7 @@ class ServiceChatController {
                 });
             }
 
-            if (!hasConversationAccess(conversation, currentUserId, req.userRole)) {
+            if (!hasConversationAccess(conversation, currentUserId, currentRole)) {
                 return res.status(403).json({
                     success: false,
                     message: '无权限查看该会话',
@@ -353,7 +444,7 @@ class ServiceChatController {
                 limit: 100,
             });
 
-            const data = await decorateConversation(conversation, currentUserId, req.userRole);
+            const data = await decorateConversation(conversation, currentUserId, currentRole);
             data.messages = messages;
 
             res.json({
@@ -374,7 +465,8 @@ class ServiceChatController {
         try {
             const { conversation_id, page = 1, limit = 50 } = req.query;
             const conversation = await ChatConversation.findByPk(conversation_id);
-            const currentUserId = req.user?.id;
+            const currentUserId = req.user?.id || req.admin?.id;
+            const currentRole = getCurrentRole(req);
 
             if (!conversation) {
                 return res.status(404).json({
@@ -383,7 +475,7 @@ class ServiceChatController {
                 });
             }
 
-            if (!hasConversationAccess(conversation, currentUserId, req.userRole)) {
+            if (!hasConversationAccess(conversation, currentUserId, currentRole)) {
                 return res.status(403).json({
                     success: false,
                     message: '无权限查看该会话消息',
@@ -419,7 +511,8 @@ class ServiceChatController {
     async sendMessage(req, res) {
         try {
             const { conversation_id, content, type = 'text' } = req.body;
-            const currentUserId = req.user?.id;
+            const currentUserId = req.user?.id || req.admin?.id;
+            const currentRole = getCurrentRole(req);
 
             if (!currentUserId) {
                 return res.status(401).json({
@@ -444,7 +537,7 @@ class ServiceChatController {
                 });
             }
 
-            if (!hasConversationAccess(conversation, currentUserId, req.userRole)) {
+            if (!hasConversationAccess(conversation, currentUserId, currentRole)) {
                 return res.status(403).json({
                     success: false,
                     message: '无权限发送该会话消息',
@@ -484,7 +577,8 @@ class ServiceChatController {
     async markAsRead(req, res) {
         try {
             const { conversation_id } = req.body;
-            const currentUserId = req.user?.id;
+            const currentUserId = req.user?.id || req.admin?.id;
+            const currentRole = getCurrentRole(req);
 
             if (!conversation_id) {
                 return res.status(400).json({
@@ -502,7 +596,7 @@ class ServiceChatController {
                 });
             }
 
-            if (!hasConversationAccess(conversation, currentUserId, req.userRole)) {
+            if (!hasConversationAccess(conversation, currentUserId, currentRole)) {
                 return res.status(403).json({
                     success: false,
                     message: '无权限操作该会话',

@@ -264,6 +264,11 @@
               <div class="contact">用户ID: {{ detailDrawer.data.user_id }}</div>
             </div>
           </div>
+          <div class="contact-actions">
+            <el-button type="primary" text @click="contactTicketUser(detailDrawer.data)">
+              联系用户
+            </el-button>
+          </div>
         </div>
 
         <!-- 关联信息 -->
@@ -280,6 +285,11 @@
               {{ detailDrawer.data.service_id }}
             </el-descriptions-item>
           </el-descriptions>
+          <div v-if="detailDrawer.data.deliverer_id" class="contact-actions">
+            <el-button type="primary" text @click="contactTicketDeliverer(detailDrawer.data)">
+              联系配送员
+            </el-button>
+          </div>
         </div>
 
         <el-divider />
@@ -385,6 +395,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Download,
@@ -395,10 +406,11 @@ import {
   Search,
   RefreshLeft,
 } from '@element-plus/icons-vue'
-import { serviceTicketApi, serviceOrderApi } from '@/api'
+import { serviceChatApi, serviceTicketApi } from '@/api'
 import { exportCsvFile, normalizeExportValue } from '@/utils/export'
 import DashboardFilterHeader from '../dashboard/components/DashboardFilterHeader.vue'
 
+const router = useRouter()
 const loading = ref(false)
 const ticketList = ref([])
 const staffList = ref([])
@@ -627,6 +639,62 @@ const viewTicket = async (row) => {
       ],
     }
     detailDrawer.visible = true
+  }
+}
+
+const contactTicketUser = async (ticket) => {
+  const userId = Number(ticket?.user_id || ticket?.user?.id || 0)
+  if (!userId) {
+    ElMessage.warning('未找到用户信息')
+    return
+  }
+
+  try {
+    const response = await serviceChatApi.createConversation({
+      user_id: userId,
+      order_id: ticket?.order_id || undefined,
+      initial_message: `您好，这里是平台客服，关于工单「${ticket?.title || ticket?.ticket_no || ''}」需要和您沟通。`,
+    })
+
+    if (!response.success || !response.data?.id) {
+      throw new Error(response.message || '创建会话失败')
+    }
+
+    detailDrawer.visible = false
+    router.push({
+      path: '/service/chat',
+      query: { conversationId: String(response.data.id) },
+    })
+  } catch (error) {
+    ElMessage.error(error.message || '联系用户失败')
+  }
+}
+
+const contactTicketDeliverer = async (ticket) => {
+  const delivererId = Number(ticket?.deliverer_id || ticket?.order?.deliverer_id || 0)
+  if (!delivererId) {
+    ElMessage.warning('未找到配送员信息')
+    return
+  }
+
+  try {
+    const response = await serviceChatApi.createConversation({
+      deliverer_id: delivererId,
+      order_id: ticket?.order_id || undefined,
+      initial_message: `您好，这里是平台客服，关于工单「${ticket?.title || ticket?.ticket_no || ''}」需要和您沟通。`,
+    })
+
+    if (!response.success || !response.data?.id) {
+      throw new Error(response.message || '创建会话失败')
+    }
+
+    detailDrawer.visible = false
+    router.push({
+      path: '/service/chat',
+      query: { conversationId: String(response.data.id) },
+    })
+  } catch (error) {
+    ElMessage.error(error.message || '联系配送员失败')
   }
 }
 

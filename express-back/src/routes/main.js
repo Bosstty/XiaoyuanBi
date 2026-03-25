@@ -39,6 +39,9 @@ userRoutes.use('/messages', authMiddleware, require('./user/messages'));
 // 客服聊天 - /api/user/chat/*
 userRoutes.use('/chat', authMiddleware, require('./service/chat'));
 
+// 钱包相关 - /api/user/wallet/*
+userRoutes.use('/wallet', authMiddleware, require('./user/wallet'));
+
 // 挂载用户端路由
 router.use('/api/user', userRoutes);
 

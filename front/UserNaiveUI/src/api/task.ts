@@ -60,6 +60,11 @@ export class TaskApi {
         return apiClient.delete(`/tasks/${id}`);
     }
 
+    // 取消发布任务
+    static async cancelTask(id: number): Promise<ApiResponse<Task>> {
+        return apiClient.post(`/tasks/${id}/cancel`);
+    }
+
     // 申请任务
     static async applyTask(
         id: number,
@@ -92,6 +97,13 @@ export class TaskApi {
         data: { attachments?: string[]; description?: string }
     ): Promise<ApiResponse<Task>> {
         return apiClient.post(`/tasks/${id}/complete`, data);
+    }
+
+    static async confirmTask(
+        id: number,
+        data: { payment_password: string }
+    ): Promise<ApiResponse<Task>> {
+        return apiClient.post(`/tasks/${id}/confirm`, data);
     }
 
     // 获取我的任务

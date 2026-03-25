@@ -1,19 +1,14 @@
 <template>
     <div class="campus-create" :class="{ 'is-dark': appStore.isDark }">
         <header class="campus-nav-sticky">
-            <div class="nav-main">
-                <button type="button" class="back-icon-btn touch-feedback" @click="router.back()">
-                    <svg viewBox="0 0 24 24" class="icon-svg">
-                        <path
-                            d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
-                            fill="currentColor"
-                        />
-                    </svg>
-                </button>
-                <div class="nav-title-group">
-                    <span class="sub-label">Campus Order Form</span>
-                    <h1 class="main-title">创建订单</h1>
-                </div>
+            <div class="nav-back-group" @click="router.back()">
+                <svg viewBox="0 0 24 24" class="icon-svg">
+                    <path
+                        d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
+                        fill="currentColor"
+                    />
+                </svg>
+                <span class="nav-title">创建订单</span>
             </div>
         </header>
 
@@ -498,42 +493,31 @@ watch(
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(248, 250, 252, 0.85);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.02);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    padding: 16px 16px 14px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.nav-main {
+.nav-back-group {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
-}
-
-.back-icon-btn {
-    border: none;
-    background: none;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     color: var(--text);
-    margin-right: 12px;
+    cursor: pointer;
+    width: fit-content;
+    min-height: 28px;
 }
 
-.nav-title-group .sub-label {
-    display: block;
-    font-size: 11px;
-    color: var(--muted);
+.icon-svg {
+    width: 20px;
+    height: 20px;
+}
+
+.nav-title {
+    font-size: 18px;
     font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-}
-
-.nav-title-group .main-title {
-    margin: 0;
-    font-size: 22px;
-    font-weight: 800;
+    color: var(--text);
+    margin-left: 6px;
 }
 
 /* 布局容器 */

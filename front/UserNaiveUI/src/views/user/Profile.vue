@@ -4,14 +4,6 @@
             <div>
                 <span class="account-center__eyebrow">Campus Service ID</span>
             </div>
-            <button
-                type="button"
-                class="account-center__settings touch-feedback"
-                aria-label="进入设置"
-                @click="handleMenuClick('/settings')"
-            >
-                <NIcon :size="18"><SettingsOutline /></NIcon>
-            </button>
         </section>
 
         <section
@@ -20,13 +12,16 @@
         >
             <div class="account-center__profile-top">
                 <div class="account-center__avatar-wrap">
-                    <NAvatar
-                        :size="84"
-                        round
-                        :src="userStore.isAuthenticated ? userStore.userAvatar : undefined"
-                    >
-                        {{ userInitial }}
-                    </NAvatar>
+                    <div class="account-center__avatar-shell">
+                        <img
+                            v-if="userStore.isAuthenticated && userStore.userAvatar"
+                            :key="userStore.userAvatar"
+                            :src="userStore.userAvatar"
+                            alt="avatar"
+                            class="account-center__avatar-image"
+                        />
+                        <span v-else class="account-center__avatar-fallback">{{ userInitial }}</span>
+                    </div>
                     <button
                         v-if="userStore.isAuthenticated"
                         type="button"
@@ -82,17 +77,36 @@
             </div>
 
             <template v-if="userStore.isAuthenticated">
-                <button
-                    type="button"
-                    class="account-center__wallet-entry touch-feedback"
-                    @click="handleMenuClick('/wallet')"
-                >
-                    <div>
-                        <span>钱包余额</span>
-                        <strong>¥{{ Number(userStore.user?.balance || 0).toFixed(2) }}</strong>
-                    </div>
-                    <NIcon :size="18"><ChevronForwardOutline /></NIcon>
-                </button>
+                <div class="account-center__wallet-entry">
+                    <button
+                        type="button"
+                        class="account-center__wallet-main touch-feedback"
+                        @click="handleMenuClick('/wallet')"
+                    >
+                        <div>
+                            <span>钱包余额</span>
+                            <strong>¥{{ Number(userStore.user?.balance || 0).toFixed(2) }}</strong>
+                            <p>冻结金额 ¥{{ frozenBalanceText }}</p>
+                        </div>
+                        <div class="account-center__wallet-actions">
+                            <button
+                                type="button"
+                                class="account-center__wallet-action touch-feedback"
+                                @click.stop="handleWalletAction('withdraw')"
+                            >
+                                提现
+                            </button>
+                            <button
+                                type="button"
+                                class="account-center__wallet-action touch-feedback"
+                                @click.stop="handleWalletAction('recharge')"
+                            >
+                                充值
+                            </button>
+                        </div>
+                        <NIcon :size="18"><ChevronForwardOutline /></NIcon>
+                    </button>
+                </div>
 
                 <div class="account-center__metric-strip">
                     <article
@@ -116,6 +130,55 @@
                     <NButton quaternary round @click="router.push('/register')">注册账号</NButton>
                 </div>
             </template>
+        </section>
+
+        <section v-if="courierEnabled" class="account-center__section">
+            <div class="account-center__section-head">
+                <h3>代取员扩展位</h3>
+                <button type="button" @click="handleCourierAction">
+                    {{ courierActionLabel }}
+                </button>
+            </div>
+
+            <div v-if="courierEnabled" class="account-center__courier-card is-active">
+                <div class="account-center__courier-top">
+                    <div>
+                        <span>Runner Mode</span>
+                        <h4>代取员中心</h4>
+                    </div>
+                    <div class="account-center__courier-status">
+                        <span class="account-center__status-dot"></span>
+                        {{ courierStatusText }}
+                    </div>
+                </div>
+                <div class="account-center__courier-grid">
+                    <article
+                        v-for="item in courierMetrics"
+                        :key="item.label"
+                        class="account-center__courier-metric"
+                    >
+                        <span>{{ item.label }}</span>
+                        <strong>{{ item.value }}</strong>
+                        <p>{{ item.note }}</p>
+                    </article>
+                </div>
+                <div class="account-center__courier-actions">
+                    <button
+                        type="button"
+                        class="touch-feedback"
+                        @click="handleMenuClick('/pickup/list')"
+                    >
+                        去抢单大厅
+                    </button>
+                    <button
+                        type="button"
+                        class="touch-feedback"
+                        @click="handleMenuClick('/pickup/my')"
+                    >
+                        查看进行中订单
+                    </button>
+                </div>
+            </div>
         </section>
 
         <section class="account-center__section">
@@ -166,93 +229,29 @@
             </div>
         </section>
 
-        <section class="account-center__section">
-            <div class="account-center__section-head">
-                <h3>最近动态</h3>
-                <button type="button" @click="handleMenuClick('/chat')">查看消息</button>
-            </div>
-            <div class="account-center__timeline">
-                <article
-                    v-for="item in recentProgress"
-                    :key="item.title"
-                    class="account-center__timeline-item"
-                >
-                    <div class="account-center__timeline-icon" :style="{ background: item.tint }">
-                        <NIcon :size="18"><component :is="item.icon" /></NIcon>
-                    </div>
-                    <div class="account-center__timeline-copy">
-                        <strong>{{ item.title }}</strong>
-                        <p>{{ item.description }}</p>
-                        <span>{{ item.extra }}</span>
-                    </div>
-                </article>
-            </div>
-        </section>
-
-        <section class="account-center__section">
+        <section v-if="!courierEnabled" class="account-center__section">
             <div class="account-center__section-head">
                 <h3>代取员扩展位</h3>
                 <button type="button" @click="handleCourierAction">
-                    {{ courierEnabled ? '进入接单中心' : '申请开通' }}
+                    {{ courierActionLabel }}
                 </button>
             </div>
-
-            <div v-if="courierEnabled" class="account-center__courier-card is-active">
-                <div class="account-center__courier-top">
-                    <div>
-                        <span>Runner Mode</span>
-                        <h4>代取员中心</h4>
-                    </div>
-                    <div class="account-center__courier-status">
-                        <span class="account-center__status-dot"></span>
-                        在线接单
-                    </div>
-                </div>
-                <div class="account-center__courier-grid">
-                    <article
-                        v-for="item in courierMetrics"
-                        :key="item.label"
-                        class="account-center__courier-metric"
-                    >
-                        <span>{{ item.label }}</span>
-                        <strong>{{ item.value }}</strong>
-                        <p>{{ item.note }}</p>
-                    </article>
-                </div>
-                <div class="account-center__courier-actions">
-                    <button
-                        type="button"
-                        class="touch-feedback"
-                        @click="handleMenuClick('/pickup/list')"
-                    >
-                        去抢单大厅
-                    </button>
-                    <button
-                        type="button"
-                        class="touch-feedback"
-                        @click="handleMenuClick('/pickup/my')"
-                    >
-                        查看进行中订单
-                    </button>
-                </div>
-            </div>
-
-            <div v-else class="account-center__courier-card">
+            <div class="account-center__courier-card">
                 <div class="account-center__courier-top">
                     <div>
                         <span>Future Upgrade</span>
-                        <h4>代取员身份暂未开通</h4>
+                        <h4>{{ courierCardTitle }}</h4>
                     </div>
-                    <div class="account-center__courier-pending">待扩展</div>
+                    <div class="account-center__courier-pending">{{ courierPendingText }}</div>
                 </div>
                 <p class="account-center__courier-note">
-                    开通后你将保留普通用户全部功能，并额外获得抢单中心、在线状态、配送凭证上传和收益统计。
+                    {{ courierCardNote }}
                 </p>
                 <div class="account-center__courier-chip-row">
-                    <span>抢单大厅</span>
-                    <span>服务区域</span>
-                    <span>上传凭证</span>
-                    <span>收益管理</span>
+                    <span>{{ courierChipRow[0] }}</span>
+                    <span>{{ courierChipRow[1] }}</span>
+                    <span>{{ courierChipRow[2] }}</span>
+                    <span>{{ courierChipRow[3] }}</span>
                 </div>
             </div>
         </section>
@@ -281,14 +280,158 @@
             <NButton type="error" round block size="large" @click="handleLogout">退出登录</NButton>
         </section>
 
+        <NModal
+            v-model:show="courierApplicationModalVisible"
+            preset="card"
+            class="courier-application-modal"
+            :bordered="false"
+            :mask-closable="!courierApplicationSubmitting"
+            :closable="!courierApplicationSubmitting"
+        >
+            <div class="courier-application-modal__head">
+                <div>
+                    <span class="courier-application-modal__eyebrow">Runner Upgrade</span>
+                    <h3>{{ courierApplicationMode === 'submit' ? '申请配送员' : '修改配送员申请' }}</h3>
+                </div>
+                <p>提交基础身份信息与身份证照片后，管理员会尽快完成审核。</p>
+            </div>
+
+            <div class="courier-application-modal__grid">
+                <label class="courier-application-modal__field">
+                    <span>真实姓名</span>
+                    <NInput
+                        v-model:value="courierApplicationForm.real_name"
+                        placeholder="请输入真实姓名"
+                    />
+                </label>
+                <label class="courier-application-modal__field">
+                    <span>手机号</span>
+                    <NInput
+                        v-model:value="courierApplicationForm.phone"
+                        placeholder="请输入手机号"
+                    />
+                </label>
+                <label class="courier-application-modal__field">
+                    <span>身份证号</span>
+                    <NInput
+                        v-model:value="courierApplicationForm.id_card"
+                        placeholder="请输入身份证号"
+                    />
+                </label>
+                <label class="courier-application-modal__field">
+                    <span>紧急联系人姓名</span>
+                    <NInput
+                        v-model:value="courierApplicationForm.emergency_contact_name"
+                        placeholder="请输入紧急联系人姓名"
+                    />
+                </label>
+                <label class="courier-application-modal__field">
+                    <span>紧急联系人电话</span>
+                    <NInput
+                        v-model:value="courierApplicationForm.emergency_contact_phone"
+                        placeholder="请输入紧急联系人电话"
+                    />
+                </label>
+            </div>
+
+            <div class="courier-application-modal__uploads">
+                <button
+                    type="button"
+                    class="courier-upload-card touch-feedback"
+                    @click="frontIdInputRef?.click()"
+                >
+                    <div class="courier-upload-card__top">
+                        <span>身份证正面</span>
+                        <span class="courier-upload-card__action">
+                            {{ frontIdPreview ? '重新选择' : '上传照片' }}
+                        </span>
+                    </div>
+                    <div class="courier-upload-card__preview">
+                        <img
+                            v-if="frontIdPreview"
+                            :src="frontIdPreview"
+                            alt="身份证正面预览"
+                            class="courier-upload-card__image"
+                        />
+                        <div v-else class="courier-upload-card__placeholder">
+                            请上传清晰的身份证人像面
+                        </div>
+                    </div>
+                </button>
+
+                <button
+                    type="button"
+                    class="courier-upload-card touch-feedback"
+                    @click="backIdInputRef?.click()"
+                >
+                    <div class="courier-upload-card__top">
+                        <span>身份证反面</span>
+                        <span class="courier-upload-card__action">
+                            {{ backIdPreview ? '重新选择' : '上传照片' }}
+                        </span>
+                    </div>
+                    <div class="courier-upload-card__preview">
+                        <img
+                            v-if="backIdPreview"
+                            :src="backIdPreview"
+                            alt="身份证反面预览"
+                            class="courier-upload-card__image"
+                        />
+                        <div v-else class="courier-upload-card__placeholder">
+                            请上传清晰的身份证国徽面
+                        </div>
+                    </div>
+                </button>
+            </div>
+
+            <input
+                ref="frontIdInputRef"
+                type="file"
+                accept="image/*"
+                class="courier-application-modal__file-input"
+                @change="handleCourierFileChange('front', $event)"
+            />
+            <input
+                ref="backIdInputRef"
+                type="file"
+                accept="image/*"
+                class="courier-application-modal__file-input"
+                @change="handleCourierFileChange('back', $event)"
+            />
+
+            <div class="courier-application-modal__tips">
+                <span>仅用于平台审核，不会对外公开</span>
+                <span>支持 JPG / PNG，建议上传清晰原图</span>
+            </div>
+
+            <div class="courier-application-modal__footer">
+                <NButton
+                    quaternary
+                    round
+                    :disabled="courierApplicationSubmitting"
+                    @click="closeCourierApplicationModal"
+                >
+                    取消
+                </NButton>
+                <NButton
+                    type="primary"
+                    round
+                    :loading="courierApplicationSubmitting"
+                    @click="submitCourierApplication"
+                >
+                    {{ courierApplicationMode === 'submit' ? '提交申请' : '保存修改' }}
+                </NButton>
+            </div>
+        </NModal>
+
         <div class="account-center__safe-space"></div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, markRaw, onMounted } from 'vue';
+import { computed, h, markRaw, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NIcon, NAvatar, NSwitch, useDialog, useMessage } from 'naive-ui';
+import { NButton, NIcon, NInput, NModal, NSwitch, useDialog, useMessage } from 'naive-ui';
 import {
     BagHandleOutline,
     CameraOutline,
@@ -301,12 +444,13 @@ import {
     PersonOutline,
     ReceiptOutline,
     RibbonOutline,
-    SettingsOutline,
     ShieldCheckmarkOutline,
     StarOutline,
     StorefrontOutline,
     WalletOutline,
 } from '@vicons/ionicons5';
+import { DelivererApplicationApi, WalletApi, type DelivererApplicationPayload } from '@/api';
+import type { DelivererApplication, WalletOverview } from '@/types';
 import { useUserStore, useAppStore } from '@/stores';
 
 const router = useRouter();
@@ -314,13 +458,133 @@ const dialog = useDialog();
 const message = useMessage();
 const userStore = useUserStore();
 const appStore = useAppStore();
+const walletActionAmount = ref('');
+const delivererApplication = ref<DelivererApplication | null>(null);
+const delivererApplicationLoading = ref(false);
+const walletOverview = ref<WalletOverview | null>(null);
+const courierApplicationModalVisible = ref(false);
+const courierApplicationSubmitting = ref(false);
+const courierApplicationMode = ref<'submit' | 'update'>('submit');
+const frontIdInputRef = ref<HTMLInputElement | null>(null);
+const backIdInputRef = ref<HTMLInputElement | null>(null);
+const courierApplicationForm = reactive<DelivererApplicationPayload>({
+    real_name: '',
+    phone: '',
+    id_card: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    id_card_front: null,
+    id_card_back: null,
+});
+
+const resolveAssetUrl = (value?: string | null) => {
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
+    if (value.startsWith('/')) return `${window.location.origin}${value}`;
+    return value;
+};
+
+const frontIdPreview = computed(() => {
+    const value = courierApplicationForm.id_card_front;
+    if (!value) return '';
+    return typeof value === 'string' ? resolveAssetUrl(value) : URL.createObjectURL(value);
+});
+
+const backIdPreview = computed(() => {
+    const value = courierApplicationForm.id_card_back;
+    if (!value) return '';
+    return typeof value === 'string' ? resolveAssetUrl(value) : URL.createObjectURL(value);
+});
 
 const userInitial = computed(() => userStore.userName?.slice(0, 1).toUpperCase() || 'U');
+const frozenBalanceText = computed(() =>
+    Number(walletOverview.value?.summary.frozen_balance || 0).toFixed(2)
+);
 
 const courierEnabled = computed(() => {
     return Boolean(
-        userStore.user?.student_verified && (userStore.user?.completed_orders || 0) >= 12
+        userStore.user?.is_deliverer ||
+        delivererApplication.value?.application_status === 'approved'
     );
+});
+
+const courierStatusText = computed(() => {
+    if (delivererApplication.value?.is_online) {
+        return '在线接单';
+    }
+
+    return '已开通';
+});
+
+const courierActionLabel = computed(() => {
+    if (courierEnabled.value) {
+        return '进入接单中心';
+    }
+
+    if (delivererApplication.value?.application_status === 'pending') {
+        return '查看申请';
+    }
+
+    if (delivererApplication.value?.application_status === 'rejected') {
+        return '重新提交';
+    }
+
+    return '申请开通';
+});
+
+const courierCardTitle = computed(() => {
+    if (delivererApplication.value?.application_status === 'pending') {
+        return '配送员申请审核中';
+    }
+
+    if (delivererApplication.value?.application_status === 'rejected') {
+        return '配送员申请未通过';
+    }
+
+    return '代取员身份暂未开通';
+});
+
+const courierPendingText = computed(() => {
+    if (delivererApplicationLoading.value) {
+        return '加载中';
+    }
+
+    if (delivererApplication.value?.application_status === 'pending') {
+        return '审核中';
+    }
+
+    if (delivererApplication.value?.application_status === 'rejected') {
+        return '已退回';
+    }
+
+    return '待扩展';
+});
+
+const courierCardNote = computed(() => {
+    if (delivererApplication.value?.application_status === 'pending') {
+        return '你的配送员申请已经提交，当前正在等待管理员审核。审核通过后会自动开通接单能力。';
+    }
+
+    if (delivererApplication.value?.application_status === 'rejected') {
+        return (
+            delivererApplication.value.rejection_reason ||
+            '申请已被退回，请补充完整信息后重新提交。'
+        );
+    }
+
+    return '开通后你将保留普通用户全部功能，并额外获得抢单中心、在线状态、配送凭证上传和收益统计。';
+});
+
+const courierChipRow = computed(() => {
+    if (delivererApplication.value?.application_status === 'pending') {
+        return ['资料审核', '身份校验', '服务区域', '等待开通'];
+    }
+
+    if (delivererApplication.value?.application_status === 'rejected') {
+        return ['重新填写', '修改资料', '再次提交', '等待复审'];
+    }
+
+    return ['抢单大厅', '服务区域', '上传凭证', '收益管理'];
 });
 
 const verificationSummary = computed(() => {
@@ -472,25 +736,194 @@ const recentProgress = computed(() => {
 
 const courierMetrics = computed(() => [
     {
-        label: '今日收益',
-        value: `¥${Math.max(12, Math.round((userStore.user?.completed_orders || 0) * 2.5))}`,
-        note: '接单收益待进入钱包明细',
+        label: '累计收益',
+        value: `¥${Number(delivererApplication.value?.total_earnings || 0).toFixed(2)}`,
+        note: '配送收益会同步进入钱包明细',
     },
     {
-        label: '待抢订单',
-        value: 18,
-        note: '按宿舍区和驿站热度筛选',
+        label: '完成订单',
+        value: delivererApplication.value?.completed_orders || 0,
+        note: `总单量 ${delivererApplication.value?.total_orders || 0}`,
     },
     {
         label: '服务评分',
-        value: Number(userStore.user?.rating || 4.8).toFixed(1),
-        note: '后续接入履约评价体系',
+        value: Number(delivererApplication.value?.rating || userStore.user?.rating || 5).toFixed(1),
+        note: delivererApplication.value?.is_online ? '当前在线，可继续接单' : '当前未开启在线状态',
     },
 ]);
+
+const loadWalletOverview = async () => {
+    if (!userStore.isAuthenticated) {
+        walletOverview.value = null;
+        return;
+    }
+
+    try {
+        const response = await WalletApi.getOverview();
+        walletOverview.value = response.success ? response.data || null : null;
+    } catch (error) {
+        console.error('获取钱包概览失败:', error);
+        walletOverview.value = null;
+    }
+};
+
+const loadDelivererApplication = async () => {
+    if (!userStore.isAuthenticated) {
+        delivererApplication.value = null;
+        return;
+    }
+
+    delivererApplicationLoading.value = true;
+    try {
+        const response = await DelivererApplicationApi.getStatus();
+        delivererApplication.value = response.success ? response.data || null : null;
+    } catch (error) {
+        console.error('获取配送员申请状态失败:', error);
+        delivererApplication.value = null;
+    } finally {
+        delivererApplicationLoading.value = false;
+    }
+};
+
+const openDelivererApplicationDialog = (mode: 'submit' | 'update') => {
+    courierApplicationMode.value = mode;
+    courierApplicationForm.real_name =
+        delivererApplication.value?.real_name || userStore.user?.real_name || '';
+    courierApplicationForm.phone = delivererApplication.value?.phone || userStore.user?.phone || '';
+    courierApplicationForm.id_card = delivererApplication.value?.id_card || '';
+    courierApplicationForm.emergency_contact_name =
+        delivererApplication.value?.emergency_contact_name || '';
+    courierApplicationForm.emergency_contact_phone =
+        delivererApplication.value?.emergency_contact_phone || '';
+    courierApplicationForm.id_card_front = delivererApplication.value?.id_card_front || null;
+    courierApplicationForm.id_card_back = delivererApplication.value?.id_card_back || null;
+    courierApplicationModalVisible.value = true;
+};
+
+const closeCourierApplicationModal = () => {
+    if (courierApplicationSubmitting.value) {
+        return;
+    }
+    courierApplicationModalVisible.value = false;
+};
+
+const handleCourierFileChange = (side: 'front' | 'back', event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0] || null;
+    if (side === 'front') {
+        courierApplicationForm.id_card_front = file;
+    } else {
+        courierApplicationForm.id_card_back = file;
+    }
+    (event.target as HTMLInputElement).value = '';
+};
+
+const submitCourierApplication = async () => {
+    if (
+        !courierApplicationForm.real_name ||
+        !courierApplicationForm.phone ||
+        !courierApplicationForm.id_card ||
+        !courierApplicationForm.emergency_contact_name ||
+        !courierApplicationForm.emergency_contact_phone ||
+        !courierApplicationForm.id_card_front ||
+        !courierApplicationForm.id_card_back
+    ) {
+        message.error('请填写完整申请信息并上传身份证正反面');
+        return;
+    }
+
+    courierApplicationSubmitting.value = true;
+    try {
+        const payload: DelivererApplicationPayload = {
+            real_name: courierApplicationForm.real_name.trim(),
+            phone: courierApplicationForm.phone.trim(),
+            id_card: courierApplicationForm.id_card.trim(),
+            emergency_contact_name: courierApplicationForm.emergency_contact_name.trim(),
+            emergency_contact_phone: courierApplicationForm.emergency_contact_phone.trim(),
+            id_card_front: courierApplicationForm.id_card_front,
+            id_card_back: courierApplicationForm.id_card_back,
+        };
+
+        const response =
+            courierApplicationMode.value === 'submit'
+                ? await DelivererApplicationApi.submit(payload)
+                : await DelivererApplicationApi.update(payload);
+
+        if (!response.success) {
+            throw new Error(response.message || '提交申请失败');
+        }
+
+        message.success(courierApplicationMode.value === 'submit' ? '申请已提交' : '申请已更新');
+        courierApplicationModalVisible.value = false;
+        await Promise.all([userStore.fetchUserProfile(), loadDelivererApplication()]);
+    } catch (error) {
+        message.error(error instanceof Error ? error.message : '提交申请失败');
+    } finally {
+        courierApplicationSubmitting.value = false;
+    }
+};
 
 const handleMenuClick = (path: string) => {
     appStore.hapticFeedback('light');
     router.push(path);
+};
+
+const handleWalletAction = async (mode: 'recharge' | 'withdraw') => {
+    walletActionAmount.value = '';
+
+    dialog.create({
+        title: mode === 'recharge' ? '虚拟充值' : '虚拟提现',
+        positiveText: '确认',
+        negativeText: '取消',
+        content: () =>
+            h(NInput, {
+                value: walletActionAmount.value,
+                placeholder: mode === 'recharge' ? '请输入充值金额' : '请输入提现金额',
+                onUpdateValue: value => {
+                    walletActionAmount.value = value;
+                },
+            }),
+        async onPositiveClick() {
+            const amount = Number.parseFloat(walletActionAmount.value);
+
+            if (!Number.isFinite(amount) || amount <= 0) {
+                message.error('金额格式不正确');
+                return false;
+            }
+
+            try {
+                const response =
+                    mode === 'recharge'
+                        ? await WalletApi.recharge({ amount })
+                        : await WalletApi.withdraw({ amount });
+
+                if (!response.success || !response.data) {
+                    throw new Error(
+                        response.message || (mode === 'recharge' ? '充值失败' : '提现失败')
+                    );
+                }
+
+                if (userStore.user) {
+                    userStore.user.balance = Number(response.data.balance || 0);
+                    localStorage.setItem('user', JSON.stringify(userStore.user));
+                }
+
+                message.success(
+                    `${mode === 'recharge' ? '充值' : '提现'}成功，当前余额 ¥${Number(response.data.balance || 0).toFixed(2)}`
+                );
+                await Promise.all([userStore.fetchUserProfile(), loadWalletOverview()]);
+                return true;
+            } catch (error) {
+                message.error(
+                    error instanceof Error
+                        ? error.message
+                        : mode === 'recharge'
+                          ? '充值失败'
+                          : '提现失败'
+                );
+                return false;
+            }
+        },
+    });
 };
 
 const handleThemeChange = (value: boolean) => {
@@ -504,12 +937,27 @@ const handleCourierAction = () => {
         return;
     }
 
+    if (!userStore.user?.student_verified) {
+        message.warning('请先完成学生认证，再申请配送员');
+        return;
+    }
+
     if (courierEnabled.value) {
         router.push('/pickup/list');
         return;
     }
 
-    message.info('代取员中心将在后续版本接入认证与接单流程');
+    if (delivererApplication.value?.application_status === 'pending') {
+        message.info('配送员申请正在审核中，请等待管理员处理');
+        return;
+    }
+
+    if (delivererApplication.value?.application_status === 'rejected') {
+        openDelivererApplicationDialog('update');
+        return;
+    }
+
+    openDelivererApplicationDialog('submit');
 };
 
 const handleLogout = () => {
@@ -529,7 +977,12 @@ const handleLogout = () => {
 onMounted(async () => {
     if (userStore.isAuthenticated) {
         try {
-            await Promise.all([userStore.fetchUserProfile(), userStore.fetchUserStats()]);
+            await Promise.all([
+                userStore.fetchUserProfile(),
+                userStore.fetchUserStats(),
+                loadDelivererApplication(),
+                loadWalletOverview(),
+            ]);
         } catch (error) {
             console.error('获取用户信息失败:', error);
         }

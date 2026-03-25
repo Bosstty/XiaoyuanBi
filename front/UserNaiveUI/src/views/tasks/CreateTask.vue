@@ -1,19 +1,11 @@
 <template>
     <div class="campus-create-task" :class="{ 'is-dark': appStore.isDark }">
         <header class="campus-nav-sticky">
-            <div class="nav-main">
-                <button type="button" class="back-icon-btn touch-feedback" @click="router.back()">
-                    <svg viewBox="0 0 24 24" class="icon-svg">
-                        <path
-                            d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
-                            fill="currentColor"
-                        />
-                    </svg>
-                </button>
-                <div class="nav-title-group">
-                    <span class="sub-label">Campus Task Form</span>
-                    <h1 class="main-title">发布任务</h1>
-                </div>
+            <div class="nav-back-group" @click="router.back()">
+                <svg viewBox="0 0 24 24" class="icon-svg">
+                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor" />
+                </svg>
+                <span class="nav-title">发布任务</span>
             </div>
         </header>
 
@@ -319,7 +311,7 @@ const submitTask = async () => {
             throw new Error(response.message || '创建任务失败');
         }
         appStore.hapticFeedback('medium');
-        message.success('任务创建成功');
+        message.success(`任务创建成功，已冻结 ¥${summaryPrice.value}`);
         router.replace('/tasks/my');
     } catch (error: any) {
         message.error(error?.message || '创建任务失败');
@@ -354,47 +346,31 @@ const submitTask = async () => {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.02);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    padding: 16px 16px 14px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.nav-main {
+.nav-back-group {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
-}
-
-.back-icon-btn {
-    border: none;
-    background: none;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     color: var(--text);
-    margin-right: 12px;
+    cursor: pointer;
+    width: fit-content;
+    min-height: 28px;
 }
 
 .icon-svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
 }
 
-.nav-title-group .sub-label {
-    display: block;
-    font-size: 11px;
-    color: var(--muted);
+.nav-title {
+    font-size: 18px;
     font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-}
-
-.nav-title-group .main-title {
-    margin: 0;
-    font-size: 22px;
-    font-weight: 800;
+    color: var(--text);
+    margin-left: 6px;
 }
 
 .task-viewport {

@@ -1,15 +1,16 @@
 <template>
     <div class="campus-orders" :class="{ 'is-dark': appStore.isDark }">
         <header class="campus-nav-sticky">
-            <div class="nav-main">
-                <button type="button" class="back-icon-btn touch-feedback" @click="router.back()">
+            <div class="nav-row">
+                <div class="nav-back-group" @click="router.back()">
                     <svg viewBox="0 0 24 24" class="icon-svg">
                         <path
                             d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
                             fill="currentColor"
                         />
                     </svg>
-                </button>
+                    <span class="nav-title">我的订单</span>
+                </div>
                 <div class="tabs-group">
                     <button
                         v-for="tab in tabs"
@@ -192,7 +193,6 @@ const rating = ref(5);
 const ratingComment = ref('');
 
 const tabs = [
-    { key: 'all' as OrderTypeFilter, label: '全部订单' },
     { key: 'published' as OrderTypeFilter, label: '我发布的' },
     { key: 'accepted' as OrderTypeFilter, label: '我接的' },
 ];
@@ -437,9 +437,9 @@ onMounted(async () => {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(var(--surface), 0.9);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.02);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .nav-main {
@@ -448,21 +448,32 @@ onMounted(async () => {
     padding: 12px 16px;
 }
 
-.back-icon-btn {
-    border: none;
-    background: none;
-    width: 32px;
-    height: 32px;
+.nav-row {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 12px;
+    padding: 16px 16px 10px;
+}
+
+.nav-back-group {
+    display: flex;
+    align-items: center;
     color: var(--text);
-    margin-right: 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    min-height: 28px;
 }
 
 .icon-svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
+}
+
+.nav-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-left: 6px;
 }
 
 .tabs-group {
@@ -470,6 +481,7 @@ onMounted(async () => {
     gap: 16px;
     overflow-x: auto;
     scrollbar-width: none;
+    min-width: 0;
 }
 
 .tab-link {

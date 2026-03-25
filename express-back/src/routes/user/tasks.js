@@ -24,6 +24,9 @@ router.put('/:id', TaskController.updateTask);
 // 删除任务
 router.delete('/:id', TaskController.deleteTask);
 
+// 取消发布任务
+router.post('/:id/cancel', TaskController.cancelTask);
+
 // 申请任务
 router.post('/:id/apply', TaskController.applyForTask);
 
@@ -35,5 +38,8 @@ router.patch('/:id/applications/:applicationId', TaskController.handleApplicatio
 
 // 完成任务
 router.post('/:id/complete', TaskController.completeTask);
+
+// 发布者确认完成任务
+router.post('/:id/confirm', TaskController.confirmTask);
 
 module.exports = router;

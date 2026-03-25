@@ -1,6 +1,201 @@
-const { Task, TaskApplication, User } = require('../../models');
-const { responseUtils, orderUtils } = require('../../utils');
+const { Task, TaskApplication, User, Wallet, Transaction } = require('../../models');
+const { responseUtils, orderUtils, cryptoUtils } = require('../../utils');
 const { Op } = require('sequelize');
+
+const parseAmount = value => Number(value || 0);
+
+async function getLockedUserAndWallet(userId, transaction) {
+    const user = await User.findByPk(userId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!user) {
+        throw new Error('用户不存在');
+    }
+
+    let wallet = await Wallet.findOne({
+        where: { user_id: user.id },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!wallet) {
+        wallet = await Wallet.create(
+            {
+                user_id: user.id,
+                balance: parseAmount(user.balance),
+            },
+            { transaction }
+        );
+
+        wallet = await Wallet.findOne({
+            where: { user_id: user.id },
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+        });
+    }
+
+    return { user, wallet };
+}
+
+async function freezeTaskFunds(publisherId, amount, transaction) {
+    const { user, wallet } = await getLockedUserAndWallet(publisherId, transaction);
+    const availableBalance = parseAmount(wallet.balance);
+    const frozenBalance = parseAmount(wallet.frozen_balance);
+
+    if (availableBalance < amount) {
+        throw new Error('余额不足，任务创建失败，请先充值后再发布');
+    }
+
+    const nextAvailableBalance = availableBalance - amount;
+
+    await wallet.update(
+        {
+            balance: nextAvailableBalance,
+            frozen_balance: frozenBalance + amount,
+            last_transaction_at: new Date(),
+        },
+        { transaction }
+    );
+
+    await user.update(
+        {
+            balance: nextAvailableBalance,
+        },
+        { transaction }
+    );
+}
+
+async function releaseTaskFunds(publisherId, amount, transaction) {
+    const { user, wallet } = await getLockedUserAndWallet(publisherId, transaction);
+    const availableBalance = parseAmount(wallet.balance);
+    const frozenBalance = parseAmount(wallet.frozen_balance);
+
+    if (frozenBalance < amount) {
+        throw new Error('冻结金额不足，无法解冻任务资金');
+    }
+
+    const nextAvailableBalance = availableBalance + amount;
+
+    await wallet.update(
+        {
+            balance: nextAvailableBalance,
+            frozen_balance: frozenBalance - amount,
+            last_transaction_at: new Date(),
+        },
+        { transaction }
+    );
+
+    await user.update(
+        {
+            balance: nextAvailableBalance,
+        },
+        { transaction }
+    );
+}
+
+async function settleTaskPayment(task, paymentPassword, transaction) {
+    const amount = parseAmount(task.price);
+    const { user: publisher, wallet: publisherWallet } = await getLockedUserAndWallet(
+        task.publisher_id,
+        transaction
+    );
+
+    if (!publisherWallet.payment_password_set || !publisherWallet.payment_password) {
+        throw new Error('请先设置支付密码');
+    }
+
+    if (!paymentPassword || !String(paymentPassword).trim()) {
+        throw new Error('请输入支付密码');
+    }
+
+    const encryptedPassword = cryptoUtils.sha256(String(paymentPassword).trim());
+    if (publisherWallet.payment_password !== encryptedPassword) {
+        throw new Error('支付密码错误');
+    }
+
+    const publisherFrozenBalance = parseAmount(publisherWallet.frozen_balance);
+    if (publisherFrozenBalance < amount) {
+        throw new Error('冻结金额不足，无法完成支付');
+    }
+
+    await publisherWallet.update(
+        {
+            frozen_balance: publisherFrozenBalance - amount,
+            total_expense: parseAmount(publisherWallet.total_expense) + amount,
+            last_transaction_at: new Date(),
+        },
+        { transaction }
+    );
+
+    await Transaction.create(
+        {
+            transaction_no: `TX${Date.now()}${Math.random().toString().slice(2, 6)}`,
+            user_id: publisher.id,
+            type: 'payment',
+            amount,
+            direction: 'out',
+            balance_before: parseAmount(publisherWallet.balance),
+            balance_after: parseAmount(publisherWallet.balance),
+            status: 'success',
+            related_type: 'task',
+            related_id: task.id,
+            payment_method: 'balance',
+            description: `任务报酬支出：${task.title}`,
+            completed_at: new Date(),
+        },
+        { transaction }
+    );
+
+    if (!task.assignee_id) {
+        return;
+    }
+
+    const { user: assignee, wallet: assigneeWallet } = await getLockedUserAndWallet(
+        task.assignee_id,
+        transaction
+    );
+
+    const assigneeBalanceBefore = parseAmount(assigneeWallet.balance);
+    const assigneeBalanceAfter = assigneeBalanceBefore + amount;
+
+    await assigneeWallet.update(
+        {
+            balance: assigneeBalanceAfter,
+            total_income: parseAmount(assigneeWallet.total_income) + amount,
+            last_transaction_at: new Date(),
+        },
+        { transaction }
+    );
+
+    await assignee.update(
+        {
+            balance: assigneeBalanceAfter,
+            completed_tasks: Number(assignee.completed_tasks || 0) + 1,
+        },
+        { transaction }
+    );
+
+    await Transaction.create(
+        {
+            transaction_no: `TX${Date.now()}${Math.random().toString().slice(2, 6)}`,
+            user_id: assignee.id,
+            type: 'earn_task',
+            amount,
+            direction: 'in',
+            balance_before: assigneeBalanceBefore,
+            balance_after: assigneeBalanceAfter,
+            status: 'success',
+            related_type: 'task',
+            related_id: task.id,
+            payment_method: 'balance',
+            description: `任务协作收入：${task.title}`,
+            completed_at: new Date(),
+        },
+        { transaction }
+    );
+}
 
 class TaskController {
     // 创建任务
@@ -77,30 +272,47 @@ class TaskController {
                 return res.status(400).json(responseUtils.error('预计时长不能小于1小时'));
             }
 
-            // 生成任务号
-            const taskNo = orderUtils.generateOrderNo('TK');
+            const dbTransaction = await Task.sequelize.transaction();
+            let task;
 
-            const task = await Task.create({
-                task_no: taskNo,
-                publisher_id: userId,
-                category,
-                title: String(title).trim(),
-                description: String(description).trim(),
-                requirements: requirements ? String(requirements).trim() : null,
-                tags: Array.isArray(tags) ? tags : null,
-                skills_required: Array.isArray(skills_required) ? skills_required : null,
-                price: Number(price),
-                location: location ? String(location).trim() : null,
-                start_time: startTimeDate || null,
-                deadline: deadlineDate,
-                estimated_duration: estimated_duration ? Number(estimated_duration) : null,
-                max_applicants: max_applicants ? Number(max_applicants) : 1,
-                urgent: Boolean(urgent),
-                remote_work: Boolean(remote_work),
-                images: Array.isArray(images) ? images : null,
-                attachments: Array.isArray(attachments) ? attachments : null,
-                status: 'pending', // 任务创建后需要管理员审核
-            });
+            try {
+                // 生成任务号
+                const taskNo = orderUtils.generateOrderNo('TK');
+                const taskAmount = parseAmount(price);
+
+                await freezeTaskFunds(userId, taskAmount, dbTransaction);
+
+                task = await Task.create(
+                    {
+                        task_no: taskNo,
+                        publisher_id: userId,
+                        category,
+                        title: String(title).trim(),
+                        description: String(description).trim(),
+                        requirements: requirements ? String(requirements).trim() : null,
+                        tags: Array.isArray(tags) ? tags : null,
+                        skills_required: Array.isArray(skills_required) ? skills_required : null,
+                        price: taskAmount,
+                        location: location ? String(location).trim() : null,
+                        start_time: startTimeDate || null,
+                        deadline: deadlineDate,
+                        estimated_duration: estimated_duration ? Number(estimated_duration) : null,
+                        max_applicants: max_applicants ? Number(max_applicants) : 1,
+                        urgent: Boolean(urgent),
+                        remote_work: Boolean(remote_work),
+                        images: Array.isArray(images) ? images : null,
+                        attachments: Array.isArray(attachments) ? attachments : null,
+                        status: 'pending',
+                        payment_status: 'unpaid',
+                    },
+                    { transaction: dbTransaction }
+                );
+
+                await dbTransaction.commit();
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
+            }
 
             // 获取包含发布者信息的任务详情
             const taskWithPublisher = await Task.findByPk(task.id, {
@@ -116,7 +328,24 @@ class TaskController {
             res.json(responseUtils.success(taskWithPublisher, '任务创建成功'));
         } catch (error) {
             console.error('创建任务失败:', error);
-            return res.status(500).json(responseUtils.error('创建任务失败'));
+            const errorMessage = error.message || '创建任务失败';
+            const isBusinessError = [
+                '余额不足',
+                '任务分类不正确',
+                '任务标题不能为空',
+                '任务描述不能为空',
+                '任务报酬必须大于0',
+                '截止时间不能为空',
+                '截止时间格式不正确',
+                '截止时间必须晚于当前时间',
+                '开始时间格式不正确',
+                '开始时间不能晚于截止时间',
+                '最大申请人数不能小于1',
+                '预计时长不能小于1小时',
+            ].some(message => errorMessage.includes(message));
+            return res
+                .status(isBusinessError ? 400 : 500)
+                .json(responseUtils.error(isBusinessError ? errorMessage : '创建任务失败'));
         }
     }
 
@@ -381,12 +610,75 @@ class TaskController {
                 return res.status(400).json(responseUtils.error('任务状态不允许删除'));
             }
 
-            await task.destroy();
+            const dbTransaction = await Task.sequelize.transaction();
+            try {
+                if (task.payment_status === 'unpaid') {
+                    await releaseTaskFunds(task.publisher_id, parseAmount(task.price), dbTransaction);
+                }
+
+                await Task.destroy({
+                    where: { id: task.id },
+                    transaction: dbTransaction,
+                });
+
+                await dbTransaction.commit();
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
+            }
 
             res.json(responseUtils.success(null, '任务删除成功'));
         } catch (error) {
             console.error('删除任务失败:', error);
             return res.status(500).json(responseUtils.error('删除任务失败'));
+        }
+    }
+
+    // 取消发布任务
+    static async cancelTask(req, res) {
+        try {
+            const { id } = req.params;
+            const userId = req.user.id;
+
+            const task = await Task.findByPk(id);
+
+            if (!task) {
+                return res.status(404).json(responseUtils.error('任务不存在'));
+            }
+
+            if (task.publisher_id !== userId) {
+                return res.status(403).json(responseUtils.error('无权限取消此任务'));
+            }
+
+            if (!['pending', 'published'].includes(task.status)) {
+                return res.status(400).json(responseUtils.error('当前任务状态不允许取消发布'));
+            }
+
+            const dbTransaction = await Task.sequelize.transaction();
+            try {
+                if (task.payment_status === 'unpaid') {
+                    await releaseTaskFunds(task.publisher_id, parseAmount(task.price), dbTransaction);
+                }
+
+                await task.update(
+                    {
+                        status: 'cancelled',
+                        cancel_reason: '用户主动取消发布',
+                        payment_status: task.payment_status === 'unpaid' ? 'refunded' : task.payment_status,
+                    },
+                    { transaction: dbTransaction }
+                );
+
+                await dbTransaction.commit();
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
+            }
+
+            return res.json(responseUtils.success(task, '任务已取消发布'));
+        } catch (error) {
+            console.error('取消发布任务失败:', error);
+            return res.status(500).json(responseUtils.error('取消发布任务失败'));
         }
     }
 
@@ -581,18 +873,91 @@ class TaskController {
                 return res.status(400).json(responseUtils.error('任务状态不允许提交'));
             }
 
+            if (task.submit_time) {
+                return res.status(400).json(responseUtils.error('你已经提交过完成申请，请等待发布者确认'));
+            }
+
             await task.update({
-                status: 'completed',
                 submit_time: new Date(),
-                complete_time: new Date(),
                 submission_note,
                 attachments,
             });
 
-            res.json(responseUtils.success(null, '任务提交成功'));
+            res.json(responseUtils.success(null, '已提交完成申请，请等待发布者确认'));
         } catch (error) {
             console.error('完成任务失败:', error);
             return res.status(500).json(responseUtils.error('完成任务失败'));
+        }
+    }
+
+    // 发布者确认任务完成
+    static async confirmTask(req, res) {
+        try {
+            const { id } = req.params;
+            const userId = req.user.id;
+            const { payment_password } = req.body;
+
+            const dbTransaction = await Task.sequelize.transaction();
+            let task;
+
+            try {
+                task = await Task.findByPk(id, {
+                    transaction: dbTransaction,
+                    lock: dbTransaction.LOCK.UPDATE,
+                });
+
+                if (!task) {
+                    await dbTransaction.rollback();
+                    return res.status(404).json(responseUtils.error('任务不存在'));
+                }
+
+                if (task.publisher_id !== userId) {
+                    await dbTransaction.rollback();
+                    return res.status(403).json(responseUtils.error('无权限确认此任务'));
+                }
+
+                if (task.status !== 'in_progress') {
+                    await dbTransaction.rollback();
+                    return res
+                        .status(400)
+                        .json(responseUtils.error('当前任务状态不允许确认完成'));
+                }
+
+                if (!task.submit_time) {
+                    await dbTransaction.rollback();
+                    return res.status(400).json(responseUtils.error('申请人尚未提交完成申请'));
+                }
+
+                await task.update(
+                    {
+                        status: 'completed',
+                        complete_time: new Date(),
+                        payment_status: 'paid',
+                    },
+                    { transaction: dbTransaction }
+                );
+
+                await settleTaskPayment(task, payment_password, dbTransaction);
+
+                await dbTransaction.commit();
+                return res.json(responseUtils.success(task, '任务已确认完成'));
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
+            }
+        } catch (error) {
+            console.error('确认任务完成失败:', error);
+            const errorMessage = error.message || '确认任务完成失败';
+            const isBusinessError = [
+                '请先设置支付密码',
+                '请输入支付密码',
+                '支付密码错误',
+                '冻结金额不足',
+                '用户不存在',
+            ].some(message => errorMessage.includes(message));
+            return res
+                .status(isBusinessError ? 400 : 500)
+                .json(responseUtils.error(isBusinessError ? errorMessage : '确认任务完成失败'));
         }
     }
 
@@ -604,7 +969,14 @@ class TaskController {
 
             const offset = (page - 1) * limit;
             let where = {};
-            const validStatuses = ['published', 'in_progress', 'completed', 'cancelled', 'expired'];
+            const validStatuses = [
+                'pending',
+                'published',
+                'in_progress',
+                'completed',
+                'cancelled',
+                'expired',
+            ];
 
             if (status && !validStatuses.includes(status)) {
                 return res.status(400).json(responseUtils.error('任务状态参数不正确'));

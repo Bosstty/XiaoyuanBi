@@ -349,7 +349,7 @@ import {
   Document,
   Shop,
 } from '@element-plus/icons-vue'
-import { taskManagementApi } from '@/api'
+import { serviceChatApi, taskManagementApi } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -468,8 +468,31 @@ const deleteTask = async () => {
   }
 }
 
-const contactPublisher = () => {
-  ElMessage.info('联系发布者功能开发中')
+const contactPublisher = async () => {
+  const publisherId = Number(task.value?.publisher?.id || task.value?.publisher_id || 0)
+  if (!publisherId) {
+    ElMessage.warning('未找到发布者信息')
+    return
+  }
+
+  try {
+    const response = await serviceChatApi.createConversation({
+      user_id: publisherId,
+      task_id: task.value?.id,
+      initial_message: `您好，这里是平台客服，关于任务「${task.value?.title || ''}」需要和您沟通。`,
+    })
+
+    if (!response.success || !response.data?.id) {
+      throw new Error(response.message || '创建会话失败')
+    }
+
+    router.push({
+      path: '/service/chat',
+      query: { conversationId: String(response.data.id) },
+    })
+  } catch (error) {
+    ElMessage.error('联系发布者失败: ' + error.message)
+  }
 }
 
 const viewUserDetail = (userId) => {

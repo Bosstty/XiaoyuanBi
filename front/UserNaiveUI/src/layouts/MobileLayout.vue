@@ -69,6 +69,7 @@ const routeLevels: Record<string, number> = {
     '/tasks': 1,
     '/chat': 1,
     '/forum': 1,
+    '/forum/index': 1,
     '/profile': 1,
     '/login': 2,
     '/register': 2,

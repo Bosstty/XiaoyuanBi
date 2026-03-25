@@ -44,7 +44,13 @@ export class AuthApi {
 
     // 上传头像
     static async uploadAvatar(file: File): Promise<ApiResponse<{ avatar: string }>> {
-        return apiClient.upload('/auth/upload-avatar', file);
+        const formData = new FormData();
+        formData.append('avatar', file);
+        return apiClient.post('/profile/avatar', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
     }
 
     // 发送验证码
@@ -86,21 +92,34 @@ export class AuthApi {
 export class UserApi {
     // 获取个人资料
     static async getProfile(): Promise<ApiResponse<User>> {
-        return apiClient.get('/user/profile');
+        return apiClient.get('/profile');
     }
 
     // 更新个人资料
     static async updateProfile(data: Partial<User>): Promise<ApiResponse<User>> {
-        return apiClient.put('/user/profile', data);
+        return apiClient.put('/profile', data);
     }
 
     // 上传头像
     static async uploadAvatar(file: File): Promise<ApiResponse<{ avatar: string }>> {
-        return apiClient.upload('/user/avatar', file);
+        return apiClient.upload('/profile/avatar', file);
     }
 
     // 获取用户统计
     static async getStats(): Promise<ApiResponse<UserStats>> {
-        return apiClient.get('/user/stats');
+        return apiClient.get('/profile/stats');
+    }
+
+    // 提交学生认证
+    static async submitStudentVerification(
+        file: File
+    ): Promise<ApiResponse<{ user: User; verification_data: User['verification_data'] }>> {
+        const formData = new FormData();
+        formData.append('student_card', file);
+        return apiClient.post('/profile/student-verification', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
     }
 }

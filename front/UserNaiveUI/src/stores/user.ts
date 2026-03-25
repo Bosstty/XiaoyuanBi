@@ -4,6 +4,22 @@ import { AuthApi, UserApi } from '@/api';
 import type { User, UserLoginData, UserRegisterData, UserStats } from '@/types';
 
 export const useUserStore = defineStore('user', () => {
+    const resolveAssetUrl = (value?: string | null) => {
+        if (!value) {
+            return '';
+        }
+
+        if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
+            return value;
+        }
+
+        if (value.startsWith('/uploads/')) {
+            return `${window.location.origin}${value}`;
+        }
+
+        return value;
+    };
+
     // 状态
     const user = ref<User | null>(null);
     const token = ref<string | null>(localStorage.getItem('token'));
@@ -14,7 +30,7 @@ export const useUserStore = defineStore('user', () => {
     const isAuthenticated = computed(() => !!token.value && !!user.value);
     const isStudent = computed(() => user.value?.student_verified || false);
     const userName = computed(() => user.value?.username || user.value?.real_name || '用户');
-    const userAvatar = computed(() => user.value?.avatar || '/default-avatar.png');
+    const userAvatar = computed(() => resolveAssetUrl(user.value?.avatar));
 
     // 方法
 

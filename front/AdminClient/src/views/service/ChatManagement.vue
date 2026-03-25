@@ -267,12 +267,14 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ChatDotRound, Promotion, Refresh, Search, Service, User } from '@element-plus/icons-vue'
 import { publicApi, serviceChatApi } from '@/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '')
+const route = useRoute()
 
 const searchKeyword = ref('')
 const messageInput = ref('')
@@ -460,6 +462,19 @@ const selectConversation = async (conversation) => {
   await loadConversationDetail(conversation.id)
 }
 
+const openConversationById = async (conversationId) => {
+  const numericId = Number(conversationId || 0)
+  if (!numericId) return
+
+  const localConversation = conversations.value.find((item) => Number(item.id) === numericId)
+  if (localConversation) {
+    await selectConversation(localConversation)
+    return
+  }
+
+  await loadConversationDetail(numericId)
+}
+
 const refreshConversations = async () => {
   await fetchConversations()
   if (currentConversation.value?.id) {
@@ -643,11 +658,21 @@ const stopPolling = () => {
 
 onMounted(async () => {
   await fetchConversations()
+  await openConversationById(route.query.conversationId)
 })
 
 onBeforeUnmount(() => {
   stopPolling()
 })
+
+watch(
+  () => route.query.conversationId,
+  async (value) => {
+    const conversationId = Number(value || 0)
+    if (!conversationId || currentConversation.value?.id === conversationId) return
+    await openConversationById(conversationId)
+  },
+)
 
 watch(
   () => currentConversation.value?.id,

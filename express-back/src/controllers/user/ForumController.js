@@ -389,12 +389,11 @@ class ForumController {
     // 获取热门帖子
     static async getHotPosts(req, res) {
         try {
-            const { limit = 10 } = req.query;
+            const { limit = 3 } = req.query;
 
             const posts = await ForumPost.findAll({
                 where: {
                     status: 'published',
-                    isHot: true,
                 },
                 include: [
                     {
@@ -404,8 +403,8 @@ class ForumController {
                     },
                 ],
                 order: [
-                    ['likeCount', 'DESC'],
                     ['viewCount', 'DESC'],
+                    ['likeCount', 'DESC'],
                     ['createdAt', 'DESC'],
                 ],
                 limit: parseInt(limit),

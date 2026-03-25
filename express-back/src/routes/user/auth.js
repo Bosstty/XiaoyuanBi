@@ -1,6 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const UserAuthController = require('../../controllers/user/AuthController');
+const { authMiddleware } = require('../../middleware');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const avatarUploadDir = path.join(process.cwd(), 'uploads', 'avatars');
+fs.mkdirSync(avatarUploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+    destination: function (_req, _file, cb) {
+        cb(null, avatarUploadDir);
+    },
+    filename: function (req, file, cb) {
+        cb(null, `${req.user.id}_${Date.now()}${path.extname(file.originalname)}`);
+    },
+});
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 // 用户注册
 router.post('/register', UserAuthController.register);
@@ -9,25 +30,12 @@ router.post('/register', UserAuthController.register);
 router.post('/login', UserAuthController.login);
 
 // 需要认证的用户路由
-router.get('/profile', UserAuthController.getProfile);
-router.put('/profile', UserAuthController.updateProfile);
-router.post('/change-password', UserAuthController.changePassword);
-router.post('/upload-avatar', UserAuthController.uploadAvatar);
-router.post('/send-verification-code', UserAuthController.sendVerificationCode);
-router.post('/verify-code', UserAuthController.verifyCode);
-router.post('/wechat-login', UserAuthController.wechatLogin);
-router.post('/wechat-oauth', UserAuthController.wechatOAuth);
-router.post('/logout', UserAuthController.logout);
-router.delete('/account', UserAuthController.deleteAccount);
-router.get('/stats', UserAuthController.getUserStats);
-
-// 设备管理
-router.get('/devices', UserAuthController.getDevices);
-router.post('/logout-device/:device_id', UserAuthController.logoutDevice);
-
-// 密码重置
-router.post('/forgot-password', UserAuthController.sendPasswordResetEmail);
-router.get('/reset-password/:token', UserAuthController.verifyResetToken);
-router.post('/reset-password', UserAuthController.resetPassword);
+router.get('/profile', authMiddleware, UserAuthController.getProfile);
+router.put('/profile', authMiddleware, UserAuthController.updateProfile);
+router.post('/change-password', authMiddleware, UserAuthController.changePassword);
+router.post('/upload-avatar', authMiddleware, upload.single('avatar'), UserAuthController.uploadAvatar);
+router.post('/logout', authMiddleware, UserAuthController.logout);
+router.delete('/account', authMiddleware, UserAuthController.deleteAccount);
+router.get('/stats', authMiddleware, UserAuthController.getUserStats);
 
 module.exports = router;

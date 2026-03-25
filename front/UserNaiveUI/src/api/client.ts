@@ -61,7 +61,15 @@ class ApiClient {
                     console.error('网络错误，请检查网络连接');
                 }
 
-                return Promise.reject(error);
+                const serverMessage =
+                    error.response?.data?.message ||
+                    error.response?.data?.error ||
+                    error.message ||
+                    '请求失败';
+                const normalizedError = new Error(serverMessage);
+                (normalizedError as Error & { response?: unknown }).response = error.response;
+
+                return Promise.reject(normalizedError);
             }
         );
     }

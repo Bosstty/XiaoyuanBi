@@ -193,6 +193,9 @@
                     </div>
                   </div>
                 </div>
+                <el-button type="primary" text @click="contactDeliverer">
+                  联系配送员
+                </el-button>
               </el-card>
             </el-col>
           </el-row>
@@ -341,7 +344,7 @@ import {
   FirstAidKit,
   Shop,
 } from '@element-plus/icons-vue'
-import { orderManagementApi } from '@/api'
+import { orderManagementApi, serviceChatApi } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -526,8 +529,58 @@ const cancelOrder = async () => {
   }
 }
 
-const contactUser = () => {
-  ElMessage.info('联系用户功能开发中')
+const contactUser = async () => {
+  const targetUserId = Number(order.value?.user?.id || order.value?.user_id || 0)
+  if (!targetUserId) {
+    ElMessage.warning('未找到用户信息')
+    return
+  }
+
+  try {
+    const response = await serviceChatApi.createConversation({
+      user_id: targetUserId,
+      order_id: order.value?.id,
+      initial_message: `您好，这里是平台客服，关于订单「${order.value?.title || order.value?.order_no || ''}」需要和您沟通。`,
+    })
+
+    if (!response.success || !response.data?.id) {
+      throw new Error(response.message || '创建会话失败')
+    }
+
+    router.push({
+      path: '/service/chat',
+      query: { conversationId: String(response.data.id) },
+    })
+  } catch (error) {
+    ElMessage.error('联系用户失败: ' + error.message)
+  }
+}
+
+const contactDeliverer = async () => {
+  const targetDelivererId = Number(order.value?.delivererInfo?.id || order.value?.deliverer_id || 0)
+  if (!targetDelivererId) {
+    ElMessage.warning('未找到配送员信息')
+    return
+  }
+
+  try {
+    const response = await serviceChatApi.createConversation({
+      deliverer_id: targetDelivererId,
+      order_id: order.value?.id,
+      initial_message: `您好，这里是平台客服，关于订单「${order.value?.title || order.value?.order_no || ''}」需要和您沟通。`,
+    })
+
+    if (!response.success || !response.data?.id) {
+      throw new Error(response.message || '创建会话失败')
+    }
+
+    router.push({
+      path: '/service/chat',
+      query: { conversationId: String(response.data.id) },
+    })
+  } catch (error) {
+    ElMessage.error('联系配送员失败: ' + error.message)
+  }
 }
 
 // 辅助函数

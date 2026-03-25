@@ -272,6 +272,9 @@
               </div>
             </el-option>
           </el-select>
+          <div v-if="!assignDialog.loading && !assignDialog.deliverers.length" class="assign-empty">
+            当前没有可分配的在线配送员
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -335,10 +338,12 @@ const assignDialog = reactive({
   visible: false,
   loading: false,
   submitting: false,
-  orderId: null,
-  orderNo: '',
-  type: '',
-  delivererId: null,
+  form: {
+    orderId: null,
+    orderNo: '',
+    type: '',
+    delivererId: null,
+  },
   deliverers: [],
 })
 
@@ -425,18 +430,20 @@ const editStatus = (order) => {
 }
 
 const openAssignDialog = async (order) => {
-  assignDialog.orderId = order.id
-  assignDialog.orderNo = order.order_no
-  assignDialog.type = order.type
-  assignDialog.delivererId = null
+  assignDialog.form.orderId = order.id
+  assignDialog.form.orderNo = order.order_no
+  assignDialog.form.type = order.type
+  assignDialog.form.delivererId = null
+  assignDialog.deliverers = []
   assignDialog.loading = true
   assignDialog.visible = true
 
   try {
-    // 获取在线配送员列表 (状态为 active)
+    // 获取可分配的在线配送员
     const response = await delivererManagementApi.getDeliverers({
       status: 'active',
       verified: 'true',
+      online: 'true',
       limit: 100,
     })
     if (response.success) {
@@ -450,15 +457,15 @@ const openAssignDialog = async (order) => {
 }
 
 const assignOrder = async () => {
-  if (!assignDialog.delivererId) {
+  if (!assignDialog.form.delivererId) {
     ElMessage.warning('请选择配送员')
     return
   }
   assignDialog.submitting = true
   try {
     const response = await orderManagementApi.batchAssignOrders({
-      orderIds: [assignDialog.orderId],
-      delivererId: assignDialog.delivererId,
+      orderIds: [assignDialog.form.orderId],
+      delivererId: assignDialog.form.delivererId,
     })
     if (response.success) {
       ElMessage.success('订单分配成功')

@@ -109,6 +109,14 @@
 
                         <div class="foot-actions" @click.stop>
                             <NButton
+                                v-if="canCancelPublish(task)"
+                                size="small"
+                                class="del-btn"
+                                @click="handleCancelPublish(task)"
+                            >
+                                取消发布
+                            </NButton>
+                            <NButton
                                 v-if="canDelete(task)"
                                 size="small"
                                 class="del-btn"
@@ -183,6 +191,7 @@ const tabs = [
 
 const statusOptions: Array<{ label: string; value: TaskStatusFilter }> = [
     { label: '全部状态', value: '' },
+    { label: '审核中', value: 'pending' },
     { label: '招募中', value: 'published' },
     { label: '进行中', value: 'in_progress' },
     { label: '已完成', value: 'completed' },
@@ -252,6 +261,7 @@ const getCategoryLabel = (cat: string) =>
 
 const getStatusLabel = (status: string) =>
     ({
+        pending: '审核中',
         published: '招募中',
         in_progress: '进行中',
         completed: '已完成',
@@ -259,7 +269,7 @@ const getStatusLabel = (status: string) =>
         expired: '已过期',
     })[status] ?? status;
 
-const formatAmount = (v?: string | number | null) => Number(v || 0).toFixed(0);
+const formatAmount = (v?: string | number | null) => Number(v || 0).toFixed(2);
 
 const formatDateTime = (v?: string | null) => {
     if (!v) return '--';
@@ -282,7 +292,9 @@ const partnerName = (task: Task) => {
     return task.publisher?.real_name || task.publisher?.username || '匿名用户';
 };
 
-const canDelete = (task: Task) => isPublisher(task) && task.status === 'published';
+const canDelete = (_task: Task) => false;
+const canCancelPublish = (task: Task) =>
+    isPublisher(task) && ['pending', 'published'].includes(task.status);
 const canComplete = (task: Task) => !isPublisher(task) && task.status === 'in_progress';
 
 const viewTaskDetail = (id: number) => {
@@ -304,6 +316,28 @@ const handleDelete = (task: Task) => {
                 fetchTasks(1, false);
             } catch (e: any) {
                 message.error(e?.message || '删除失败');
+            }
+        },
+    });
+};
+
+const handleCancelPublish = (task: Task) => {
+    dialog.warning({
+        title: '取消发布',
+        content:
+            task.status === 'pending'
+                ? '确认撤回这条审核中的任务吗？'
+                : '确认取消发布这条任务吗？',
+        positiveText: '确认',
+        negativeText: '取消',
+        async onPositiveClick() {
+            try {
+                const r = await TaskApi.cancelTask(task.id);
+                if (!r.success) throw new Error(r.message || '取消发布失败');
+                message.success('任务已取消发布');
+                fetchTasks(1, false);
+            } catch (e: any) {
+                message.error(e?.message || '取消发布失败');
             }
         },
     });

@@ -4,11 +4,15 @@ const DelivererApplicationController = require('../../controllers/deliverer/Appl
 const { authMiddleware } = require('../../middleware');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+
+const uploadDir = path.join(process.cwd(), 'uploads', 'deliverer-applications');
+fs.mkdirSync(uploadDir, { recursive: true });
 
 // 配置multer用于文件上传
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/deliverer-applications/');
+        cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
         cb(
@@ -39,6 +43,14 @@ router.post(
 router.get('/status', authMiddleware, DelivererApplicationController.getApplicationStatus);
 
 // 更新申请信息
-router.put('/update', authMiddleware, DelivererApplicationController.updateApplication);
+router.put(
+    '/update',
+    authMiddleware,
+    upload.fields([
+        { name: 'id_card_front', maxCount: 1 },
+        { name: 'id_card_back', maxCount: 1 },
+    ]),
+    DelivererApplicationController.updateApplication
+);
 
 module.exports = router;

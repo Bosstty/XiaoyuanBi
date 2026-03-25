@@ -39,10 +39,10 @@
                 round
                 class="search-input"
                 placeholder="搜索帖子标题或内容"
-                @keyup.enter="loadPosts"
+                @keyup.enter="handleSearch"
             >
                 <template #suffix>
-                    <button type="button" class="search-btn" @click="loadPosts">搜索</button>
+                    <button type="button" class="search-btn" @click="handleSearch">搜索</button>
                 </template>
             </NInput>
         </section>
@@ -78,12 +78,19 @@
                         </div>
                     </div>
 
-                    <div class="author-info">
-                        <div class="author-line">
-                            <div class="avatar">{{ getAuthorName(post).slice(0, 1) }}</div>
-                            <span>{{ getAuthorName(post) }}</span>
+                        <div class="author-info">
+                            <div class="author-line">
+                                <div class="avatar">
+                                    <img
+                                        v-if="resolveAvatarUrl(post.author?.avatar)"
+                                        :src="resolveAvatarUrl(post.author?.avatar)"
+                                        :alt="getAuthorName(post)"
+                                    />
+                                    <span v-else>{{ getAuthorName(post).slice(0, 1) }}</span>
+                                </div>
+                                <span>{{ getAuthorName(post) }}</span>
+                            </div>
                         </div>
-                    </div>
                 </div>
 
                 <div class="card-footer" @click.stop>
@@ -159,6 +166,17 @@ function getCategoryLabel(value?: string) {
 const getAuthorName = (post: ForumPost) =>
     post.author?.real_name || post.author?.username || '匿名用户';
 
+const resolveAvatarUrl = (value?: string | null) => {
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
+        return value;
+    }
+    if (value.startsWith('/uploads/')) {
+        return `${window.location.origin}${value}`;
+    }
+    return value;
+};
+
 const formatTime = (value?: string) => {
     if (!value) return '--';
     const date = new Date(value);
@@ -191,24 +209,6 @@ const loadPosts = async () => {
     try {
         const effectiveCategory = lockedCategory.value || category.value;
         const trimmedSearch = searchQuery.value.trim();
-        const nextQuery = {
-            ...(effectiveCategory && effectiveCategory !== 'all'
-                ? { category: effectiveCategory }
-                : {}),
-            ...(trimmedSearch ? { search: trimmedSearch } : {}),
-        };
-        const currentCategory = (route.query.category as string) || '';
-        const currentSearch = (route.query.search as string) || '';
-
-        if (
-            currentCategory !== (nextQuery.category || '') ||
-            currentSearch !== (nextQuery.search || '')
-        ) {
-            router.replace({
-                path: '/forum/index',
-                query: nextQuery,
-            });
-        }
 
         const res = await forumApi.getPosts({
             page: 1,
@@ -233,8 +233,29 @@ const loadPosts = async () => {
 };
 
 const handleCategoryChange = (value: string) => {
-    category.value = value;
-    void loadPosts();
+    const trimmedSearch = searchQuery.value.trim();
+    router.replace({
+        path: '/forum/index',
+        query: {
+            ...(value && value !== 'all' ? { category: value } : {}),
+            ...(trimmedSearch ? { search: trimmedSearch } : {}),
+        },
+    });
+};
+
+const handleSearch = () => {
+    const effectiveCategory = lockedCategory.value || category.value;
+    const trimmedSearch = searchQuery.value.trim();
+
+    router.replace({
+        path: '/forum/index',
+        query: {
+            ...(effectiveCategory && effectiveCategory !== 'all'
+                ? { category: effectiveCategory }
+                : {}),
+            ...(trimmedSearch ? { search: trimmedSearch } : {}),
+        },
+    });
 };
 
 const handleLike = async (postId: number) => {
@@ -263,6 +284,7 @@ const handleLike = async (postId: number) => {
 watch(
     () => [route.query.category, route.query.search],
     () => {
+        if (route.name !== 'ForumIndex') return;
         category.value = (route.query.category as string) || 'all';
         searchQuery.value = (route.query.search as string) || '';
         void loadPosts();
@@ -496,6 +518,13 @@ watch(
     justify-content: center;
     font-size: 12px;
     font-weight: 800;
+    overflow: hidden;
+}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .card-footer {

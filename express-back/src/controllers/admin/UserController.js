@@ -1,7 +1,57 @@
-const { User, PickupOrder, Task, ForumPost, Deliverer, Admin } = require('../../models');
+const {
+    User,
+    PickupOrder,
+    Task,
+    ForumPost,
+    Deliverer,
+    Admin,
+    ChatConversation,
+    ChatMessage,
+} = require('../../models');
 const { responseUtils, paginationUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
+
+const DEFAULT_SERVICE_ID = 1;
+
+const sendStudentVerificationMessage = async (userId, adminId, content) => {
+    const serviceId = adminId || DEFAULT_SERVICE_ID;
+
+    let conversation = await ChatConversation.findOne({
+        where: {
+            type: 'user_service',
+            user_id: userId,
+            service_id: serviceId,
+            status: 'open',
+        },
+    });
+
+    if (!conversation) {
+        conversation = await ChatConversation.create({
+            user_id: userId,
+            service_id: serviceId,
+            type: 'user_service',
+            status: 'open',
+            last_message: content,
+            last_message_at: new Date(),
+        });
+    }
+
+    await ChatMessage.create({
+        conversation_id: conversation.id,
+        sender_id: serviceId,
+        sender_type: 'service',
+        receiver_type: 'user',
+        content,
+        type: 'system',
+        is_read: false,
+    });
+
+    await conversation.update({
+        last_message: content,
+        last_message_at: new Date(),
+    });
+};
 
 class AdminUserController {
     // 获取用户列表
@@ -139,6 +189,7 @@ class AdminUserController {
         try {
             const { id } = req.params;
             const { verified, reason } = req.body;
+            const isVerified = verified === true || verified === 'true';
 
             const user = await User.findByPk(id);
 
@@ -146,11 +197,50 @@ class AdminUserController {
                 return res.status(404).json(responseUtils.error('用户不存在'));
             }
 
-            await user.update({
-                student_verified: verified,
-                verification_reason: reason,
-                verified_at: verified ? new Date() : null,
-            });
+            const wasVerified = Boolean(user.student_verified);
+
+            if (!isVerified && !String(reason || '').trim()) {
+                return res.status(400).json(responseUtils.error('请填写认证不通过原因'));
+            }
+
+            if (isVerified) {
+                const verificationData = {
+                    ...(user.verification_data || {}),
+                    status: 'approved',
+                    review_reason: null,
+                    reviewed_at: new Date().toISOString(),
+                };
+
+                await user.update({
+                    student_verified: true,
+                    student_verified_at: new Date(),
+                    verification_data: verificationData,
+                });
+            } else {
+                await user.update({
+                    student_verified: false,
+                    student_verified_at: null,
+                    verification_data: null,
+                });
+
+                await sendStudentVerificationMessage(
+                    user.id,
+                    req.admin?.id || req.user?.id,
+                    wasVerified
+                        ? `学生认证已取消，原因：${String(reason).trim()}`
+                        : `学生认证未通过，原因：${String(reason).trim()}`
+                );
+            }
+
+            if (isVerified) {
+                await sendStudentVerificationMessage(
+                    user.id,
+                    req.admin?.id || req.user?.id,
+                    '学生认证已通过，您的校园身份认证已完成。'
+                );
+            }
+
+            await user.reload();
 
             res.json(responseUtils.success(user, '学生身份验证更新成功'));
         } catch (error) {
@@ -267,10 +357,10 @@ class AdminUserController {
                     updateData = { status: 'inactive' };
                     break;
                 case 'verify':
-                    updateData = { student_verified: true, verified_at: new Date() };
+                    updateData = { student_verified: true, student_verified_at: new Date() };
                     break;
                 case 'unverify':
-                    updateData = { student_verified: false, verified_at: null };
+                    updateData = { student_verified: false, student_verified_at: null };
                     break;
                 default:
                     return res.status(400).json(responseUtils.error('无效的操作类型'));

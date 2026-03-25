@@ -363,17 +363,38 @@ const handleResetPassword = async (user) => {
 const handleVerifyStudent = async (user, verified) => {
   try {
     const action = verified ? '认证' : '取消认证'
-    await ElMessageBox.confirm(
-      `确定要${action}用户 "${user.username}" 的学生身份吗？`,
-      '确认操作',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      },
-    )
+    let payload = { verified }
 
-    const response = await userManagementApi.verifyStudent(user.id, { verified })
+    if (verified) {
+      await ElMessageBox.confirm(
+        `确定要${action}用户 "${user.username}" 的学生身份吗？`,
+        '确认操作',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      )
+    } else {
+      const { value } = await ElMessageBox.prompt(
+        '请输入不通过原因，系统会自动通知用户并清空已提交的学生认证资料。',
+        '学生认证不通过',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          inputPlaceholder: '例如：学生证照片不完整，请重新上传',
+          inputValidator: (inputValue) => {
+            if (!inputValue || !inputValue.trim()) {
+              return '请填写不通过原因'
+            }
+            return true
+          },
+        },
+      )
+      payload = { verified, reason: value.trim() }
+    }
+
+    const response = await userManagementApi.verifyStudent(user.id, payload)
     if (response.success) {
       ElMessage.success(`${action}成功`)
       fetchUsers()

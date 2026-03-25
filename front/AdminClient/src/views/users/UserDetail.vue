@@ -165,12 +165,23 @@
                     <div class="verification-title">学生认证</div>
                     <div class="verification-status-row">
                       <span class="verification-status">
-                        {{ userInfo.student_verified ? '已认证' : '未认证' }}
+                        {{ getStudentVerificationText() }}
                       </span>
-                      <span v-if="userInfo.verified_at" class="verification-time">
-                        {{ formatDate(userInfo.verified_at) }}
+                      <span v-if="userInfo.student_verified_at" class="verification-time">
+                        {{ formatDate(userInfo.student_verified_at) }}
                       </span>
                     </div>
+                    <div v-if="studentCardUrl" class="student-card-preview">
+                      <span class="student-card-label">学生证照片</span>
+                      <el-image
+                        :src="studentCardUrl"
+                        :preview-src-list="[studentCardUrl]"
+                        fit="cover"
+                        preview-teleported
+                        class="student-card-image"
+                      />
+                    </div>
+                    <div v-else class="student-card-empty">未上传学生证</div>
                   </div>
                 </div>
               </el-col>
@@ -282,16 +293,35 @@
               </div>
               <div class="action-item">
                 <el-button
-                  :type="userInfo.student_verified ? 'info' : 'success'"
+                  v-if="!userInfo.student_verified"
+                  type="success"
                   size="large"
-                  @click="handleVerifyStudent"
+                  @click="handleApproveStudentVerification"
                 >
                   <el-icon><Tickets /></el-icon>
-                  {{ userInfo.student_verified ? '取消学生认证' : '认证学生身份' }}
+                  认证学生身份
                 </el-button>
-                <p>
-                  {{ userInfo.student_verified ? '取消该学生的认证状态' : '通过该学生的身份认证' }}
-                </p>
+                <el-button
+                  v-else
+                  type="info"
+                  size="large"
+                  @click="handleCancelStudentVerification"
+                >
+                  <el-icon><Close /></el-icon>
+                  取消学生认证
+                </el-button>
+                <p>{{ userInfo.student_verified ? '取消该用户的学生认证状态' : '通过该用户的学生认证' }}</p>
+              </div>
+              <div v-if="!userInfo.student_verified" class="action-item">
+                <el-button
+                  type="warning"
+                  size="large"
+                  @click="handleRejectStudentVerification"
+                >
+                  <el-icon><Close /></el-icon>
+                  审核不通过
+                </el-button>
+                <p>驳回学生认证并发送原因给用户</p>
               </div>
               <div class="action-item">
                 <el-button type="danger" size="large" @click="handleResetPassword">
@@ -309,7 +339,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -321,6 +351,7 @@ import {
   Ticket,
   Tickets,
   Key,
+  Close,
 } from '@element-plus/icons-vue'
 import { userManagementApi } from '../../api/index.js'
 
@@ -335,6 +366,16 @@ const userStats = ref({})
 const activeTab = ref('info')
 
 const userId = route.params.id
+const resolveAssetUrl = (value) => {
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value
+  if (value.startsWith('/')) return `${window.location.origin}${value}`
+  return value
+}
+
+const studentCardUrl = computed(() =>
+  resolveAssetUrl(userInfo.value?.verification_data?.student_card),
+)
 
 // 获取用户详情
 const fetchUserDetail = async () => {
@@ -400,13 +441,10 @@ const handleStatusChange = async () => {
 }
 
 // 认证学生身份
-const handleVerifyStudent = async () => {
+const handleApproveStudentVerification = async () => {
   try {
-    const verified = !userInfo.value.student_verified
-    const action = verified ? '认证' : '取消认证'
-
     await ElMessageBox.confirm(
-      `确定要${action}用户 "${userInfo.value.username}" 的学生身份吗？`,
+      `确定要认证用户 "${userInfo.value.username}" 的学生身份吗？`,
       '确认操作',
       {
         confirmButtonText: '确定',
@@ -415,14 +453,82 @@ const handleVerifyStudent = async () => {
       },
     )
 
-    const response = await userManagementApi.verifyStudent(userId, { verified })
+    const response = await userManagementApi.verifyStudent(userId, { verified: true })
     if (response.success) {
-      ElMessage.success(`${action}成功`)
+      ElMessage.success('认证成功')
       fetchUserDetail()
     }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('认证失败:', error)
+      ElMessage.error('操作失败')
+    }
+  }
+}
+
+const handleRejectStudentVerification = async () => {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      '请输入不通过原因，系统会自动给用户发送客服消息并清空认证资料。',
+      '学生认证不通过',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPlaceholder: '例如：学生证照片不清晰，请重新上传',
+        inputValidator: (inputValue) => {
+          if (!inputValue || !inputValue.trim()) {
+            return '请填写不通过原因'
+          }
+          return true
+        },
+      },
+    )
+
+    const response = await userManagementApi.verifyStudent(userId, {
+      verified: false,
+      reason: value.trim(),
+    })
+    if (response.success) {
+      ElMessage.success('已驳回学生认证')
+      fetchUserDetail()
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('驳回认证失败:', error)
+      ElMessage.error('操作失败')
+    }
+  }
+}
+
+const handleCancelStudentVerification = async () => {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `请输入取消学生认证的原因，系统会自动通知用户。`,
+      '取消学生认证',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPlaceholder: '例如：认证信息与学生证不一致，请重新提交',
+        inputValidator: (inputValue) => {
+          if (!inputValue || !inputValue.trim()) {
+            return '请填写取消原因'
+          }
+          return true
+        },
+      },
+    )
+
+    const response = await userManagementApi.verifyStudent(userId, {
+      verified: false,
+      reason: value.trim(),
+    })
+    if (response.success) {
+      ElMessage.success('已取消学生认证')
+      fetchUserDetail()
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消学生认证失败:', error)
       ElMessage.error('操作失败')
     }
   }
@@ -488,6 +594,15 @@ const formatDate = (dateString) => {
   } catch {
     return dateString
   }
+}
+
+const getStudentVerificationText = () => {
+  if (userInfo.value.student_verified) return '已认证'
+
+  const status = userInfo.value?.verification_data?.status
+  if (status === 'pending') return '审核中'
+  if (status === 'rejected') return '认证未通过'
+  return '未认证'
 }
 
 // 订单状态
@@ -768,6 +883,33 @@ onMounted(() => {
 
 .verification-time {
   font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.student-card-preview {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.student-card-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.student-card-image {
+  width: 120px;
+  height: 76px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(99, 102, 241, 0.14);
+  background: #fff;
+}
+
+.student-card-empty {
+  margin-top: 10px;
+  font-size: 0.85rem;
   color: var(--text-secondary);
 }
 

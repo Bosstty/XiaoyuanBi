@@ -19,10 +19,12 @@
 }
 
 :root {
-    --font-ui: 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Noto Sans SC',
-        'Helvetica Neue', 'Microsoft YaHei', sans-serif;
-    --font-display: 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Noto Sans SC',
-        'SF Pro Display', 'Microsoft YaHei', sans-serif;
+    --font-ui:
+        'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Noto Sans SC', 'Helvetica Neue',
+        'Microsoft YaHei', sans-serif;
+    --font-display:
+        'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Noto Sans SC', 'SF Pro Display',
+        'Microsoft YaHei', sans-serif;
 }
 
 html,
@@ -35,7 +37,7 @@ body {
     font-family: var(--font-ui);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: var(--n-body-color, var(--ios-bg-secondary, #F2F2F7));
+    background-color: var(--n-body-color, var(--ios-bg-secondary, #f2f2f7));
     color: var(--n-text-color-1, var(--ios-text-primary, #000000));
 }
 
@@ -43,7 +45,7 @@ body {
     height: 100%;
     width: 100%;
     overflow: hidden;
-    background-color: var(--n-body-color, var(--ios-bg-secondary, #F2F2F7));
+    background-color: var(--n-body-color, var(--ios-bg-secondary, #f2f2f7));
     color: var(--n-text-color-1, var(--ios-text-primary, #000000));
 }
 

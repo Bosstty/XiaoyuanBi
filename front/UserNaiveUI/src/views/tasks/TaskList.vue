@@ -3,7 +3,7 @@
         <!-- ───── 顶部导航 ───── -->
         <header class="top-bar">
             <div class="nav-row">
-                <button type="button" class="back-btn" @click="router.back()">
+                <button type="button" class="back-btn" @click="goBackToTaskCenter">
                     <svg viewBox="0 0 24 24" width="22" height="22">
                         <path
                             d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
@@ -151,12 +151,7 @@
                             >
                                 申请
                             </NButton>
-                            <NButton
-                                v-else-if="task.has_applied"
-                                size="small"
-                                round
-                                disabled
-                            >
+                            <NButton v-else-if="task.has_applied" size="small" round disabled>
                                 已申请
                             </NButton>
                         </div>
@@ -213,6 +208,7 @@ const currentView = ref<ViewKey>('all');
 const currentCategory = ref<CategoryKey>('all');
 const currentPage = ref(1);
 const totalPages = ref(1);
+const latestRequestId = ref(0);
 
 const viewTabs: Array<{ key: ViewKey; label: string }> = [{ key: 'all', label: '全部任务' }];
 
@@ -241,6 +237,7 @@ const getCategoryLabel = (cat: string) =>
 
 const getStatusLabel = (status: string) =>
     ({
+        pending: '审核中',
         published: '招募中',
         in_progress: '进行中',
         completed: '已完成',
@@ -248,7 +245,7 @@ const getStatusLabel = (status: string) =>
         expired: '已过期',
     })[status] ?? status;
 
-const formatAmount = (v?: string | number | null) => Number(v || 0).toFixed(0);
+const formatAmount = (v?: string | number | null) => Number(v || 0).toFixed(2);
 
 const formatDateTime = (v?: string | null) => {
     if (!v) return '--';
@@ -266,6 +263,7 @@ const formatRelativeTime = (v?: string | null) => {
 };
 
 const fetchTasks = async (page = 1, append = false) => {
+    const requestId = ++latestRequestId.value;
     (page > 1 ? loadingMore : loading).value = true;
     try {
         const response = await TaskApi.getTasks({
@@ -277,20 +275,24 @@ const fetchTasks = async (page = 1, append = false) => {
             order: 'desc',
         });
         if (!response.success) throw new Error(response.message);
+        if (requestId !== latestRequestId.value) return;
         const list = response.data?.tasks || [];
         tasks.value = append ? [...tasks.value, ...list] : list;
         currentPage.value = response.data?.pagination?.current || page;
         totalPages.value = response.data?.pagination?.totalPages || 1;
     } catch (e) {
         console.error(e);
+        if (requestId !== latestRequestId.value) return;
         if (!append) {
             tasks.value = [];
             currentPage.value = 1;
             totalPages.value = 1;
         }
     } finally {
-        loading.value = false;
-        loadingMore.value = false;
+        if (requestId === latestRequestId.value) {
+            loading.value = false;
+            loadingMore.value = false;
+        }
     }
 };
 
@@ -302,19 +304,24 @@ const handleViewChange = (key: ViewKey) => {
 
 const handleCategoryChange = (key: CategoryKey) => {
     appStore.hapticFeedback('light');
-    if (key === currentCategory.value && parseCategoryFromRoute(route.query.category) === key) {
+    const routeCategory = parseCategoryFromRoute(route.query.category);
+    if (key === currentCategory.value && routeCategory === key) {
         fetchTasks(1, false);
         return;
     }
 
-    currentCategory.value = key;
-    router.push({
+    router.replace({
         path: '/tasks/list',
         query: key === 'all' ? {} : { category: key },
     });
 };
 
 const loadMore = () => hasNextPage.value && fetchTasks(currentPage.value + 1, true);
+
+const goBackToTaskCenter = () => {
+    appStore.hapticFeedback('light');
+    router.push('/tasks');
+};
 
 const viewTaskDetail = (id: number) => {
     appStore.hapticFeedback('light');
@@ -368,7 +375,7 @@ watch(
     () => route.query.category,
     newCategory => {
         const nextCategory = parseCategoryFromRoute(newCategory);
-        if (nextCategory === currentCategory.value) return;
+        if (route.name !== 'TaskList') return;
         currentCategory.value = nextCategory;
         fetchTasks(1, false);
     }
@@ -567,6 +574,10 @@ watch(
 .status-badge.s-in_progress {
     background: #dbeafe;
     color: #2563eb;
+}
+.status-badge.s-pending {
+    background: #ffedd5;
+    color: #ea580c;
 }
 .status-badge.s-completed {
     background: #f1f5f9;

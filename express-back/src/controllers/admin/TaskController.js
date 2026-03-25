@@ -1,12 +1,89 @@
-const { Task, User, TaskApplication } = require('../../models');
+const { Task, User, TaskApplication, Wallet } = require('../../models');
 const { Op } = require('sequelize');
+
+const parseAmount = value => Number(value || 0);
+
+async function getLockedUserAndWallet(userId, transaction) {
+    const user = await User.findByPk(userId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!user) {
+        throw new Error('用户不存在');
+    }
+
+    let wallet = await Wallet.findOne({
+        where: { user_id: user.id },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!wallet) {
+        wallet = await Wallet.create(
+            {
+                user_id: user.id,
+                balance: parseAmount(user.balance),
+            },
+            { transaction }
+        );
+
+        wallet = await Wallet.findOne({
+            where: { user_id: user.id },
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+        });
+    }
+
+    return { user, wallet };
+}
+
+async function releaseTaskFunds(task, transaction) {
+    if (task.payment_status !== 'unpaid') {
+        return;
+    }
+
+    const amount = parseAmount(task.price);
+    const { user, wallet } = await getLockedUserAndWallet(task.publisher_id, transaction);
+    const availableBalance = parseAmount(wallet.balance);
+    const frozenBalance = parseAmount(wallet.frozen_balance);
+
+    if (frozenBalance < amount) {
+        throw new Error('冻结金额不足，无法解冻任务资金');
+    }
+
+    const nextAvailableBalance = availableBalance + amount;
+
+    await wallet.update(
+        {
+            balance: nextAvailableBalance,
+            frozen_balance: frozenBalance - amount,
+            last_transaction_at: new Date(),
+        },
+        { transaction }
+    );
+
+    await user.update(
+        {
+            balance: nextAvailableBalance,
+        },
+        { transaction }
+    );
+
+    await task.update(
+        {
+            payment_status: 'refunded',
+        },
+        { transaction }
+    );
+}
 
 /**
  * 任务管理控制器
  * Task Management Controller
  */
 class TaskController {
-    /**
+    /** 
      * 获取任务列表
      * Get tasks list with pagination and filters
      */
@@ -210,25 +287,40 @@ class TaskController {
                 });
             }
 
-            // 更新任务状态
-            task.status = status;
-            if (status === 'in_progress') {
-                task.accept_time = new Date();
-            } else if (status === 'completed') {
-                task.complete_time = new Date();
-            } else if (status === 'cancelled') {
-                task.cancel_reason = reason;
+            const dbTransaction = await Task.sequelize.transaction();
+
+            try {
+                const lockedTask = await Task.findByPk(id, {
+                    transaction: dbTransaction,
+                    lock: dbTransaction.LOCK.UPDATE,
+                });
+
+                lockedTask.status = status;
+                if (status === 'in_progress') {
+                    lockedTask.accept_time = new Date();
+                } else if (status === 'completed') {
+                    lockedTask.complete_time = new Date();
+                } else if (status === 'cancelled') {
+                    lockedTask.cancel_reason = reason;
+                }
+
+                await lockedTask.save({ transaction: dbTransaction });
+
+                if (['cancelled', 'expired'].includes(status)) {
+                    await releaseTaskFunds(lockedTask, dbTransaction);
+                }
+
+                await dbTransaction.commit();
+                return res.json({
+                    success: true,
+                    message: '任务状态更新成功',
+                    data: lockedTask,
+                });
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
             }
 
-            await task.save();
-
-            // TODO: 发送通知给发布者和接受者
-
-            return res.json({
-                success: true,
-                message: '任务状态更新成功',
-                data: task,
-            });
         } catch (error) {
             console.error('Update task status error:', error);
             return res.status(500).json({
@@ -271,13 +363,23 @@ class TaskController {
                 });
             }
 
-            // 标记取消
-            task.status = 'cancelled';
-            task.cancel_reason = reason;
+            const dbTransaction = await Task.sequelize.transaction();
+            try {
+                const lockedTask = await Task.findByPk(id, {
+                    transaction: dbTransaction,
+                    lock: dbTransaction.LOCK.UPDATE,
+                });
 
-            await task.save();
+                lockedTask.status = 'cancelled';
+                lockedTask.cancel_reason = reason;
+                await lockedTask.save({ transaction: dbTransaction });
+                await releaseTaskFunds(lockedTask, dbTransaction);
 
-            // TODO: 发送通知给发布者
+                await dbTransaction.commit();
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
+            }
 
             return res.json({
                 success: true,

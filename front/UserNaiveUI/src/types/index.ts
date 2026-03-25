@@ -45,6 +45,14 @@ export interface User {
     email_verified: boolean;
     phone_verified: boolean;
     student_verified: boolean;
+    student_verified_at?: string | null;
+    verification_data?: {
+        status?: 'pending' | 'approved' | 'rejected';
+        student_card?: string | null;
+        submitted_at?: string | null;
+        reviewed_at?: string | null;
+        review_reason?: string | null;
+    } | null;
     wechat_openid?: string;
     last_login_at?: string;
     last_login_ip?: string;
@@ -153,7 +161,7 @@ export interface Task {
     max_applicants: number;
     urgent: boolean;
     remote_work: boolean;
-    status: 'published' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
+    status: 'pending' | 'published' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
     payment_status: 'unpaid' | 'paid' | 'refunded';
     images?: string[];
     attachments?: string[];
@@ -327,7 +335,7 @@ export interface PickupOrderFilters extends PaginationParams {
 
 export interface TaskFilters extends PaginationParams {
     category?: 'study' | 'design' | 'tech' | 'writing' | 'life';
-    status?: 'published' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
+    status?: 'pending' | 'published' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
     urgent?: boolean;
     remote_work?: boolean;
     priceMin?: number;
@@ -349,4 +357,98 @@ export interface ForumPostFilters extends PaginationParams {
 export interface LoginResponse {
     user: User;
     token: string;
+}
+
+export interface WalletData {
+    id: number;
+    balance: number;
+    frozen_balance: number;
+    total_income: number;
+    total_expense: number;
+    points: number;
+    status: 'active' | 'frozen' | 'suspended';
+    payment_password_set: boolean;
+    last_transaction_at?: string | null;
+}
+
+export interface WalletActivity {
+    id: string;
+    source: 'transaction' | 'pickup_order' | 'task';
+    type: string;
+    direction: 'in' | 'out';
+    amount: number;
+    title: string;
+    description: string;
+    time: string;
+    status: string;
+    related_type?: string | null;
+    related_id?: number | null;
+    payment_method?: string | null;
+    balance_after?: number | null;
+}
+
+export interface WalletDelivererStats {
+    enabled: boolean;
+    deliverer_id: number | null;
+    is_online: boolean;
+    rating: number;
+    total_orders: number;
+    completed_orders: number;
+    total_income: number;
+    month_income: number;
+    today_income: number;
+    pending_income: number;
+}
+
+export interface WalletOverview {
+    wallet: WalletData;
+    summary: {
+        available_balance: number;
+        frozen_balance: number;
+        total_income: number;
+        total_expense: number;
+        month_income: number;
+        month_expense: number;
+        pending_settlement: number;
+        points: number;
+        last_transaction_at?: string | null;
+    };
+    deliverer: WalletDelivererStats;
+    recent_activities: WalletActivity[];
+}
+
+export interface WalletActivitiesResponse {
+    items: WalletActivity[];
+    summary: {
+        income: number;
+        expense: number;
+        count: number;
+    };
+}
+
+export interface DelivererApplication {
+    id: number;
+    user_id: number;
+    real_name: string;
+    phone: string;
+    id_card: string;
+    vehicle_type: 'bike' | 'electric' | 'walk' | 'car';
+    vehicle_number?: string | null;
+    emergency_contact_name: string;
+    emergency_contact_phone: string;
+    service_areas?: string[] | null;
+    available_hours?: string[] | null;
+    id_card_front?: string | null;
+    id_card_back?: string | null;
+    application_status: 'pending' | 'approved' | 'rejected' | 'banned';
+    rejection_reason?: string | null;
+    verified: boolean;
+    rating: number;
+    total_orders: number;
+    completed_orders: number;
+    total_earnings: number;
+    is_online: boolean;
+    status: 'active' | 'inactive' | 'suspended';
+    createdAt?: string;
+    updatedAt?: string;
 }

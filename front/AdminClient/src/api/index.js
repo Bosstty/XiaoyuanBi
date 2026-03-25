@@ -319,6 +319,8 @@ export const serviceTicketApi = {
 
 // 客服聊天 API (/api/service/chat/*)
 export const serviceChatApi = {
+  // 创建会话
+  createConversation: (data) => apiClient.post('/service/chat/conversations', data),
   // 获取会话列表
   getConversations: (params) => apiClient.get('/service/chat/conversations', params),
   // 获取会话详情

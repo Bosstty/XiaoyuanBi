@@ -3,7 +3,7 @@
     <!-- 页面头部 -->
     <DashboardFilterHeader
       v-model="dateRange"
-      title="工单管理"
+      title="售后管理"
       subtitle="处理用户提交的工单、投诉及退款申请"
       filter-label="统计范围"
       filter-hint="默认展示最近30天，可按需调整"
@@ -122,7 +122,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="title" label="标题" align="center" show-overflow-tooltip min-width="200">
+        <el-table-column
+          prop="title"
+          label="标题"
+          align="center"
+          show-overflow-tooltip
+          min-width="200"
+        >
           <template #default="{ row }">
             <span>{{ row.title }}</span>
           </template>
@@ -242,6 +248,11 @@
               <div class="contact">手机: {{ detailDrawer.data.user?.phone || '-' }}</div>
             </div>
           </div>
+          <div class="contact-actions">
+            <el-button type="primary" text @click="contactAfterSalesUser(detailDrawer.data)">
+              联系用户
+            </el-button>
+          </div>
         </div>
 
         <!-- 关联订单 -->
@@ -252,6 +263,11 @@
               {{ detailDrawer.data.order_id }}
             </el-descriptions-item>
           </el-descriptions>
+          <div v-if="detailDrawer.data.deliverer_id" class="contact-actions">
+            <el-button type="primary" text @click="contactAfterSalesDeliverer(detailDrawer.data)">
+              联系配送员
+            </el-button>
+          </div>
         </div>
 
         <!-- 工单详情 -->
@@ -324,12 +340,8 @@
 
             <!-- 退款和补偿按钮 -->
             <el-form-item v-if="detailDrawer.data.order_id">
-              <el-button type="warning" @click="handleRefund">
-                退款
-              </el-button>
-              <el-button type="info" @click="handleCompensate">
-                补偿
-              </el-button>
+              <el-button type="warning" @click="handleRefund"> 退款 </el-button>
+              <el-button type="info" @click="handleCompensate"> 补偿 </el-button>
             </el-form-item>
           </el-form>
         </div>
@@ -340,6 +352,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Download,
@@ -352,10 +365,11 @@ import {
   MoreFilled,
   Close,
 } from '@element-plus/icons-vue'
-import { serviceOrderApi, serviceTicketApi } from '@/api'
+import { serviceChatApi, serviceOrderApi, serviceTicketApi } from '@/api'
 import { exportCsvFile, normalizeExportValue } from '@/utils/export'
 import DashboardFilterHeader from '../dashboard/components/DashboardFilterHeader.vue'
 
+const router = useRouter()
 const loading = ref(false)
 const ticketList = ref([])
 const dateRange = ref([])
@@ -543,6 +557,62 @@ const viewDetail = async (row) => {
   }
 }
 
+const contactAfterSalesUser = async (ticket) => {
+  const userId = Number(ticket?.user?.id || ticket?.user_id || 0)
+  if (!userId) {
+    ElMessage.warning('未找到用户信息')
+    return
+  }
+
+  try {
+    const response = await serviceChatApi.createConversation({
+      user_id: userId,
+      order_id: ticket?.order_id || undefined,
+      initial_message: `您好，这里是平台客服，关于售后工单「${ticket?.title || ticket?.ticket_no || ''}」需要和您沟通。`,
+    })
+
+    if (!response.success || !response.data?.id) {
+      throw new Error(response.message || '创建会话失败')
+    }
+
+    detailDrawer.visible = false
+    router.push({
+      path: '/service/chat',
+      query: { conversationId: String(response.data.id) },
+    })
+  } catch (error) {
+    ElMessage.error(error.message || '联系用户失败')
+  }
+}
+
+const contactAfterSalesDeliverer = async (ticket) => {
+  const delivererId = Number(ticket?.deliverer_id || ticket?.order?.deliverer_id || 0)
+  if (!delivererId) {
+    ElMessage.warning('未找到配送员信息')
+    return
+  }
+
+  try {
+    const response = await serviceChatApi.createConversation({
+      deliverer_id: delivererId,
+      order_id: ticket?.order_id || undefined,
+      initial_message: `您好，这里是平台客服，关于售后工单「${ticket?.title || ticket?.ticket_no || ''}」需要和您沟通。`,
+    })
+
+    if (!response.success || !response.data?.id) {
+      throw new Error(response.message || '创建会话失败')
+    }
+
+    detailDrawer.visible = false
+    router.push({
+      path: '/service/chat',
+      query: { conversationId: String(response.data.id) },
+    })
+  } catch (error) {
+    ElMessage.error(error.message || '联系配送员失败')
+  }
+}
+
 // 处理工单
 const moderateTicket = async (command, ticket) => {
   if (command === 'process') {
@@ -651,12 +721,16 @@ const handleRefund = async () => {
   }
 
   try {
-    const { value } = await ElMessageBox.prompt('请输入退款金额和原因（格式：金额|原因）', '退款处理', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      inputPattern: /^\d+(\.\d+)?\|.+$/,
-      inputErrorMessage: '格式错误，请输入：金额|原因',
-    })
+    const { value } = await ElMessageBox.prompt(
+      '请输入退款金额和原因（格式：金额|原因）',
+      '退款处理',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPattern: /^\d+(\.\d+)?\|.+$/,
+        inputErrorMessage: '格式错误，请输入：金额|原因',
+      },
+    )
 
     const [amount, reason] = value.split('|')
 
@@ -671,7 +745,7 @@ const handleRefund = async () => {
       await refreshDetailDrawer(detailDrawer.data.id)
     }
   } catch (error) {
-      if (!isDialogCancel(error)) {
+    if (!isDialogCancel(error)) {
       ElMessage.error(error.message || '退款处理失败')
     }
   }
@@ -685,12 +759,16 @@ const handleCompensate = async () => {
   }
 
   try {
-    const { value } = await ElMessageBox.prompt('请输入补偿金额和原因（格式：金额|原因）', '补偿处理', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      inputPattern: /^\d+(\.\d+)?\|.+$/,
-      inputErrorMessage: '格式错误，请输入：金额|原因',
-    })
+    const { value } = await ElMessageBox.prompt(
+      '请输入补偿金额和原因（格式：金额|原因）',
+      '补偿处理',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPattern: /^\d+(\.\d+)?\|.+$/,
+        inputErrorMessage: '格式错误，请输入：金额|原因',
+      },
+    )
 
     const [amount, reason] = value.split('|')
 
@@ -705,7 +783,7 @@ const handleCompensate = async () => {
       await refreshDetailDrawer(detailDrawer.data.id)
     }
   } catch (error) {
-      if (!isDialogCancel(error)) {
+    if (!isDialogCancel(error)) {
       ElMessage.error(error.message || '补偿处理失败')
     }
   }

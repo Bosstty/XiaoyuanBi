@@ -28,11 +28,22 @@ const pinchStartScale = ref(1);
 
 const hasConversation = computed(() => conversations.value.length > 0);
 
+const resolveAvatarUrl = (value?: string | null) => {
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
+        return value;
+    }
+    if (value.startsWith('/uploads/')) {
+        return `${window.location.origin}${value}`;
+    }
+    return value;
+};
+
 const getOtherParty = (conversation: any) => {
     if (conversation?.partner) {
         return {
             name: conversation.partner.name || '联系人',
-            avatar: conversation.partner.avatar || '',
+            avatar: resolveAvatarUrl(conversation.partner.avatar),
             role: conversation.partner.role || '用户',
         };
     }
@@ -40,7 +51,7 @@ const getOtherParty = (conversation: any) => {
     if (conversation?.user) {
         return {
             name: conversation.user.real_name || conversation.user.username || '用户',
-            avatar: conversation.user.avatar || '',
+            avatar: resolveAvatarUrl(conversation.user.avatar),
             role: '用户',
         };
     }
@@ -499,7 +510,12 @@ onBeforeUnmount(() => {
                         :class="{ mine: isMyMessage(msg) }"
                     >
                         <div class="avatar" v-if="!isMyMessage(msg)">
-                            <span>
+                            <img
+                                v-if="getOtherParty(currentConversation).avatar"
+                                :src="getOtherParty(currentConversation).avatar"
+                                alt="avatar"
+                            />
+                            <span v-else>
                                 {{ getOtherParty(currentConversation).name?.charAt(0) || '对' }}
                             </span>
                         </div>
@@ -518,7 +534,8 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="avatar" v-if="isMyMessage(msg)">
-                            <span>{{ userStore.user?.username?.charAt(0) || '我' }}</span>
+                            <img v-if="userStore.userAvatar" :src="userStore.userAvatar" alt="avatar" />
+                            <span v-else>{{ userStore.user?.username?.charAt(0) || '我' }}</span>
                         </div>
                     </div>
                 </div>

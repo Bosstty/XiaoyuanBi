@@ -251,10 +251,22 @@ class OrderController {
 
             // 验证配送员是否存在且状态正常
             const deliverer = await Deliverer.findByPk(delivererId);
-            if (!deliverer || deliverer.status !== 'active') {
+            if (
+                !deliverer ||
+                deliverer.status !== 'active' ||
+                !deliverer.verified ||
+                deliverer.application_status !== 'approved'
+            ) {
                 return res.status(400).json({
                     success: false,
-                    message: '配送员不存在或状态异常',
+                    message: '配送员不存在、未审核通过或状态异常',
+                });
+            }
+
+            if (!deliverer.is_online) {
+                return res.status(400).json({
+                    success: false,
+                    message: '该配送员当前不在线，无法分配订单',
                 });
             }
 

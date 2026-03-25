@@ -1,18 +1,59 @@
 const { Deliverer, User } = require('../../models');
 
+const buildApplicationPayload = req => {
+    const files = req.files || {};
+    const body = req.body || {};
+    const normalizeUploadPath = value => {
+        if (!value) return null;
+        return String(value).replace(/\\/g, '/').replace(/^.*\/uploads\//, '/uploads/');
+    };
+
+    return {
+        real_name: body.real_name || body.name,
+        phone: body.phone,
+        id_card: body.id_card,
+        vehicle_type: body.vehicle_type || 'walk',
+        vehicle_number: null,
+        emergency_contact_name: body.emergency_contact_name || body.emergency_contact,
+        emergency_contact_phone: body.emergency_contact_phone || body.emergency_phone,
+        service_areas: null,
+        available_hours: null,
+        id_card_front:
+            normalizeUploadPath(files.id_card_front?.[0]?.path) ||
+            normalizeUploadPath(body.id_card_front) ||
+            null,
+        id_card_back:
+            normalizeUploadPath(files.id_card_back?.[0]?.path) ||
+            normalizeUploadPath(body.id_card_back) ||
+            null,
+        vehicle_license: null,
+        application_status: 'pending',
+        verified: false,
+        status: 'inactive',
+    };
+};
+
 class DelivererApplicationController {
     // 提交配送员申请
     static async submitApplication(req, res) {
         try {
             const userId = req.user.id;
-            const {
-                name,
-                phone,
-                id_card,
-                vehicle_type,
-                emergency_contact,
-                emergency_phone,
-            } = req.body;
+            const payload = buildApplicationPayload(req);
+
+            if (
+                !payload.real_name ||
+                !payload.phone ||
+                !payload.id_card ||
+                !payload.emergency_contact_name ||
+                !payload.emergency_contact_phone ||
+                !payload.id_card_front ||
+                !payload.id_card_back
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: '请填写完整申请信息并上传身份证正反面照片',
+                });
+            }
 
             // 检查是否已经申请过
             const existingApplication = await Deliverer.findOne({
@@ -30,14 +71,7 @@ class DelivererApplicationController {
             // 创建配送员申请
             const application = await Deliverer.create({
                 user_id: userId,
-                name,
-                phone,
-                id_card,
-                vehicle_type,
-                emergency_contact,
-                emergency_phone,
-                verification_status: 'pending',
-                status: 'inactive',
+                ...payload,
             });
 
             res.json({
@@ -91,8 +125,6 @@ class DelivererApplicationController {
     static async updateApplication(req, res) {
         try {
             const userId = req.user.id;
-            const updateData = req.body;
-
             const application = await Deliverer.findOne({
                 where: { user_id: userId },
             });
@@ -104,14 +136,38 @@ class DelivererApplicationController {
                 });
             }
 
-            if (application.verification_status !== 'pending' && application.verification_status !== 'rejected') {
+            if (
+                application.application_status !== 'pending' &&
+                application.application_status !== 'rejected'
+            ) {
                 return res.status(400).json({
                     success: false,
                     message: '只能修改待审核或被拒绝的申请',
                 });
             }
 
-            await application.update(updateData);
+            const payload = buildApplicationPayload(req);
+
+            if (
+                !payload.real_name ||
+                !payload.phone ||
+                !payload.id_card ||
+                !payload.emergency_contact_name ||
+                !payload.emergency_contact_phone ||
+                !payload.id_card_front ||
+                !payload.id_card_back
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: '请填写完整申请信息并上传身份证正反面照片',
+                });
+            }
+
+            await application.update({
+                ...payload,
+                application_status: 'pending',
+                rejection_reason: null,
+            });
 
             res.json({
                 success: true,

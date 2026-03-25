@@ -114,7 +114,7 @@ const routes: RouteRecordRaw[] = [
                 path: 'wallet',
                 name: 'Wallet',
                 component: () => import('@/views/user/Wallet.vue'),
-                meta: { title: '钱包', requiresAuth: true, level: 1 },
+                meta: { title: '钱包', requiresAuth: true, level: 1, hideTabBar: true },
             },
             {
                 path: 'chat',
@@ -144,7 +144,7 @@ const routes: RouteRecordRaw[] = [
                 path: 'settings',
                 name: 'Settings',
                 component: () => import('@/views/user/Settings.vue'),
-                meta: { title: '设置', requiresAuth: true, level: 1 },
+                meta: { title: '设置', requiresAuth: true, level: 1, hideTabBar: true },
             },
         ],
     },
