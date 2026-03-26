@@ -231,12 +231,20 @@
                       恢复正常
                     </el-dropdown-item>
                     <el-dropdown-item
-                      v-if="row.status !== 'banned'"
+                      v-if="row.application_status !== 'banned'"
                       command="ban"
                       divided
                     >
                       <el-icon><Delete /></el-icon>
                       <span style="color: #f56c6c">封禁账号</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="row.application_status === 'banned'"
+                      command="unban"
+                      divided
+                    >
+                      <el-icon><Unlock /></el-icon>
+                      解封认证
                     </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -490,6 +498,9 @@ const handleAction = async (command, row) => {
     case 'ban':
       await handleBan(row)
       break
+    case 'unban':
+      await handleUnban(row)
+      break
   }
 }
 
@@ -555,6 +566,32 @@ const handleBan = async (row) => {
     if (error !== 'cancel') {
       console.error('封禁失败:', error)
       ElMessage.error(error.message || '操作失败')
+    }
+  }
+}
+
+const handleUnban = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要解封配送员 "${row.real_name}" 的认证信息吗？`,
+      '确认操作',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+
+    const response = await delivererManagementApi.unbanDeliverer(row.id)
+    if (response.success) {
+      ElMessage.success('解封成功')
+      fetchDeliverers()
+      fetchStats()
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('解封失败:', error)
+      ElMessage.error(error.message || '解封失败')
     }
   }
 }

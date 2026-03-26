@@ -61,11 +61,15 @@ class ApiClient {
                     console.error('网络错误，请检查网络连接');
                 }
 
-                const serverMessage =
-                    error.response?.data?.message ||
-                    error.response?.data?.error ||
-                    error.message ||
-                    '请求失败';
+                const isTimeout =
+                    error.code === 'ECONNABORTED' ||
+                    (typeof error.message === 'string' && error.message.includes('timeout'));
+                const serverMessage = isTimeout
+                    ? '请求超时，请稍后重试'
+                    : error.response?.data?.message ||
+                      error.response?.data?.error ||
+                      error.message ||
+                      '请求失败';
                 const normalizedError = new Error(serverMessage);
                 (normalizedError as Error & { response?: unknown }).response = error.response;
 

@@ -263,6 +263,8 @@ export const delivererManagementApi = {
     apiClient.patch(`/admin/deliverers/${id}/status`, { status }),
   // 删除/封禁配送员
   deleteDeliverer: (id, data = {}) => apiClient.delete(`/admin/deliverers/${id}`, data),
+  // 解封配送员认证
+  unbanDeliverer: (id) => apiClient.patch(`/admin/deliverers/${id}/unban`),
   // 获取配送员统计
   getDelivererStats: () => apiClient.get('/admin/deliverers/stats/overview'),
 }

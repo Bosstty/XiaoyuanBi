@@ -458,6 +458,66 @@ class DelivererController {
     }
 
     /**
+     * 解封配送员认证
+     * Unban deliverer certification
+     */
+    static async unbanDeliverer(req, res) {
+        try {
+            const { id } = req.params;
+
+            if (!id) {
+                return res.status(400).json({
+                    success: false,
+                    message: '配送员ID不能为空',
+                });
+            }
+
+            const deliverer = await Deliverer.findByPk(id);
+
+            if (!deliverer) {
+                return res.status(404).json({
+                    success: false,
+                    message: '配送员不存在',
+                });
+            }
+
+            if (deliverer.application_status !== 'banned') {
+                return res.status(400).json({
+                    success: false,
+                    message: '当前配送员认证未处于封禁状态',
+                });
+            }
+
+            deliverer.application_status = 'approved';
+            deliverer.verified = true;
+            deliverer.rejection_reason = null;
+            deliverer.status = 'inactive';
+            deliverer.is_online = false;
+
+            await deliverer.save();
+
+            await sendDelivererVerificationMessage(
+                deliverer.user_id,
+                req.admin?.id || req.user?.id,
+                '您的配送员认证信息已解除封禁，请前往个人中心重新开启接单状态。'
+            );
+
+            return res.json({
+                success: true,
+                message: '配送员认证已解封',
+                data: deliverer,
+            });
+        } catch (error) {
+            console.error('Unban deliverer error:', error);
+            return res.status(500).json({
+                success: false,
+                message: '解封配送员失败',
+                error: error.message,
+            });
+        }
+    }
+
+    /**
      * 获取配送员统计
      * Get deliverer statistics
      */

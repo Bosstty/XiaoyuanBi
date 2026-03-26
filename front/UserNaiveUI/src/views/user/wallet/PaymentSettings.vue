@@ -1,7 +1,11 @@
 <template>
     <div class="payment-settings-page">
         <section class="payment-settings-page__topbar">
-            <button type="button" class="payment-settings-page__back" @click="router.push('/wallet')">
+            <button
+                type="button"
+                class="payment-settings-page__back"
+                @click="router.push('/wallet')"
+            >
                 <NIcon :size="18"><ChevronBackOutline /></NIcon>
             </button>
             <h1>支付设置</h1>
@@ -32,7 +36,10 @@
                     />
                 </NFormItem>
 
-                <NFormItem :label="paymentPasswordSet ? '新支付密码' : '支付密码'" path="paymentPassword">
+                <NFormItem
+                    :label="paymentPasswordSet ? '新支付密码' : '支付密码'"
+                    path="paymentPassword"
+                >
                     <NInput
                         v-model:value="form.paymentPassword"
                         type="password"
@@ -210,7 +217,6 @@ onMounted(async () => {
 
 .payment-settings-page__back {
     border: none;
-    background: #fff;
     border-radius: 14px;
     color: #35506f;
     display: inline-flex;

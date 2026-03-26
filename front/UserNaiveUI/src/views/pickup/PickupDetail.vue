@@ -303,6 +303,105 @@
                 />
             </div>
         </MobileModal>
+        <MobileModal
+            v-model:show="showProofSourceModal"
+            title="选择上传方式"
+            bottom-sheet
+            :show-footer="false"
+        >
+            <div class="proof-source-sheet">
+                <button
+                    type="button"
+                    class="proof-source-sheet__action"
+                    @click="handleSelectProofSource('camera')"
+                >
+                    <strong>拍摄照片</strong>
+                    <span>直接调用相机拍摄配送凭证</span>
+                </button>
+                <button
+                    type="button"
+                    class="proof-source-sheet__action"
+                    @click="handleSelectProofSource('album')"
+                >
+                    <strong>从相册选择</strong>
+                    <span>从手机相册中选择已有图片</span>
+                </button>
+            </div>
+        </MobileModal>
+        <MobileModal
+            v-model:show="showProofPreviewModal"
+            :title="pendingProofAction === 'pickup' ? '预览取件照片' : '预览送达照片'"
+            bottom-sheet
+            confirm-text="确认上传"
+            :loading="delivererAction === 'confirmPickup' || delivererAction === 'confirmDelivery'"
+            @confirm="handleSubmitProofPhoto"
+        >
+            <div class="proof-preview-sheet">
+                <div class="proof-preview-sheet__frame">
+                    <img
+                        v-if="selectedProofPreviewUrl"
+                        :src="selectedProofPreviewUrl"
+                        alt="凭证预览"
+                        class="proof-preview-sheet__image"
+                    />
+                </div>
+                <div class="proof-preview-sheet__actions">
+                    <button
+                        type="button"
+                        class="proof-preview-sheet__action"
+                        @click="handleReselectProof('camera')"
+                    >
+                        重新拍摄
+                    </button>
+                    <button
+                        type="button"
+                        class="proof-preview-sheet__action"
+                        @click="handleReselectProof('album')"
+                    >
+                        重新上传
+                    </button>
+                </div>
+            </div>
+        </MobileModal>
+        <MobileModal
+            v-model:show="showCameraModal"
+            :title="pendingProofAction === 'pickup' ? '拍摄取件照片' : '拍摄送达照片'"
+            bottom-sheet
+            :show-footer="false"
+        >
+            <div class="proof-camera-sheet">
+                <div class="proof-camera-sheet__viewport">
+                    <video
+                        ref="cameraVideoRef"
+                        class="proof-camera-sheet__video"
+                        autoplay
+                        playsinline
+                        muted
+                    ></video>
+                    <canvas ref="cameraCanvasRef" class="proof-camera-sheet__canvas"></canvas>
+                    <div v-if="cameraErrorMessage" class="proof-camera-sheet__error">
+                        {{ cameraErrorMessage }}
+                    </div>
+                </div>
+                <div class="proof-camera-sheet__actions">
+                    <button
+                        type="button"
+                        class="proof-camera-sheet__action"
+                        @click="handleCloseCameraModal"
+                    >
+                        取消
+                    </button>
+                    <button
+                        type="button"
+                        class="proof-camera-sheet__capture"
+                        :disabled="!cameraReady"
+                        @click="handleCapturePhoto"
+                    >
+                        拍照
+                    </button>
+                </div>
+            </div>
+        </MobileModal>
         <input
             ref="pickupPhotoInputRef"
             type="file"
@@ -321,7 +420,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { NButton, NIcon, NInput, NTag, useDialog, useMessage } from 'naive-ui';
 import { StarOutline } from '@vicons/ionicons5';
@@ -344,11 +443,22 @@ const delivererAction = ref<null | 'accept' | 'startPickup' | 'confirmPickup' | 
     null
 );
 const showRatingModal = ref(false);
+const showProofSourceModal = ref(false);
+const showProofPreviewModal = ref(false);
+const showCameraModal = ref(false);
 const rating = ref(5);
 const ratingComment = ref('');
 const order = ref<PickupOrder | null>(null);
 const pickupPhotoInputRef = ref<HTMLInputElement | null>(null);
 const deliveryPhotoInputRef = ref<HTMLInputElement | null>(null);
+const pendingProofAction = ref<null | 'pickup' | 'delivery'>(null);
+const selectedProofFile = ref<File | null>(null);
+const selectedProofPreviewUrl = ref('');
+const cameraVideoRef = ref<HTMLVideoElement | null>(null);
+const cameraCanvasRef = ref<HTMLCanvasElement | null>(null);
+const cameraStream = ref<MediaStream | null>(null);
+const cameraReady = ref(false);
+const cameraErrorMessage = ref('');
 
 const isPublisher = computed(() => order.value?.user_id === userStore.user?.id);
 const isDelivererOwner = computed(() =>
@@ -680,60 +790,235 @@ const uploadProofImage = async (file: File) => {
     return imageUrl;
 };
 
+const getUserMediaCompat = async (constraints: MediaStreamConstraints) => {
+    if (navigator.mediaDevices?.getUserMedia) {
+        return navigator.mediaDevices.getUserMedia(constraints);
+    }
+
+    const legacyNavigator = navigator as Navigator & {
+        getUserMedia?: (
+            constraints: MediaStreamConstraints,
+            success: (stream: MediaStream) => void,
+            error: (reason?: unknown) => void
+        ) => void;
+        webkitGetUserMedia?: (
+            constraints: MediaStreamConstraints,
+            success: (stream: MediaStream) => void,
+            error: (reason?: unknown) => void
+        ) => void;
+        mozGetUserMedia?: (
+            constraints: MediaStreamConstraints,
+            success: (stream: MediaStream) => void,
+            error: (reason?: unknown) => void
+        ) => void;
+    };
+
+    const legacyGetUserMedia =
+        legacyNavigator.getUserMedia ||
+        legacyNavigator.webkitGetUserMedia ||
+        legacyNavigator.mozGetUserMedia;
+
+    if (!legacyGetUserMedia) {
+        throw new Error('当前浏览器不支持访问摄像头');
+    }
+
+    return new Promise<MediaStream>((resolvePromise, rejectPromise) => {
+        legacyGetUserMedia.call(navigator, constraints, resolvePromise, rejectPromise);
+    });
+};
+
+const stopCameraStream = () => {
+    cameraStream.value?.getTracks().forEach(track => track.stop());
+    cameraStream.value = null;
+    cameraReady.value = false;
+
+    if (cameraVideoRef.value) {
+        cameraVideoRef.value.srcObject = null;
+    }
+};
+
+const openCameraModal = async () => {
+    cameraErrorMessage.value = '';
+    showCameraModal.value = true;
+
+    try {
+        const stream = await getUserMediaCompat({
+            video: {
+                width: 480,
+                height: 320,
+                facingMode: { ideal: 'environment' },
+            },
+            audio: false,
+        });
+
+        cameraStream.value = stream;
+
+        if (cameraVideoRef.value) {
+            cameraVideoRef.value.srcObject = stream;
+            await cameraVideoRef.value.play();
+        }
+
+        cameraReady.value = true;
+    } catch (error: any) {
+        cameraErrorMessage.value =
+            error?.message || '摄像头打开失败，请检查浏览器权限或改用相册上传';
+    }
+};
+
+const resetProofSelection = () => {
+    if (selectedProofPreviewUrl.value) {
+        URL.revokeObjectURL(selectedProofPreviewUrl.value);
+    }
+    selectedProofFile.value = null;
+    selectedProofPreviewUrl.value = '';
+};
+
+const prepareProofPreview = (file: File) => {
+    resetProofSelection();
+    selectedProofFile.value = file;
+    selectedProofPreviewUrl.value = URL.createObjectURL(file);
+    showProofPreviewModal.value = true;
+};
+
 const handlePickupPhotoSelected = async (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file || !order.value) return;
-
-    delivererAction.value = 'confirmPickup';
-    try {
-        const pickupPhoto = await uploadProofImage(file);
-        const response = await DelivererOrderApi.confirmPickup(order.value.id, pickupPhoto);
-        if (!response.success) {
-            throw new Error(response.message || '开始配送失败');
-        }
-        order.value = response.data || order.value;
-        message.success('取件照片已上传，订单已开始配送');
-        appStore.hapticFeedback('medium');
-    } catch (error: any) {
-        message.error(error?.message || '开始配送失败');
-    } finally {
-        delivererAction.value = null;
-        (event.target as HTMLInputElement).value = '';
+    if (file && order.value) {
+        prepareProofPreview(file);
     }
+    (event.target as HTMLInputElement).value = '';
 };
 
 const handleConfirmPickup = async () => {
     if (!order.value) return;
-    pickupPhotoInputRef.value?.click();
+    pendingProofAction.value = 'pickup';
+    showProofSourceModal.value = true;
 };
 
 const handleDeliveryPhotoSelected = async (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file || !order.value) return;
-
-    delivererAction.value = 'confirmDelivery';
-    try {
-        const deliveryPhoto = await uploadProofImage(file);
-        const response = await DelivererOrderApi.confirmDelivery(order.value.id, {
-            delivery_photo: deliveryPhoto,
-        });
-        if (!response.success) {
-            throw new Error(response.message || '确认送达失败');
-        }
-        order.value = response.data || order.value;
-        message.success('送达照片已上传，请等待用户确认完成');
-        appStore.hapticFeedback('medium');
-    } catch (error: any) {
-        message.error(error?.message || '确认送达失败');
-    } finally {
-        delivererAction.value = null;
-        (event.target as HTMLInputElement).value = '';
+    if (file && order.value) {
+        prepareProofPreview(file);
     }
+    (event.target as HTMLInputElement).value = '';
 };
 
 const handleConfirmDelivery = async () => {
     if (!order.value) return;
-    deliveryPhotoInputRef.value?.click();
+    pendingProofAction.value = 'delivery';
+    showProofSourceModal.value = true;
+};
+
+const handleSelectProofSource = (source: 'camera' | 'album') => {
+    const action = pendingProofAction.value;
+    showProofSourceModal.value = false;
+
+    if (!action) {
+        return;
+    }
+
+    if (action === 'pickup') {
+        if (source === 'camera') {
+            void openCameraModal();
+        } else {
+            pickupPhotoInputRef.value?.click();
+        }
+        return;
+    }
+
+    if (source === 'camera') {
+        void openCameraModal();
+    } else {
+        deliveryPhotoInputRef.value?.click();
+    }
+};
+
+const handleReselectProof = (source: 'camera' | 'album') => {
+    showProofPreviewModal.value = false;
+    handleSelectProofSource(source);
+};
+
+const handleSubmitProofPhoto = async () => {
+    if (!order.value || !pendingProofAction.value || !selectedProofFile.value) {
+        return;
+    }
+
+    delivererAction.value =
+        pendingProofAction.value === 'pickup' ? 'confirmPickup' : 'confirmDelivery';
+
+    try {
+        const proofUrl = await uploadProofImage(selectedProofFile.value);
+        const response =
+            pendingProofAction.value === 'pickup'
+                ? await DelivererOrderApi.confirmPickup(order.value.id, proofUrl)
+                : await DelivererOrderApi.confirmDelivery(order.value.id, {
+                      delivery_photo: proofUrl,
+                  });
+
+        if (!response.success) {
+            throw new Error(
+                response.message ||
+                    (pendingProofAction.value === 'pickup' ? '开始配送失败' : '确认送达失败')
+            );
+        }
+
+        order.value = response.data || order.value;
+        showProofPreviewModal.value = false;
+        message.success(
+            pendingProofAction.value === 'pickup'
+                ? '取件照片已上传，订单已开始配送'
+                : '送达照片已上传，请等待用户确认完成'
+        );
+        appStore.hapticFeedback('medium');
+        resetProofSelection();
+    } catch (error: any) {
+        message.error(
+            error?.message ||
+                (pendingProofAction.value === 'pickup' ? '开始配送失败' : '确认送达失败')
+        );
+    } finally {
+        delivererAction.value = null;
+    }
+};
+
+const handleCapturePhoto = () => {
+    if (!cameraVideoRef.value || !cameraCanvasRef.value || !cameraReady.value) {
+        return;
+    }
+
+    const video = cameraVideoRef.value;
+    const canvas = cameraCanvasRef.value;
+    const width = video.videoWidth || 480;
+    const height = video.videoHeight || 320;
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+        cameraErrorMessage.value = '无法生成照片，请稍后重试';
+        return;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    context.drawImage(video, 0, 0, width, height);
+
+    canvas.toBlob(blob => {
+        if (!blob) {
+            cameraErrorMessage.value = '拍照失败，请重试';
+            return;
+        }
+
+        const file = new File([blob], `proof-${Date.now()}.jpg`, {
+            type: 'image/jpeg',
+        });
+
+        stopCameraStream();
+        showCameraModal.value = false;
+        prepareProofPreview(file);
+    }, 'image/jpeg', 0.92);
+};
+
+const handleCloseCameraModal = () => {
+    showCameraModal.value = false;
+    stopCameraStream();
 };
 
 const handleConfirm = async () => {
@@ -774,6 +1059,17 @@ const submitRating = async () => {
 
 onMounted(() => {
     fetchOrderDetail();
+});
+
+watch(showCameraModal, visible => {
+    if (!visible) {
+        stopCameraStream();
+    }
+});
+
+onBeforeUnmount(() => {
+    stopCameraStream();
+    resetProofSelection();
 });
 </script>
 
@@ -847,7 +1143,7 @@ onMounted(() => {
 }
 
 .order-viewport {
-    padding: 16px;
+    padding: 16px 16px calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 .loading-wrap,
@@ -1195,6 +1491,7 @@ onMounted(() => {
     gap: 12px;
     margin-top: 20px;
     padding-top: 18px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
     border-top: 1px solid color-mix(in srgb, var(--muted) 16%, transparent);
 }
 
@@ -1230,6 +1527,139 @@ onMounted(() => {
 
 .rating-form {
     padding: 16px 0;
+}
+
+.proof-source-sheet {
+    display: grid;
+    gap: 12px;
+    padding: 8px 0 4px;
+}
+
+.proof-source-sheet__action {
+    width: 100%;
+    border: 1px solid #dbe6f5;
+    border-radius: 16px;
+    background: #f8fbff;
+    padding: 16px;
+    text-align: left;
+}
+
+.proof-source-sheet__action strong {
+    display: block;
+    font-size: 15px;
+    color: #172033;
+}
+
+.proof-source-sheet__action span {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #6b7a90;
+}
+
+.proof-preview-sheet {
+    display: grid;
+    gap: 14px;
+    padding: 8px 0 4px;
+}
+
+.proof-preview-sheet__frame {
+    overflow: hidden;
+    border-radius: 18px;
+    background: #eef4ff;
+    min-height: 220px;
+}
+
+.proof-preview-sheet__image {
+    display: block;
+    width: 100%;
+    max-height: 360px;
+    object-fit: cover;
+}
+
+.proof-preview-sheet__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.proof-preview-sheet__action {
+    min-height: 44px;
+    border: 1px solid #dbe6f5;
+    border-radius: 14px;
+    background: #f8fbff;
+    color: #35506f;
+    font-weight: 600;
+}
+
+.proof-camera-sheet {
+    display: grid;
+    gap: 14px;
+    padding: 8px 0 4px;
+}
+
+.proof-camera-sheet__viewport {
+    position: relative;
+    overflow: hidden;
+    border-radius: 18px;
+    background: #0f172a;
+    min-height: 240px;
+}
+
+.proof-camera-sheet__video,
+.proof-camera-sheet__canvas {
+    display: block;
+    width: 100%;
+    min-height: 240px;
+    object-fit: cover;
+}
+
+.proof-camera-sheet__canvas {
+    display: none;
+}
+
+.proof-camera-sheet__error {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    color: #fff;
+    background: rgba(15, 23, 42, 0.7);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.proof-camera-sheet__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.proof-camera-sheet__action,
+.proof-camera-sheet__capture {
+    min-height: 46px;
+    border-radius: 14px;
+    font-weight: 600;
+}
+
+.proof-camera-sheet__action {
+    border: 1px solid #dbe6f5;
+    background: #f8fbff;
+    color: #35506f;
+}
+
+.proof-camera-sheet__capture {
+    border: none;
+    background: #2f6bff;
+    color: #fff;
+}
+
+.proof-camera-sheet__capture:disabled {
+    opacity: 0.55;
 }
 
 .rating-stars {
@@ -1272,6 +1702,10 @@ onMounted(() => {
 }
 
 @media (max-width: 560px) {
+    .order-viewport {
+        padding: 12px 12px calc(110px + env(safe-area-inset-bottom, 0px));
+    }
+
     .detail-overview__summary-card {
         grid-template-columns: 1fr;
         gap: 10px;
@@ -1295,6 +1729,12 @@ onMounted(() => {
     .node-footer {
         flex-direction: column;
         align-items: flex-start;
+        gap: 14px;
+    }
+
+    .actions-group {
+        width: 100%;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 }
 </style>

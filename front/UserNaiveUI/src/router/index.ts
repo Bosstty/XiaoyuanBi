@@ -113,37 +113,43 @@ const routes: RouteRecordRaw[] = [
             {
                 path: 'profile',
                 name: 'Profile',
-                component: () => import('@/views/user/Profile.vue'),
+                component: () => import('@/views/user/profile/Profile.vue'),
                 meta: { title: '我的', level: 0 },
             },
             {
                 path: 'users/:id',
                 name: 'UserPublicProfile',
-                component: () => import('@/views/user/UserPublicProfile.vue'),
+                component: () => import('@/views/user/profile/UserPublicProfile.vue'),
                 meta: { title: '用户详情', requiresAuth: true, level: 1, hideTabBar: true },
             },
             {
                 path: 'wallet',
                 name: 'Wallet',
-                component: () => import('@/views/user/Wallet.vue'),
+                component: () => import('@/views/user/wallet/Wallet.vue'),
                 meta: { title: '钱包', requiresAuth: true, level: 1, hideTabBar: true },
+            },
+            {
+                path: 'wallet/transactions',
+                name: 'WalletTransactions',
+                component: () => import('@/views/user/wallet/WalletTransactions.vue'),
+                meta: { title: '收支明细', requiresAuth: true, level: 2, hideTabBar: true },
             },
             {
                 path: 'wallet/recharge',
                 name: 'WalletRecharge',
-                component: () => import('@/views/user/Recharge.vue'),
+                component: () => import('@/views/user/wallet/Recharge.vue'),
                 meta: { title: '充值', requiresAuth: true, level: 2, hideTabBar: true },
             },
             {
                 path: 'wallet/withdraw',
                 name: 'WalletWithdraw',
-                component: () => import('@/views/user/Withdraw.vue'),
+                component: () => import('@/views/user/wallet/Withdraw.vue'),
                 meta: { title: '提现', requiresAuth: true, level: 2, hideTabBar: true },
             },
             {
                 path: 'wallet/payment-settings',
                 name: 'WalletPaymentSettings',
-                component: () => import('@/views/user/PaymentSettings.vue'),
+                component: () => import('@/views/user/wallet/PaymentSettings.vue'),
                 meta: { title: '支付设置', requiresAuth: true, level: 2, hideTabBar: true },
             },
             {
@@ -173,7 +179,7 @@ const routes: RouteRecordRaw[] = [
             {
                 path: 'settings',
                 name: 'Settings',
-                component: () => import('@/views/user/Settings.vue'),
+                component: () => import('@/views/user/settings/Settings.vue'),
                 meta: { title: '设置', requiresAuth: true, level: 1, hideTabBar: true },
             },
         ],

@@ -61,6 +61,14 @@ class DelivererApplicationController {
             });
 
             if (existingApplication) {
+                if (existingApplication.application_status === 'banned') {
+                    return res.status(403).json({
+                        success: false,
+                        message: '您的认证信息已被封禁，请联系客服解决',
+                        data: existingApplication,
+                    });
+                }
+
                 return res.status(400).json({
                     success: false,
                     message: '您已提交过配送员申请',
@@ -140,6 +148,13 @@ class DelivererApplicationController {
                 application.application_status !== 'pending' &&
                 application.application_status !== 'rejected'
             ) {
+                if (application.application_status === 'banned') {
+                    return res.status(403).json({
+                        success: false,
+                        message: '您的认证信息已被封禁，请联系客服解决',
+                    });
+                }
+
                 return res.status(400).json({
                     success: false,
                     message: '只能修改待审核或被拒绝的申请',

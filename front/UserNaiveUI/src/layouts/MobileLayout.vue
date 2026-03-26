@@ -97,6 +97,27 @@ const getMainTab = (path: string) => {
     );
 };
 
+const walletForwardTargets = new Set([
+    '/wallet/transactions',
+    '/wallet/recharge',
+    '/wallet/withdraw',
+    '/wallet/payment-settings',
+    '/pickup/my',
+    '/tasks/my',
+]);
+
+const resolveWalletTransition = (newPath: string, oldPath: string) => {
+    if (oldPath === '/wallet' && walletForwardTargets.has(newPath)) {
+        return 'slide-left';
+    }
+
+    if (newPath === '/wallet' && walletForwardTargets.has(oldPath)) {
+        return 'slide-right';
+    }
+
+    return '';
+};
+
 // 监听路由变化，设置转场动画
 watch(
     () => route.path,
@@ -107,9 +128,14 @@ watch(
 
         const oldTab = getMainTab(oldPath);
         const newTab = getMainTab(newPath);
+        const walletTransition = resolveWalletTransition(newPath, oldPath);
+
+        if (walletTransition) {
+            transitionName.value = walletTransition;
+        }
 
         // 情况1：标签页切换（主导航栏点击）
-        if (oldTab && newTab && oldTab.key !== newTab.key) {
+        else if (oldTab && newTab && oldTab.key !== newTab.key) {
             const currentIndex = mainTabs.findIndex(tab => tab.key === oldTab.key);
             const targetIndex = mainTabs.findIndex(tab => tab.key === newTab.key);
 
@@ -343,7 +369,7 @@ const onLeave = (el: Element, done: () => void) => {
 
 .light-theme .mobile-layout,
 :root:not(.dark) .mobile-layout {
-    background: var(--n-body-color, #F2F2F7);
+    background: var(--n-body-color, #f2f2f7);
 }
 
 /* 状态栏颜色自动适配 */

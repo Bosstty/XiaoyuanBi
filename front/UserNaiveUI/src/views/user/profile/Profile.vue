@@ -517,6 +517,10 @@ const courierActionLabel = computed(() => {
         return '重新提交';
     }
 
+    if (delivererApplication.value?.application_status === 'banned') {
+        return '联系客服';
+    }
+
     return '申请开通';
 });
 
@@ -527,6 +531,10 @@ const courierCardTitle = computed(() => {
 
     if (delivererApplication.value?.application_status === 'rejected') {
         return '配送员申请未通过';
+    }
+
+    if (delivererApplication.value?.application_status === 'banned') {
+        return '配送员认证信息已被封禁';
     }
 
     return '代取员身份暂未开通';
@@ -545,6 +553,10 @@ const courierPendingText = computed(() => {
         return '已退回';
     }
 
+    if (delivererApplication.value?.application_status === 'banned') {
+        return '已封禁';
+    }
+
     return '待扩展';
 });
 
@@ -560,6 +572,10 @@ const courierCardNote = computed(() => {
         );
     }
 
+    if (delivererApplication.value?.application_status === 'banned') {
+        return '当前配送员认证信息已被封禁，如有疑问请联系客服处理。';
+    }
+
     return '开通后你将保留普通用户全部功能，并额外获得抢单中心、在线状态、配送凭证上传和收益统计。';
 });
 
@@ -570,6 +586,10 @@ const courierChipRow = computed(() => {
 
     if (delivererApplication.value?.application_status === 'rejected') {
         return ['重新填写', '修改资料', '再次提交', '等待复审'];
+    }
+
+    if (delivererApplication.value?.application_status === 'banned') {
+        return ['认证封禁', '暂停申请', '联系客服', '等待处理'];
     }
 
     return ['抢单大厅', '服务区域', '上传凭证', '收益管理'];
@@ -883,6 +903,11 @@ const handleCourierAction = () => {
 
     if (delivererApplication.value?.application_status === 'pending') {
         message.info('配送员申请正在审核中，请等待管理员处理');
+        return;
+    }
+
+    if (delivererApplication.value?.application_status === 'banned') {
+        message.warning('您的认证信息已被封禁，请联系客服解决');
         return;
     }
 

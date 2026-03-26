@@ -35,12 +35,10 @@
     height: 44px;
     border: 0;
     border-radius: 16px;
-    background: rgba(255, 255, 255, 0.86);
     color: #17304f;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 12px 24px rgba(23, 48, 79, 0.08);
     cursor: pointer;
 }
 
@@ -166,7 +164,10 @@
     border-radius: 18px;
     background: #f7faff;
     border: 1px solid #dde8f7;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
 }
 
 .auth-input-wrap:focus-within,

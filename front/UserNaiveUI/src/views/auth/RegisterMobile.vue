@@ -131,43 +131,71 @@
                 <div class="auth-split">
                     <div class="auth-field">
                         <label class="auth-label" for="college">学院</label>
-                        <div class="auth-select-wrap" :class="{ 'has-error': !!errors.college }">
-                            <span class="auth-input-icon">
-                                <NIcon :size="18"><BusinessOutline /></NIcon>
-                            </span>
-                            <select
+                        <NDropdown
+                            trigger="click"
+                            :options="collegeOptions"
+                            :show="collegeDropdownVisible"
+                            @update:show="collegeDropdownVisible = $event"
+                            @select="value => handleDropdownSelect('college', value)"
+                        >
+                            <button
                                 id="college"
-                                v-model="formData.college"
-                                class="auth-select"
-                                @change="validateField('college')"
+                                type="button"
+                                class="auth-dropdown-trigger"
+                                :class="{
+                                    'has-error': !!errors.college,
+                                    'is-active': collegeDropdownVisible,
+                                }"
                             >
-                                <option value="" disabled>请选择学院</option>
-                                <option v-for="item in collegeOptions" :key="item" :value="item">
-                                    {{ item }}
-                                </option>
-                            </select>
-                        </div>
+                                <span class="auth-dropdown-icon">
+                                    <NIcon :size="18"><BusinessOutline /></NIcon>
+                                </span>
+                                <span
+                                    class="auth-dropdown-value"
+                                    :class="{ 'is-placeholder': !formData.college }"
+                                >
+                                    {{ formData.college || '请选择学院' }}
+                                </span>
+                                <span class="auth-dropdown-arrow">
+                                    <NIcon :size="16"><ChevronDownOutline /></NIcon>
+                                </span>
+                            </button>
+                        </NDropdown>
                         <div v-if="errors.college" class="auth-error">{{ errors.college }}</div>
                     </div>
 
                     <div class="auth-field">
                         <label class="auth-label" for="grade">年级</label>
-                        <div class="auth-select-wrap" :class="{ 'has-error': !!errors.grade }">
-                            <span class="auth-input-icon">
-                                <NIcon :size="18"><CalendarOutline /></NIcon>
-                            </span>
-                            <select
+                        <NDropdown
+                            trigger="click"
+                            :options="gradeOptions"
+                            :show="gradeDropdownVisible"
+                            @update:show="gradeDropdownVisible = $event"
+                            @select="value => handleDropdownSelect('grade', value)"
+                        >
+                            <button
                                 id="grade"
-                                v-model="formData.grade"
-                                class="auth-select"
-                                @change="validateField('grade')"
+                                type="button"
+                                class="auth-dropdown-trigger"
+                                :class="{
+                                    'has-error': !!errors.grade,
+                                    'is-active': gradeDropdownVisible,
+                                }"
                             >
-                                <option value="" disabled>请选择年级</option>
-                                <option v-for="item in gradeOptions" :key="item" :value="item">
-                                    {{ item }}
-                                </option>
-                            </select>
-                        </div>
+                                <span class="auth-dropdown-icon">
+                                    <NIcon :size="18"><CalendarOutline /></NIcon>
+                                </span>
+                                <span
+                                    class="auth-dropdown-value"
+                                    :class="{ 'is-placeholder': !formData.grade }"
+                                >
+                                    {{ formData.grade || '请选择年级' }}
+                                </span>
+                                <span class="auth-dropdown-arrow">
+                                    <NIcon :size="16"><ChevronDownOutline /></NIcon>
+                                </span>
+                            </button>
+                        </NDropdown>
                         <div v-if="errors.grade" class="auth-error">{{ errors.grade }}</div>
                     </div>
                 </div>
@@ -301,7 +329,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NIcon } from 'naive-ui';
+import { NDropdown, NIcon } from 'naive-ui';
 import {
     BookOutline,
     BusinessOutline,
@@ -310,6 +338,7 @@ import {
     CardOutline,
     CheckmarkOutline,
     ChevronBackOutline,
+    ChevronDownOutline,
     EyeOffOutline,
     EyeOutline,
     LockClosedOutline,
@@ -327,9 +356,23 @@ const userStore = useUserStore();
 const isLoading = ref(false);
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
+const collegeDropdownVisible = ref(false);
+const gradeDropdownVisible = ref(false);
 
-const collegeOptions = ['计算机学院', '经济管理学院', '艺术学院', '外国语学院', '教育学院'];
-const gradeOptions = ['2021级', '2022级', '2023级', '2024级', '2025级'];
+const collegeOptions = [
+    { label: '计算机学院', key: '计算机学院' },
+    { label: '经济管理学院', key: '经济管理学院' },
+    { label: '艺术学院', key: '艺术学院' },
+    { label: '外国语学院', key: '外国语学院' },
+    { label: '教育学院', key: '教育学院' },
+];
+const gradeOptions = [
+    { label: '2021级', key: '2021级' },
+    { label: '2022级', key: '2022级' },
+    { label: '2023级', key: '2023级' },
+    { label: '2024级', key: '2024级' },
+    { label: '2025级', key: '2025级' },
+];
 
 const formData = reactive({
     student_id: '',
@@ -417,6 +460,18 @@ const validateField = (field: string) => {
     }
 };
 
+const handleDropdownSelect = (field: 'college' | 'grade', value: string) => {
+    formData[field] = value;
+    validateField(field);
+
+    if (field === 'college') {
+        collegeDropdownVisible.value = false;
+        return;
+    }
+
+    gradeDropdownVisible.value = false;
+};
+
 const goBack = () => {
     if (window.history.length > 1) {
         router.back();
@@ -471,3 +526,54 @@ const handleRegister = async () => {
     }
 };
 </script>
+
+<style scoped>
+.auth-dropdown-trigger {
+    width: 100%;
+    min-height: 56px;
+    padding: 0 14px;
+    border: 1px solid #dde8f7;
+    border-radius: 18px;
+    background: #f7faff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.auth-dropdown-trigger.is-active {
+    border-color: rgba(47, 107, 255, 0.5);
+    box-shadow: 0 0 0 4px rgba(47, 107, 255, 0.1);
+}
+
+.auth-dropdown-trigger.has-error {
+    border-color: rgba(255, 92, 92, 0.55);
+}
+
+.auth-dropdown-icon,
+.auth-dropdown-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #8b99ae;
+    flex-shrink: 0;
+}
+
+.auth-dropdown-value {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    color: #172033;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.auth-dropdown-value.is-placeholder {
+    color: #94a1b4;
+}
+</style>

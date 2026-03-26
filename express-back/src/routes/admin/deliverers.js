@@ -17,6 +17,9 @@ router.patch('/:id/status', AdminDelivererController.updateDelivererStatus);
 // 删除/封禁配送员
 router.delete('/:id', AdminDelivererController.deleteDeliverer);
 
+// 解封配送员认证
+router.patch('/:id/unban', AdminDelivererController.unbanDeliverer);
+
 // 获取配送员统计
 router.get('/stats/overview', AdminDelivererController.getDelivererStats);
 
