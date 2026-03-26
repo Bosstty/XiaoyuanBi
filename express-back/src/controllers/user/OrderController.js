@@ -1,10 +1,56 @@
-const { PickupOrder, User, Deliverer, Wallet, Transaction } = require('../../models');
+const { PickupOrder, Task, User, Deliverer, Wallet, Transaction } = require('../../models');
 const { orderUtils, responseUtils, paginationUtils, cryptoUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 const SecurityService = require('../../services/SecurityService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
+const roundRating = value => Number(Number(value || 0).toFixed(2));
+
+async function syncUserCompositeRating(userId, transaction) {
+    const [taskStats, orderStats] = await Promise.all([
+        Task.findOne({
+            where: {
+                assignee_id: userId,
+                status: 'completed',
+                rating: { [Op.not]: null },
+            },
+            attributes: [
+                [sequelize.fn('AVG', sequelize.col('rating')), 'avgRating'],
+                [sequelize.fn('COUNT', sequelize.col('id')), 'reviewCount'],
+            ],
+            transaction,
+            raw: true,
+        }),
+        PickupOrder.findOne({
+            where: {
+                deliverer_id: userId,
+                status: 'completed',
+                rating: { [Op.not]: null },
+            },
+            attributes: [
+                [sequelize.fn('AVG', sequelize.col('rating')), 'avgRating'],
+                [sequelize.fn('COUNT', sequelize.col('id')), 'reviewCount'],
+            ],
+            transaction,
+            raw: true,
+        }),
+    ]);
+
+    const taskCount = Number(taskStats?.reviewCount || 0);
+    const orderCount = Number(orderStats?.reviewCount || 0);
+    const totalCount = taskCount + orderCount;
+    const overallRating =
+        totalCount > 0
+            ? roundRating(
+                  (Number(taskStats?.avgRating || 0) * taskCount +
+                      Number(orderStats?.avgRating || 0) * orderCount) /
+                      totalCount
+              )
+            : 5;
+
+    await User.update({ rating: overallRating }, { where: { id: userId }, transaction });
+}
 
 async function getLockedUserAndWallet(userId, transaction) {
     const user = await User.findByPk(userId, {
@@ -626,23 +672,9 @@ class UserOrderController {
                 rating_comment: comment,
             });
 
-            // 更新配送员评分
+            // 更新配送员综合评分（订单 + 任务）
             if (order.deliverer_id) {
-                const deliverer = await User.findByPk(order.deliverer_id);
-                const avgRating = await PickupOrder.findOne({
-                    where: {
-                        deliverer_id: order.deliverer_id,
-                        status: 'completed',
-                        rating: { [Op.not]: null },
-                    },
-                    attributes: [[sequelize.fn('AVG', sequelize.col('rating')), 'avgRating']],
-                });
-
-                if (avgRating && avgRating.dataValues.avgRating) {
-                    await deliverer.update({
-                        rating: parseFloat(avgRating.dataValues.avgRating).toFixed(2),
-                    });
-                }
+                await syncUserCompositeRating(order.deliverer_id);
             }
 
             res.json(responseUtils.success(order, '评价成功'));

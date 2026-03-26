@@ -96,9 +96,17 @@ const Task = sequelize.define(
             comment: '是否可远程',
         },
         status: {
-            type: DataTypes.ENUM('pending', 'published', 'in_progress', 'completed', 'cancelled', 'expired'),
+            type: DataTypes.ENUM(
+                'pending',
+                'published',
+                'in_progress',
+                'completed',
+                'cancelled',
+                'expired'
+            ),
             defaultValue: 'pending',
-            comment: '任务状态：pending待审核, published已发布, in_progress进行中, completed已完成, cancelled已取消, expired已过期',
+            comment:
+                '任务状态：pending待审核, published已发布, in_progress进行中, completed已完成, cancelled已取消, expired已过期',
         },
         payment_status: {
             type: DataTypes.ENUM('unpaid', 'paid', 'refunded'),
@@ -148,6 +156,46 @@ const Task = sequelize.define(
             type: DataTypes.TEXT,
             allowNull: true,
             comment: '取消原因',
+        },
+        cancellation_status: {
+            type: DataTypes.ENUM('none', 'pending', 'rejected', 'accepted', 'disputed'),
+            defaultValue: 'none',
+            comment: '取消协商状态',
+        },
+        cancellation_initiator_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            comment: '取消协商发起人ID',
+        },
+        cancellation_reason: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            comment: '取消协商原因',
+        },
+        cancellation_compensation: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: true,
+            comment: '取消协商赔偿金额',
+        },
+        cancellation_requested_at: {
+            type: DataTypes.DATE,
+            allowNull: true,
+            comment: '取消协商发起时间',
+        },
+        cancellation_expires_at: {
+            type: DataTypes.DATE,
+            allowNull: true,
+            comment: '取消协商截止时间',
+        },
+        cancellation_responded_at: {
+            type: DataTypes.DATE,
+            allowNull: true,
+            comment: '取消协商响应时间',
+        },
+        cancellation_ticket_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            comment: '取消协商争议工单ID',
         },
         view_count: {
             type: DataTypes.INTEGER,

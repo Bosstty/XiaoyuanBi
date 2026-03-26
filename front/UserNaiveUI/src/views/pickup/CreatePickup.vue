@@ -227,7 +227,6 @@ const showAdvanced = ref(false);
 const pickupTime = ref<number | null>(null);
 const deliveryTime = ref<number | null>(null);
 const paymentPassword = ref('');
-const setupPaymentPassword = ref('');
 
 const orderTypes = [
     { value: 'express', label: '快递代取', note: '驿站、快递柜、代收点' },
@@ -495,50 +494,13 @@ const openPaymentPasswordDialog = () => {
 };
 
 const openSetPaymentPasswordDialog = () => {
-    setupPaymentPassword.value = '';
-
     dialog.info({
-        title: '设置支付密码',
-        positiveText: '保存并继续',
+        title: '请先设置支付密码',
+        positiveText: '前往设置',
         negativeText: '取消',
-        content: () =>
-            h('div', { style: 'display:flex;flex-direction:column;gap:12px;' }, [
-                h(
-                    'p',
-                    { style: 'margin:0;color:#64748b;font-size:14px;line-height:1.6;' },
-                    '创建代取订单前需要先设置6位数字支付密码，用于冻结订单金额。'
-                ),
-                h(NInput, {
-                    value: setupPaymentPassword.value,
-                    type: 'password',
-                    maxlength: 6,
-                    showPasswordOn: 'click',
-                    placeholder: '请输入6位数字支付密码',
-                    onUpdateValue: (value: string) => {
-                        setupPaymentPassword.value = value.replace(/\D/g, '').slice(0, 6);
-                    },
-                }),
-            ]),
-        async onPositiveClick() {
-            if (!/^\d{6}$/.test(setupPaymentPassword.value)) {
-                message.warning('请填写6位数字支付密码');
-                return false;
-            }
-
-            try {
-                const response = await WalletApi.setPaymentPassword({
-                    payment_password: setupPaymentPassword.value,
-                });
-                if (!response.success) {
-                    throw new Error(response.message || '设置支付密码失败');
-                }
-                message.success('支付密码设置成功');
-                openPaymentPasswordDialog();
-                return true;
-            } catch (error: any) {
-                message.error(error?.message || '设置支付密码失败');
-                return false;
-            }
+        content: '创建代取订单前需要先设置6位数字支付密码，设置时需验证账户密码。',
+        onPositiveClick() {
+            router.push('/wallet/payment-settings');
         },
     });
 };

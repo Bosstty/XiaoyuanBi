@@ -214,7 +214,15 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NCheckbox, NDatePicker, NInput, NInputNumber, useMessage } from 'naive-ui';
+import {
+    NButton,
+    NCheckbox,
+    NDatePicker,
+    NInput,
+    NInputNumber,
+    useDialog,
+    useMessage,
+} from 'naive-ui';
 import { TaskApi } from '@/api';
 import { useAppStore } from '@/stores';
 import type { CreateTaskData } from '@/types';
@@ -222,6 +230,7 @@ import type { CreateTaskData } from '@/types';
 const router = useRouter();
 const appStore = useAppStore();
 const message = useMessage();
+const dialog = useDialog();
 
 const submitting = ref(false);
 const showAdvanced = ref(false);
@@ -297,13 +306,8 @@ const validateForm = () => {
     return '';
 };
 
-const submitTask = async () => {
-    const error = validateForm();
-    if (error) {
-        message.warning(error);
-        return;
-    }
-
+const createTask = async () => {
+    if (submitting.value) return;
     submitting.value = true;
     try {
         const response = await TaskApi.createTask(buildPayload());
@@ -318,6 +322,24 @@ const submitTask = async () => {
     } finally {
         submitting.value = false;
     }
+};
+
+const submitTask = () => {
+    const error = validateForm();
+    if (error) {
+        message.warning(error);
+        return;
+    }
+
+    dialog.warning({
+        title: '确认发布任务',
+        positiveText: '确认发布',
+        negativeText: '取消',
+        content: `发布后将先冻结 ¥${summaryPrice.value} 作为任务报酬。任务完成并由你确认后，这笔金额才会支付给承接人。`,
+        async onPositiveClick() {
+            await createTask();
+        },
+    });
 };
 </script>
 

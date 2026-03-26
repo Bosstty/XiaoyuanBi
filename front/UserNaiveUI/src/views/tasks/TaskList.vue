@@ -60,22 +60,24 @@
                             <span class="cat-bar"></span>
                             <span class="cat-label">{{ getCategoryLabel(task.category) }}</span>
                         </div>
-                        <span class="status-badge" :class="`s-${task.status}`">
-                            {{ getStatusLabel(task.status) }}
+                        <span class="status-badge" :class="getTaskStatusClass(task)">
+                            {{ getTaskStatusLabel(task) }}
                         </span>
                     </div>
 
                     <!-- 标题 + 发布者 -->
                     <div class="card-title-row">
                         <h3 class="card-title">{{ task.title }}</h3>
-                        <div class="publisher">
+                        <div class="publisher" @click.stop="goToUserProfile(task.publisher?.id)">
                             <div class="pub-avatar">
-                                <svg viewBox="0 0 24 24" width="16" height="16">
-                                    <path
-                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
-                                        fill="currentColor"
-                                    />
-                                </svg>
+                                <img
+                                    v-if="resolveAvatarUrl(task.publisher?.avatar)"
+                                    :src="resolveAvatarUrl(task.publisher?.avatar)"
+                                    :alt="task.publisher?.real_name || task.publisher?.username || '匿名'"
+                                />
+                                <span v-else>{{
+                                    (task.publisher?.real_name || task.publisher?.username || '匿').charAt(0)
+                                }}</span>
                             </div>
                             <span>
                                 {{
@@ -130,6 +132,10 @@
                                 <span class="info-val">
                                     {{ formatRelativeTime(task.createdAt) }}
                                 </span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">浏览</span>
+                                <span class="info-val">{{ task.view_count || 0 }}</span>
                             </div>
                         </div>
                         <div class="foot-actions" @click.stop>
@@ -245,6 +251,18 @@ const getStatusLabel = (status: string) =>
         expired: '已过期',
     })[status] ?? status;
 
+const getTaskStatusLabel = (task: Task) => {
+    if (task.cancellation_status === 'pending') return '待确认取消';
+    if (task.cancellation_status === 'disputed') return '争议处理中';
+    return getStatusLabel(task.status);
+};
+
+const getTaskStatusClass = (task: Task) => {
+    if (task.cancellation_status === 'pending') return 's-cancellation-pending';
+    if (task.cancellation_status === 'disputed') return 's-cancellation-disputed';
+    return `s-${task.status}`;
+};
+
 const formatAmount = (v?: string | number | null) => Number(v || 0).toFixed(2);
 
 const formatDateTime = (v?: string | null) => {
@@ -260,6 +278,12 @@ const formatRelativeTime = (v?: string | null) => {
     if (diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))} 分钟前`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
     return `${Math.floor(diff / 86400000)} 天前`;
+};
+const resolveAvatarUrl = (value?: string | null) => {
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
+    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
+    return value;
 };
 
 const fetchTasks = async (page = 1, append = false) => {
@@ -314,6 +338,12 @@ const handleCategoryChange = (key: CategoryKey) => {
         path: '/tasks/list',
         query: key === 'all' ? {} : { category: key },
     });
+};
+
+const goToUserProfile = (userId?: number) => {
+    if (!userId || userId === userStore.user?.id) return;
+    appStore.hapticFeedback('light');
+    router.push(`/users/${userId}`);
 };
 
 const loadMore = () => hasNextPage.value && fetchTasks(currentPage.value + 1, true);
@@ -579,6 +609,14 @@ watch(
     background: #ffedd5;
     color: #ea580c;
 }
+.status-badge.s-cancellation-pending {
+    background: #ffedd5;
+    color: #ea580c;
+}
+.status-badge.s-cancellation-disputed {
+    background: #fee2e2;
+    color: #dc2626;
+}
 .status-badge.s-completed {
     background: #f1f5f9;
     color: #64748b;
@@ -617,6 +655,7 @@ watch(
     font-size: 12px;
     flex-shrink: 0;
     white-space: nowrap;
+    cursor: pointer;
 }
 
 .pub-avatar {
@@ -628,6 +667,16 @@ watch(
     align-items: center;
     justify-content: center;
     color: var(--sub);
+    overflow: hidden;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.pub-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 /* 描述 */

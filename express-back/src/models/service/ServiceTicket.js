@@ -3,6 +3,7 @@ const { sequelize } = require('../../config/database');
 const User = require('../user/User');
 const Deliverer = require('../deliverer/Deliverer');
 const PickupOrder = require('../user/PickupOrder');
+const Task = require('../user/Task');
 
 const ServiceTicket = sequelize.define('ServiceTicket', {
     id: {
@@ -36,6 +37,9 @@ const ServiceTicket = sequelize.define('ServiceTicket', {
     order_id: {
         type: DataTypes.INTEGER
     },
+    task_id: {
+        type: DataTypes.INTEGER
+    },
     user_id: {
         type: DataTypes.INTEGER,
         references: { model: 'users', key: 'id' }
@@ -64,5 +68,6 @@ const ServiceTicket = sequelize.define('ServiceTicket', {
 ServiceTicket.belongsTo(User, { as: 'user', foreignKey: 'user_id' });
 ServiceTicket.belongsTo(Deliverer, { as: 'deliverer', foreignKey: 'deliverer_id' });
 ServiceTicket.belongsTo(PickupOrder, { as: 'order', foreignKey: 'order_id' });
+ServiceTicket.belongsTo(Task, { as: 'task', foreignKey: 'task_id' });
 
 module.exports = ServiceTicket;

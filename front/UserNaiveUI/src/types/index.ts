@@ -145,6 +145,8 @@ export interface CreatePickupOrderData {
     payment_password?: string;
 }
 
+export type TaskCancellationStatus = 'none' | 'pending' | 'rejected' | 'accepted' | 'disputed';
+
 // 任务类型
 export interface Task {
     id: number;
@@ -171,10 +173,19 @@ export interface Task {
     attachments?: string[];
     rating?: number;
     rating_comment?: string;
+    has_reviewed?: boolean;
     accept_time?: string;
     submit_time?: string;
     complete_time?: string;
     cancel_reason?: string;
+    cancellation_status?: TaskCancellationStatus;
+    cancellation_initiator_id?: number | null;
+    cancellation_reason?: string | null;
+    cancellation_compensation?: number | null;
+    cancellation_requested_at?: string | null;
+    cancellation_expires_at?: string | null;
+    cancellation_responded_at?: string | null;
+    cancellation_ticket_id?: number | null;
     view_count: number;
     publisher?: User;
     assignee?: User;
@@ -218,8 +229,42 @@ export interface TaskApplication {
     processed_at?: string;
     task?: Task;
     applicant?: User;
+    applicant_profile?: UserReviewStats;
     createdAt: string;
     updatedAt: string;
+}
+
+export interface UserReviewStats {
+    overall_rating: number;
+    task_rating: number;
+    order_rating: number;
+    total_task_reviews: number;
+    total_order_reviews: number;
+    completed_tasks: number;
+    completed_orders: number;
+    published_tasks: number;
+    published_orders: number;
+}
+
+export interface UserPublicProfile {
+    user: User;
+    stats: UserReviewStats;
+    recent_task_reviews: Array<{
+        id: number;
+        rating: number;
+        comment?: string;
+        title: string;
+        createdAt: string;
+        publisher?: Pick<User, 'id' | 'username' | 'real_name' | 'avatar'>;
+    }>;
+    recent_order_reviews: Array<{
+        id: number;
+        rating: number;
+        comment?: string;
+        title: string;
+        createdAt: string;
+        reviewer?: Pick<User, 'id' | 'username' | 'real_name' | 'avatar'>;
+    }>;
 }
 
 // 论坛帖子类型
@@ -388,7 +433,11 @@ export interface WalletActivity {
     related_type?: string | null;
     related_id?: number | null;
     payment_method?: string | null;
+    third_party_no?: string | null;
     balance_after?: number | null;
+    commission_rate?: number | null;
+    commission_amount?: number | null;
+    actual_amount?: number | null;
 }
 
 export interface WalletDelivererStats {

@@ -60,8 +60,8 @@
                             <span class="cat-bar"></span>
                             <span class="cat-label">{{ getCategoryLabel(task.category) }}</span>
                         </div>
-                        <span class="status-badge" :class="`s-${task.status}`">
-                            {{ getStatusLabel(task.status) }}
+                        <span class="status-badge" :class="getTaskStatusClass(task)">
+                            {{ getTaskStatusLabel(task) }}
                         </span>
                     </div>
 
@@ -97,12 +97,12 @@
                     <div class="card-foot">
                         <div class="partner">
                             <div class="partner-avatar">
-                                <svg viewBox="0 0 24 24" width="16" height="16">
-                                    <path
-                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
-                                        fill="currentColor"
-                                    />
-                                </svg>
+                                <img
+                                    v-if="resolveAvatarUrl(partnerAvatar(task))"
+                                    :src="resolveAvatarUrl(partnerAvatar(task))"
+                                    :alt="partnerName(task)"
+                                />
+                                <span v-else>{{ partnerName(task).charAt(0) }}</span>
                             </div>
                             <span>{{ partnerLabel(task) }}：{{ partnerName(task) }}</span>
                         </div>
@@ -269,6 +269,18 @@ const getStatusLabel = (status: string) =>
         expired: '已过期',
     })[status] ?? status;
 
+const getTaskStatusLabel = (task: Task) => {
+    if (task.cancellation_status === 'pending') return '待确认取消';
+    if (task.cancellation_status === 'disputed') return '争议处理中';
+    return getStatusLabel(task.status);
+};
+
+const getTaskStatusClass = (task: Task) => {
+    if (task.cancellation_status === 'pending') return 's-cancellation-pending';
+    if (task.cancellation_status === 'disputed') return 's-cancellation-disputed';
+    return `s-${task.status}`;
+};
+
 const formatAmount = (v?: string | number | null) => Number(v || 0).toFixed(2);
 
 const formatDateTime = (v?: string | null) => {
@@ -287,9 +299,19 @@ const formatRelativeTime = (v?: string | null) => {
 };
 
 const partnerLabel = (task: Task) => (isPublisher(task) ? '承接人' : '发布人');
+const partnerAvatar = (task: Task) => {
+    if (isPublisher(task)) return task.assignee?.avatar;
+    return task.publisher?.avatar;
+};
 const partnerName = (task: Task) => {
     if (isPublisher(task)) return task.assignee?.real_name || task.assignee?.username || '暂未指派';
     return task.publisher?.real_name || task.publisher?.username || '匿名用户';
+};
+const resolveAvatarUrl = (value?: string | null) => {
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
+    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
+    return value;
 };
 
 const canDelete = (_task: Task) => false;
@@ -325,9 +347,7 @@ const handleCancelPublish = (task: Task) => {
     dialog.warning({
         title: '取消发布',
         content:
-            task.status === 'pending'
-                ? '确认撤回这条审核中的任务吗？'
-                : '确认取消发布这条任务吗？',
+            task.status === 'pending' ? '确认撤回这条审核中的任务吗？' : '确认取消发布这条任务吗？',
         positiveText: '确认',
         negativeText: '取消',
         async onPositiveClick() {
@@ -560,6 +580,14 @@ onMounted(() => fetchTasks());
     background: #dbeafe;
     color: #2563eb;
 }
+.status-badge.s-cancellation-pending {
+    background: #ffedd5;
+    color: #ea580c;
+}
+.status-badge.s-cancellation-disputed {
+    background: #fee2e2;
+    color: #dc2626;
+}
 .status-badge.s-completed {
     background: #f1f5f9;
     color: #64748b;
@@ -667,6 +695,16 @@ onMounted(() => fetchTasks());
     justify-content: center;
     color: var(--sub);
     flex-shrink: 0;
+    overflow: hidden;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.partner-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .foot-actions {

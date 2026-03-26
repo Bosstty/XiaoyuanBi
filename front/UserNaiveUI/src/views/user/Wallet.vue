@@ -2,7 +2,7 @@
     <div class="wallet-center">
         <section class="wallet-center__hero">
             <span class="wallet-center__eyebrow">Campus Wallet</span>
-            <h1 class="hero-title" @click="router.back()">
+            <h1 class="hero-title" @click="handleBackToProfile">
                 <svg class="back-arrow" viewBox="0 0 24 24">
                     <path
                         d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"
@@ -18,7 +18,9 @@
                     <span>可用余额</span>
                     <strong>¥{{ balanceText }}</strong>
                     <p class="wallet-center__frozen-text">
-                        冻结金额：¥{{ Number(walletOverview?.summary.frozen_balance || 0).toFixed(2) }}
+                        冻结金额：¥{{
+                            Number(walletOverview?.summary.frozen_balance || 0).toFixed(2)
+                        }}
                     </p>
                     <p>{{ balanceNote }}</p>
                 </div>
@@ -29,11 +31,11 @@
 
                     <div class="wallet-center__details">
                         <span class="income-text">
-                            收入：{{ Number(walletOverview?.summary.month_income || 0).toFixed(0) }}
+                            收入：{{ Number(walletOverview?.summary.month_income || 0).toFixed(2) }}
                         </span>
                         <span class="expense-text">
                             支出：{{
-                                Number(walletOverview?.summary.month_expense || 0).toFixed(0)
+                                Number(walletOverview?.summary.month_expense || 0).toFixed(2)
                             }}
                         </span>
                     </div>
@@ -56,7 +58,7 @@
             </div>
         </section> -->
 
-        <!-- <section class="wallet-center__section">
+        <section class="wallet-center__section">
             <div class="wallet-center__section-head">
                 <h3>资金入口</h3>
             </div>
@@ -75,10 +77,7 @@
                     <p>{{ action.description }}</p>
                 </button>
             </div>
-            <div v-if="actionFeedback" class="wallet-center__action-feedback">
-                {{ actionFeedback }}
-            </div>
-        </section> -->
+        </section>
 
         <!-- <section v-if="walletOverview?.deliverer.enabled" class="wallet-center__section">
             <div class="wallet-center__section-head">
@@ -105,7 +104,7 @@
                         :key="option.value"
                         type="button"
                         class="wallet-center__filter"
-                        :class="{ 'is-active': activeDirection === option.value }"
+                        :class="{ 'is-active': activeFilter === option.value }"
                         @click="handleFilterChange(option.value)"
                     >
                         {{ option.label }}
@@ -127,7 +126,7 @@
                         </div>
                         <div class="wallet-center__bill-copy">
                             <strong>{{ bill.title }}</strong>
-                            <p>{{ bill.description }}</p>
+                            <p>{{ getBillDescription(bill) }}</p>
                             <span>{{ formatTime(bill.time) }}</span>
                         </div>
                     </div>
@@ -142,9 +141,7 @@
                 </article>
             </div>
             <div v-else class="wallet-center__state">
-                暂无{{
-                    activeDirection === 'all' ? '' : activeDirection === 'in' ? '收入' : '支出'
-                }}流水
+                暂无{{ activeFilterLabel }}流水
             </div>
             <button
                 v-if="canLoadMore"
@@ -162,9 +159,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, markRaw, onMounted, ref } from 'vue';
+import { computed, markRaw, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NIcon, NInput, useDialog, useMessage } from 'naive-ui';
+import { NIcon, useMessage } from 'naive-ui';
 import {
     ArrowDownOutline,
     ArrowUpOutline,
@@ -178,20 +175,18 @@ import {
 import { WalletApi } from '@/api';
 import { useUserStore } from '@/stores';
 import type { PaginationMeta, WalletActivity, WalletOverview } from '@/types';
+import { formatThirdPartyAccount } from './walletShared';
 
 const router = useRouter();
-const userStore = useUserStore();
-const dialog = useDialog();
 const message = useMessage();
+const userStore = useUserStore();
 const walletOverview = ref<WalletOverview | null>(null);
 const activities = ref<WalletActivity[]>([]);
 const activitiesPagination = ref<PaginationMeta | null>(null);
-const activeDirection = ref<'all' | 'in' | 'out'>('all');
+const activeFilter = ref<'all' | 'in' | 'out' | 'recharge' | 'withdraw'>('all');
 const isLoadingOverview = ref(false);
 const isLoadingActivities = ref(false);
 const errorMessage = ref('');
-const actionFeedback = ref('');
-const walletActionAmount = ref('');
 
 const isReady = computed(() => Boolean(walletOverview.value) && !isLoadingOverview.value);
 const balanceText = computed(() =>
@@ -278,15 +273,15 @@ const delivererCards = computed(() => {
 
 const quickActions = [
     {
-        title: '虚拟充值',
-        description: '输入金额后直接增加钱包余额',
+        title: '充值',
+        description: '进入充值页面，选择支付宝、微信或银行卡',
         action: 'recharge' as const,
         icon: markRaw(CashOutline),
         tint: 'linear-gradient(135deg, rgba(25,179,107,0.16), rgba(120,224,171,0.18))',
     },
     {
-        title: '虚拟提现',
-        description: '输入金额后直接扣减钱包余额',
+        title: '提现',
+        description: '进入提现页面，填写账号并核对服务费',
         action: 'withdraw' as const,
         icon: markRaw(WalletOutline),
         tint: 'linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))',
@@ -317,8 +312,8 @@ const quickActions = [
     },
     {
         title: '支付设置',
-        description: '查看支付密码与后续资金能力入口',
-        route: '/settings',
+        description: '设置或修改支付密码，需先验证账户密码',
+        route: '/wallet/payment-settings',
         action: 'route' as const,
         icon: markRaw(CardOutline),
         tint: 'linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))',
@@ -329,10 +324,25 @@ const filterOptions = [
     { label: '全部', value: 'all' as const },
     { label: '收入', value: 'in' as const },
     { label: '支出', value: 'out' as const },
+    { label: '充值', value: 'recharge' as const },
+    { label: '提现', value: 'withdraw' as const },
 ];
+
+const activeFilterLabel = computed(() => {
+    const matched = filterOptions.find(option => option.value === activeFilter.value);
+    if (!matched || matched.value === 'all') {
+        return '';
+    }
+
+    return matched.label;
+});
 
 const go = (route: string) => {
     router.push(route);
+};
+
+const handleBackToProfile = () => {
+    router.push('/profile');
 };
 
 const syncUserBalance = (balance: number) => {
@@ -380,6 +390,25 @@ const getBillTint = (bill: WalletActivity) => {
     }
 
     return 'linear-gradient(135deg, rgba(255,155,61,0.16), rgba(247,199,95,0.18))';
+};
+
+const getBillDescription = (bill: WalletActivity) => {
+    const accountText = formatThirdPartyAccount(bill.payment_method, bill.third_party_no);
+
+    if (bill.type === 'withdraw') {
+        const feeText =
+            Number(bill.commission_amount || 0) > 0
+                ? `手续费 ¥${Number(bill.commission_amount || 0).toFixed(2)}`
+                : '';
+
+        return [accountText, feeText].filter(Boolean).join(' · ') || bill.description;
+    }
+
+    if (accountText && bill.type === 'recharge') {
+        return accountText;
+    }
+
+    return bill.description;
 };
 
 const formatTime = (value?: string) => {
@@ -430,10 +459,17 @@ const loadActivities = async (append = false) => {
     try {
         const nextPage =
             append && activitiesPagination.value ? activitiesPagination.value.current_page + 1 : 1;
+        const direction =
+            activeFilter.value === 'in' || activeFilter.value === 'out' ? activeFilter.value : 'all';
+        const type =
+            activeFilter.value === 'recharge' || activeFilter.value === 'withdraw'
+                ? activeFilter.value
+                : undefined;
         const response = await WalletApi.getActivities({
             page: nextPage,
             limit: 12,
-            direction: activeDirection.value,
+            direction,
+            type,
         });
 
         if (!response.success || !response.data) {
@@ -451,12 +487,12 @@ const loadActivities = async (append = false) => {
     }
 };
 
-const handleFilterChange = (direction: 'all' | 'in' | 'out') => {
-    if (activeDirection.value === direction) {
+const handleFilterChange = (filter: 'all' | 'in' | 'out' | 'recharge' | 'withdraw') => {
+    if (activeFilter.value === filter) {
         return;
     }
 
-    activeDirection.value = direction;
+    activeFilter.value = filter;
     void loadActivities(false);
 };
 
@@ -468,63 +504,11 @@ const loadMore = () => {
     void loadActivities(true);
 };
 
-const handleVirtualBalance = async (mode: 'recharge' | 'withdraw') => {
-    walletActionAmount.value = '';
-
-    dialog.create({
-        title: mode === 'recharge' ? '虚拟充值' : '虚拟提现',
-        positiveText: '确认',
-        negativeText: '取消',
-        content: () =>
-            h(NInput, {
-                value: walletActionAmount.value,
-                placeholder: mode === 'recharge' ? '请输入充值金额' : '请输入提现金额',
-                onUpdateValue: value => {
-                    walletActionAmount.value = value;
-                },
-            }),
-        async onPositiveClick() {
-            const amount = Number.parseFloat(walletActionAmount.value);
-
-            if (!Number.isFinite(amount) || amount <= 0) {
-                message.error('金额格式不正确');
-                return false;
-            }
-
-            try {
-                const response =
-                    mode === 'recharge'
-                        ? await WalletApi.recharge({ amount })
-                        : await WalletApi.withdraw({ amount });
-
-                if (!response.success || !response.data) {
-                    throw new Error(
-                        response.message || (mode === 'recharge' ? '充值失败' : '提现失败')
-                    );
-                }
-
-                actionFeedback.value = `${mode === 'recharge' ? '充值' : '提现'}成功，当前余额 ¥${Number(response.data.balance).toFixed(2)}`;
-                message.success(mode === 'recharge' ? '充值成功' : '提现成功');
-                await loadOverview();
-                await loadActivities(false);
-                return true;
-            } catch (error) {
-                const nextMessage =
-                    error instanceof Error
-                        ? error.message
-                        : mode === 'recharge'
-                          ? '充值失败'
-                          : '提现失败';
-                actionFeedback.value = nextMessage;
-                message.error(nextMessage);
-                return false;
-            }
-        },
-    });
-};
-
 const handleQuickAction = (action: (typeof quickActions)[number]) => {
-    actionFeedback.value = '';
+    if (action.title === '配送记录' && !walletOverview.value?.deliverer.enabled) {
+        message.warning('请申请成为配送员后即可查看配送收入');
+        return;
+    }
 
     if (action.action === 'route' && action.route) {
         go(action.route);
@@ -532,12 +516,12 @@ const handleQuickAction = (action: (typeof quickActions)[number]) => {
     }
 
     if (action.action === 'recharge') {
-        void handleVirtualBalance('recharge');
+        go('/wallet/recharge');
         return;
     }
 
     if (action.action === 'withdraw') {
-        void handleVirtualBalance('withdraw');
+        go('/wallet/withdraw');
     }
 };
 
@@ -548,6 +532,16 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.wallet-center {
+    min-height: 100vh;
+    padding: 16px 16px 36px;
+    background: linear-gradient(180deg, #f4f7fb 0%, #eef3fb 100%);
+}
+
+.wallet-center__hero {
+    margin-bottom: 14px;
+}
+
 .hero-title {
     display: flex;
     align-items: center;
@@ -577,5 +571,259 @@ onMounted(async () => {
     letter-spacing: 1px;
     color: #94a3b8;
     margin-bottom: 4px;
+}
+
+.wallet-center__hero > p {
+    margin: 8px 0 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #5b667a;
+}
+
+.wallet-center__balance-card {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 18px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #2f6bff, #4bb8ff);
+    color: #fff;
+    box-shadow: 0 18px 40px rgba(47, 107, 255, 0.2);
+}
+
+.wallet-center__balance-card span {
+    display: block;
+    font-size: 13px;
+    opacity: 0.86;
+}
+
+.wallet-center__balance-card strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 32px;
+    line-height: 1.1;
+}
+
+.wallet-center__balance-card p {
+    margin: 8px 0 0;
+    font-size: 12px;
+    line-height: 1.6;
+    opacity: 0.9;
+}
+
+.wallet-center__container {
+    display: flex;
+    min-width: 108px;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
+}
+
+.wallet-center__badge {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.wallet-center__details {
+    display: grid;
+    gap: 8px;
+    text-align: right;
+    font-size: 12px;
+}
+
+.wallet-center__section {
+    margin-bottom: 14px;
+    padding: 16px;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(20, 46, 88, 0.06);
+}
+
+.wallet-center__section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.wallet-center__section-head h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #172033;
+}
+
+.wallet-center__action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.wallet-center__action {
+    min-height: 122px;
+    padding: 14px;
+    border: 1px solid #e2eaf7;
+    border-radius: 16px;
+    background: #f9fbff;
+    text-align: left;
+}
+
+.wallet-center__action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    margin-bottom: 14px;
+}
+
+.wallet-center__action strong {
+    display: block;
+    font-size: 15px;
+    color: #172033;
+}
+
+.wallet-center__action p {
+    margin: 8px 0 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #6c7890;
+}
+
+.wallet-center__filters {
+    display: inline-flex;
+    gap: 8px;
+    padding: 4px;
+    border-radius: 999px;
+    background: #f4f7fb;
+}
+
+.wallet-center__filter {
+    min-height: 38px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: #6c7890;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.wallet-center__filter.is-active {
+    background: #2f6bff;
+    color: #fff;
+}
+
+.wallet-center__state {
+    padding: 20px 12px;
+    border-radius: 14px;
+    background: #f6f8fc;
+    text-align: center;
+    font-size: 13px;
+    color: #6c7890;
+}
+
+.wallet-center__bill-list {
+    display: grid;
+    gap: 12px;
+}
+
+.wallet-center__bill-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 16px;
+    background: #f8fbff;
+    border: 1px solid #e7eef9;
+}
+
+.wallet-center__bill-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+}
+
+.wallet-center__bill-icon {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.wallet-center__bill-copy {
+    min-width: 0;
+}
+
+.wallet-center__bill-copy strong {
+    display: block;
+    font-size: 15px;
+    color: #172033;
+}
+
+.wallet-center__bill-copy p {
+    margin: 6px 0 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #5b667a;
+}
+
+.wallet-center__bill-copy span {
+    font-size: 12px;
+    color: #8c96a8;
+}
+
+.wallet-center__bill-amount {
+    flex-shrink: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #ff9b3d;
+}
+
+.wallet-center__bill-amount.is-income {
+    color: #19b36b;
+}
+
+.wallet-center__more {
+    width: 100%;
+    min-height: 44px;
+    margin-top: 14px;
+    border: none;
+    border-radius: 14px;
+    background: #eef4ff;
+    color: #2f6bff;
+    font-weight: 600;
+}
+
+.wallet-center__safe-space {
+    height: 24px;
+}
+
+@media (max-width: 420px) {
+    .wallet-center__balance-card {
+        flex-direction: column;
+    }
+
+    .wallet-center__container {
+        min-width: 0;
+        align-items: flex-start;
+    }
+
+    .wallet-center__details {
+        text-align: left;
+    }
+
+    .wallet-center__action-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>

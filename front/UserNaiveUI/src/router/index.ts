@@ -117,10 +117,34 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '我的', level: 0 },
             },
             {
+                path: 'users/:id',
+                name: 'UserPublicProfile',
+                component: () => import('@/views/user/UserPublicProfile.vue'),
+                meta: { title: '用户详情', requiresAuth: true, level: 1, hideTabBar: true },
+            },
+            {
                 path: 'wallet',
                 name: 'Wallet',
                 component: () => import('@/views/user/Wallet.vue'),
                 meta: { title: '钱包', requiresAuth: true, level: 1, hideTabBar: true },
+            },
+            {
+                path: 'wallet/recharge',
+                name: 'WalletRecharge',
+                component: () => import('@/views/user/Recharge.vue'),
+                meta: { title: '充值', requiresAuth: true, level: 2, hideTabBar: true },
+            },
+            {
+                path: 'wallet/withdraw',
+                name: 'WalletWithdraw',
+                component: () => import('@/views/user/Withdraw.vue'),
+                meta: { title: '提现', requiresAuth: true, level: 2, hideTabBar: true },
+            },
+            {
+                path: 'wallet/payment-settings',
+                name: 'WalletPaymentSettings',
+                component: () => import('@/views/user/PaymentSettings.vue'),
+                meta: { title: '支付设置', requiresAuth: true, level: 2, hideTabBar: true },
             },
             {
                 path: 'chat',

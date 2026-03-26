@@ -42,4 +42,13 @@ router.post('/:id/complete', TaskController.completeTask);
 // 发布者确认完成任务
 router.post('/:id/confirm', TaskController.confirmTask);
 
+// 发布者评价任务
+router.post('/:id/rate', TaskController.rateTask);
+
+// 任务取消协商
+router.post('/:id/cancellation/request', TaskController.requestCancellation);
+router.post('/:id/cancellation/respond', TaskController.respondCancellation);
+router.post('/:id/cancellation/withdraw', TaskController.withdrawCancellationRequest);
+router.post('/:id/cancellation/ticket', TaskController.createCancellationTicket);
+
 module.exports = router;

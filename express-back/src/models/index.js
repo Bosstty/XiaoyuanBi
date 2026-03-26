@@ -112,6 +112,12 @@ TaskApplication.belongsTo(User, {
     as: 'applicant',
 });
 
+// 任务与工单的关系
+Task.hasMany(ServiceTicket, {
+    foreignKey: 'task_id',
+    as: 'serviceTickets',
+});
+
 // 用户与论坛帖子的关系
 User.hasMany(ForumPost, {
     foreignKey: 'author_id',

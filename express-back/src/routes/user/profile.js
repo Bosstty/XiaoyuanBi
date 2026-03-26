@@ -53,5 +53,6 @@ router.post(
 
 // 用户统计信息
 router.get('/stats', auth('user'), AuthController.getUserStats); // 获取用户统计
+router.get('/users/:id', auth('user'), AuthController.getPublicUserProfile); // 获取公开用户详情
 
 module.exports = router;

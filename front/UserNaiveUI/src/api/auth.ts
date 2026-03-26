@@ -1,6 +1,7 @@
 import { apiClient } from './client';
 import type {
     User,
+    UserPublicProfile,
     UserRegisterData,
     UserLoginData,
     LoginResponse,
@@ -108,6 +109,10 @@ export class UserApi {
     // 获取用户统计
     static async getStats(): Promise<ApiResponse<UserStats>> {
         return apiClient.get('/profile/stats');
+    }
+
+    static async getPublicProfile(userId: number): Promise<ApiResponse<UserPublicProfile>> {
+        return apiClient.get(`/profile/users/${userId}`);
     }
 
     // 提交学生认证

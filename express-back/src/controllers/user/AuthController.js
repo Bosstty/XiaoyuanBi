@@ -1,6 +1,7 @@
-const { User, Deliverer } = require('../../models');
+const { User, Deliverer, PickupOrder, Task } = require('../../models');
 const { jwtUtils, responseUtils, validationUtils } = require('../../utils');
 const { Op } = require('sequelize');
+const { sequelize } = require('../../config/database');
 const SecurityService = require('../../services/SecurityService');
 
 async function buildUserResponse(user) {
@@ -18,6 +19,27 @@ async function buildUserResponse(user) {
         ...user.toJSON(),
         is_deliverer: Boolean(deliverer),
         deliverer_id: deliverer ? deliverer.id : null,
+    };
+}
+
+function pickPublicUser(user) {
+    return {
+        id: user.id,
+        username: user.username,
+        real_name: user.real_name,
+        avatar: user.avatar,
+        gender: user.gender,
+        college: user.college,
+        major: user.major,
+        grade: user.grade,
+        bio: user.bio,
+        skills: user.skills,
+        rating: Number(user.rating || 0),
+        completed_orders: Number(user.completed_orders || 0),
+        completed_tasks: Number(user.completed_tasks || 0),
+        student_verified: Boolean(user.student_verified),
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
     };
 }
 
@@ -372,6 +394,146 @@ class UserAuthController {
         } catch (error) {
             console.error('获取用户统计失败:', error);
             res.status(500).json(responseUtils.error('获取用户统计失败'));
+        }
+    }
+
+    static async getPublicUserProfile(req, res) {
+        try {
+            const userId = Number(req.params.id || 0);
+            if (!userId) {
+                return res.status(400).json(responseUtils.error('用户ID不正确'));
+            }
+
+            const user = await User.findByPk(userId, {
+                attributes: [
+                    'id',
+                    'username',
+                    'real_name',
+                    'avatar',
+                    'gender',
+                    'college',
+                    'major',
+                    'grade',
+                    'bio',
+                    'skills',
+                    'rating',
+                    'completed_orders',
+                    'completed_tasks',
+                    'student_verified',
+                    'createdAt',
+                    'updatedAt',
+                ],
+            });
+
+            if (!user) {
+                return res.status(404).json(responseUtils.error('用户不存在'));
+            }
+
+            const [
+                taskStats,
+                orderStats,
+                publishedTaskCount,
+                publishedOrderCount,
+                recentTaskReviews,
+                recentOrderReviews,
+            ] = await Promise.all([
+                Task.findOne({
+                    where: {
+                        assignee_id: userId,
+                        status: 'completed',
+                        rating: { [Op.not]: null },
+                    },
+                    attributes: [
+                        [sequelize.fn('AVG', sequelize.col('rating')), 'avgRating'],
+                        [sequelize.fn('COUNT', sequelize.col('id')), 'reviewCount'],
+                    ],
+                    raw: true,
+                }),
+                PickupOrder.findOne({
+                    where: {
+                        deliverer_id: userId,
+                        status: 'completed',
+                        rating: { [Op.not]: null },
+                    },
+                    attributes: [
+                        [sequelize.fn('AVG', sequelize.col('rating')), 'avgRating'],
+                        [sequelize.fn('COUNT', sequelize.col('id')), 'reviewCount'],
+                    ],
+                    raw: true,
+                }),
+                Task.count({ where: { publisher_id: userId } }),
+                PickupOrder.count({ where: { user_id: userId } }),
+                Task.findAll({
+                    where: {
+                        assignee_id: userId,
+                        status: 'completed',
+                        rating: { [Op.not]: null },
+                    },
+                    include: [
+                        {
+                            model: User,
+                            as: 'publisher',
+                            attributes: ['id', 'username', 'real_name', 'avatar'],
+                        },
+                    ],
+                    attributes: ['id', 'title', 'rating', 'rating_comment', 'createdAt'],
+                    order: [['updated_at', 'DESC']],
+                    limit: 6,
+                }),
+                PickupOrder.findAll({
+                    where: {
+                        deliverer_id: userId,
+                        status: 'completed',
+                        rating: { [Op.not]: null },
+                    },
+                    include: [
+                        {
+                            model: User,
+                            as: 'user',
+                            attributes: ['id', 'username', 'real_name', 'avatar'],
+                        },
+                    ],
+                    attributes: ['id', 'title', 'rating', 'rating_comment', 'createdAt'],
+                    order: [['updated_at', 'DESC']],
+                    limit: 6,
+                }),
+            ]);
+
+            const result = {
+                user: pickPublicUser(user),
+                stats: {
+                    overall_rating: Number(Number(user.rating || 0).toFixed(2)),
+                    task_rating: Number(Number(taskStats?.avgRating || 0).toFixed(2)),
+                    order_rating: Number(Number(orderStats?.avgRating || 0).toFixed(2)),
+                    total_task_reviews: Number(taskStats?.reviewCount || 0),
+                    total_order_reviews: Number(orderStats?.reviewCount || 0),
+                    completed_tasks: Number(user.completed_tasks || 0),
+                    completed_orders: Number(user.completed_orders || 0),
+                    published_tasks: Number(publishedTaskCount || 0),
+                    published_orders: Number(publishedOrderCount || 0),
+                },
+                recent_task_reviews: recentTaskReviews.map(item => ({
+                    id: item.id,
+                    rating: Number(item.rating || 0),
+                    comment: item.rating_comment,
+                    title: item.title,
+                    createdAt: item.createdAt,
+                    publisher: item.publisher || null,
+                })),
+                recent_order_reviews: recentOrderReviews.map(item => ({
+                    id: item.id,
+                    rating: Number(item.rating || 0),
+                    comment: item.rating_comment,
+                    title: item.title,
+                    createdAt: item.createdAt,
+                    reviewer: item.user || null,
+                })),
+            };
+
+            return res.json(responseUtils.success(result));
+        } catch (error) {
+            console.error('获取公开用户详情失败:', error);
+            return res.status(500).json(responseUtils.error('获取公开用户详情失败'));
         }
     }
 

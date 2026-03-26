@@ -1,8 +1,20 @@
 const { Op } = require('sequelize');
-const { Wallet, Transaction, Deliverer, PickupOrder, Task } = require('../../models');
+const { Wallet, Transaction, Deliverer, PickupOrder, Task, User } = require('../../models');
 const { responseUtils, paginationUtils, timeUtils, cryptoUtils } = require('../../utils');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
+const MIN_WALLET_AMOUNT = 10;
+const WITHDRAW_FEE_RATE = 0.01;
+const WITHDRAW_MIN_FEE = 2;
+const VALID_PAYMENT_METHODS = ['balance', 'wechat', 'alipay', 'bank_card'];
+const VALID_RECORD_TYPES = ['recharge', 'withdraw'];
+const SYSTEM_ACCOUNT = {
+    student_id: 'SYSTEM0001',
+    username: 'system_wallet',
+    email: 'system-wallet@campus.local',
+    password: 'system-wallet-unsafe-login-disabled',
+    real_name: '系统账户',
+};
 
 const transactionTitleMap = {
     recharge: '钱包充值',
@@ -16,6 +28,13 @@ const transactionTitleMap = {
     bonus: '奖励到账',
     transfer_in: '转入',
     transfer_out: '转出',
+};
+
+const paymentMethodLabelMap = {
+    balance: '余额',
+    wechat: '微信支付',
+    alipay: '支付宝',
+    bank_card: '银行卡',
 };
 
 const orderTypeLabelMap = {
@@ -39,7 +58,48 @@ async function ensureWallet(userId, user) {
     return wallet;
 }
 
+async function ensureSystemWalletAccount(dbTransaction) {
+    let systemUser = await User.findOne({
+        where: {
+            [Op.or]: [{ student_id: SYSTEM_ACCOUNT.student_id }, { email: SYSTEM_ACCOUNT.email }],
+        },
+        transaction: dbTransaction,
+    });
+
+    if (!systemUser) {
+        systemUser = await User.create(
+            {
+                ...SYSTEM_ACCOUNT,
+                phone: null,
+                gender: 'other',
+                college: '系统',
+                major: '平台服务',
+                status: 'active',
+                email_verified: true,
+                phone_verified: false,
+                student_verified: false,
+            },
+            { transaction: dbTransaction }
+        );
+    }
+
+    const [wallet] = await Wallet.findOrCreate({
+        where: { user_id: systemUser.id },
+        defaults: {
+            user_id: systemUser.id,
+            balance: 0,
+            points: 0,
+            status: 'active',
+        },
+        transaction: dbTransaction,
+    });
+
+    return { user: systemUser, wallet };
+}
+
 function normalizeTransaction(transaction) {
+    const extraData = transaction.extra_data || transaction.extraData || {};
+
     return {
         id: `tx-${transaction.id}`,
         source: 'transaction',
@@ -57,7 +117,11 @@ function normalizeTransaction(transaction) {
         related_type: transaction.related_type,
         related_id: transaction.related_id,
         payment_method: transaction.payment_method,
+        third_party_no: transaction.third_party_no,
         balance_after: parseAmount(transaction.balance_after),
+        commission_rate: parseAmount(transaction.commission_rate),
+        commission_amount: parseAmount(transaction.commission_amount),
+        actual_amount: parseAmount(extraData.actual_amount),
     };
 }
 
@@ -79,6 +143,7 @@ function normalizePickupActivity(order, direction, amount, title, description) {
         related_type: 'pickup_order',
         related_id: order.id,
         payment_method: direction === 'out' ? 'balance' : null,
+        third_party_no: null,
         balance_after: null,
     };
 }
@@ -102,8 +167,93 @@ function normalizeTaskActivity(task, direction, amount, title, description) {
         related_type: 'task',
         related_id: task.id,
         payment_method: direction === 'out' ? 'balance' : null,
+        third_party_no: null,
         balance_after: null,
     };
+}
+
+function generateTransactionNo(prefix = 'TX') {
+    return `${prefix}${Date.now()}${Math.random().toString().slice(2, 6)}`;
+}
+
+function parseLegacyRemark(remark) {
+    if (!remark || typeof remark !== 'string' || !remark.includes(':')) {
+        return {};
+    }
+
+    const [paymentMethod, value] = remark.split(':');
+    if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
+        return {};
+    }
+
+    return {
+        payment_method: paymentMethod,
+        third_party_no: value || null,
+    };
+}
+
+function normalizeRecordType(type) {
+    if (!type) return null;
+    if (type === 'withdrawal') return 'withdraw';
+    if (type === 'recharge') return 'recharge';
+    return type;
+}
+
+function assertAmount(amount, action) {
+    if (amount < MIN_WALLET_AMOUNT) {
+        throw new Error(`${action}金额不能低于 ${MIN_WALLET_AMOUNT} 元`);
+    }
+}
+
+function assertPaymentMethod(paymentMethod, validMethods) {
+    if (!validMethods.includes(paymentMethod)) {
+        throw new Error('支付方式不支持');
+    }
+}
+
+function buildPaymentDescription(type, paymentMethod) {
+    const label = paymentMethodLabelMap[paymentMethod] || '钱包';
+    return `${label}${type === 'recharge' ? '充值' : '提现'}`;
+}
+
+function resolveAccountNo(payload, scene = 'recharge') {
+    const legacy = parseLegacyRemark(payload.remark);
+    const paymentMethod = payload.payment_method || legacy.payment_method || null;
+    const rawThirdPartyNo = payload.third_party_no || legacy.third_party_no || null;
+    const bankPrefix = String(payload.bank_prefix || '').trim().toUpperCase();
+    const accountNo = String(payload.account_no || '').trim();
+    const phone = String(payload.phone || '').trim();
+
+    if (paymentMethod === 'alipay') {
+        const account = rawThirdPartyNo || phone;
+        if (scene === 'withdraw' && !/^1\d{10}$/.test(account)) {
+            throw new Error('支付宝账号必须为 11 位手机号');
+        }
+
+        return account || null;
+    }
+
+    if (paymentMethod === 'bank_card') {
+        if (rawThirdPartyNo) {
+            if (!/^[A-Z]{2}\d{16}$/.test(rawThirdPartyNo)) {
+                throw new Error('银行卡账号格式不正确');
+            }
+
+            return rawThirdPartyNo;
+        }
+
+        if (!/^[A-Z]{2}$/.test(bankPrefix)) {
+            throw new Error('银行卡前缀格式不正确');
+        }
+
+        if (!/^\d{16}$/.test(accountNo)) {
+            throw new Error('银行卡号必须为 16 位数字');
+        }
+
+        return `${bankPrefix}${accountNo}`;
+    }
+
+    return rawThirdPartyNo;
 }
 
 async function buildWalletActivities(userId) {
@@ -332,11 +482,17 @@ async function buildWalletActivities(userId) {
     };
 }
 
-async function applyWalletChange(user, change) {
+async function createRechargeTransaction(user, payload) {
     const dbTransaction = await Wallet.sequelize.transaction();
 
     try {
+        const amount = parseAmount(payload.amount);
+        assertAmount(amount, '充值');
+        assertPaymentMethod(payload.payment_method, ['alipay', 'wechat', 'bank_card']);
+
+        const thirdPartyNo = resolveAccountNo(payload, 'recharge');
         await ensureWallet(user.id, user);
+
         const wallet = await Wallet.findOne({
             where: { user_id: user.id },
             transaction: dbTransaction,
@@ -347,32 +503,15 @@ async function applyWalletChange(user, change) {
             lock: dbTransaction.LOCK.UPDATE,
         });
 
-        const amount = parseAmount(change.amount);
         const balanceBefore = parseAmount(wallet.balance);
-
-        if (amount <= 0) {
-            throw new Error('金额必须大于0');
-        }
-
-        if (change.direction === 'out' && balanceBefore < amount) {
-            throw new Error('余额不足');
-        }
-
-        const balanceAfter =
-            change.direction === 'in' ? balanceBefore + amount : balanceBefore - amount;
+        const balanceAfter = balanceBefore + amount;
+        const now = new Date();
 
         await wallet.update(
             {
                 balance: balanceAfter,
-                total_income:
-                    change.direction === 'in'
-                        ? parseAmount(wallet.total_income) + amount
-                        : parseAmount(wallet.total_income),
-                total_expense:
-                    change.direction === 'out'
-                        ? parseAmount(wallet.total_expense) + amount
-                        : parseAmount(wallet.total_expense),
-                last_transaction_at: new Date(),
+                total_income: parseAmount(wallet.total_income) + amount,
+                last_transaction_at: now,
             },
             { transaction: dbTransaction }
         );
@@ -386,20 +525,25 @@ async function applyWalletChange(user, change) {
 
         const transactionRecord = await Transaction.create(
             {
-                transaction_no: `TX${Date.now()}${Math.random().toString().slice(2, 6)}`,
+                transaction_no: generateTransactionNo('RC'),
                 user_id: user.id,
-                type: change.type,
+                type: 'recharge',
                 amount,
-                direction: change.direction,
+                direction: 'in',
                 balance_before: balanceBefore,
                 balance_after: balanceAfter,
                 status: 'success',
-                related_type: change.related_type || null,
-                related_id: change.related_id || null,
-                payment_method: 'balance',
-                description: change.description,
-                remark: change.remark || null,
-                completed_at: new Date(),
+                related_type: 'recharge',
+                related_id: null,
+                third_party_no: thirdPartyNo,
+                payment_method: payload.payment_method,
+                description: buildPaymentDescription('recharge', payload.payment_method),
+                remark: payload.remark || null,
+                completed_at: now,
+                extra_data: {
+                    requested_amount: amount,
+                    payment_method_label: paymentMethodLabelMap[payload.payment_method] || null,
+                },
             },
             { transaction: dbTransaction }
         );
@@ -408,8 +552,166 @@ async function applyWalletChange(user, change) {
 
         return {
             wallet,
-            user: currentUser,
             transaction: transactionRecord,
+        };
+    } catch (error) {
+        await dbTransaction.rollback();
+        throw error;
+    }
+}
+
+async function createWithdrawTransaction(user, payload) {
+    const dbTransaction = await Wallet.sequelize.transaction();
+
+    try {
+        const amount = parseAmount(payload.amount);
+        assertAmount(amount, '提现');
+        assertPaymentMethod(payload.payment_method, ['alipay', 'bank_card']);
+
+        const thirdPartyNo = resolveAccountNo(payload, 'withdraw');
+        const fee = Math.max(amount * WITHDRAW_FEE_RATE, WITHDRAW_MIN_FEE);
+        const actualAmount = amount - fee;
+
+        if (actualAmount <= 0) {
+            throw new Error('提现金额过低，扣除服务费后到账金额必须大于 0');
+        }
+
+        await ensureWallet(user.id, user);
+        const wallet = await Wallet.findOne({
+            where: { user_id: user.id },
+            transaction: dbTransaction,
+            lock: dbTransaction.LOCK.UPDATE,
+        });
+        const currentUser = await user.constructor.findByPk(user.id, {
+            transaction: dbTransaction,
+            lock: dbTransaction.LOCK.UPDATE,
+        });
+
+        const balanceBefore = parseAmount(wallet.balance);
+        if (!wallet.payment_password_set || !wallet.payment_password) {
+            throw new Error('请先设置支付密码');
+        }
+
+        if (!/^\d{6}$/.test(String(payload.payment_password || ''))) {
+            throw new Error('请输入 6 位支付密码');
+        }
+
+        const encryptedPassword = cryptoUtils.sha256(String(payload.payment_password));
+        if (wallet.payment_password !== encryptedPassword) {
+            throw new Error('支付密码错误');
+        }
+
+        if (balanceBefore < amount) {
+            throw new Error('余额不足');
+        }
+
+        const balanceAfter = balanceBefore - amount;
+        const now = new Date();
+
+        await wallet.update(
+            {
+                balance: balanceAfter,
+                total_expense: parseAmount(wallet.total_expense) + amount,
+                last_transaction_at: now,
+            },
+            { transaction: dbTransaction }
+        );
+
+        await currentUser.update(
+            {
+                balance: balanceAfter,
+            },
+            { transaction: dbTransaction }
+        );
+
+        const userTransaction = await Transaction.create(
+            {
+                transaction_no: generateTransactionNo('WD'),
+                user_id: user.id,
+                type: 'withdraw',
+                amount,
+                direction: 'out',
+                balance_before: balanceBefore,
+                balance_after: balanceAfter,
+                status: 'success',
+                related_type: 'withdraw',
+                related_id: null,
+                third_party_no: thirdPartyNo,
+                payment_method: payload.payment_method,
+                commission_rate: WITHDRAW_FEE_RATE,
+                commission_amount: fee,
+                description: buildPaymentDescription('withdraw', payload.payment_method),
+                remark: payload.remark || null,
+                completed_at: now,
+                extra_data: {
+                    service_fee: fee,
+                    actual_amount: actualAmount,
+                    payment_method_label: paymentMethodLabelMap[payload.payment_method] || null,
+                },
+            },
+            { transaction: dbTransaction }
+        );
+
+        const systemAccount = await ensureSystemWalletAccount(dbTransaction);
+        const systemWallet = await Wallet.findOne({
+            where: { user_id: systemAccount.user.id },
+            transaction: dbTransaction,
+            lock: dbTransaction.LOCK.UPDATE,
+        });
+
+        const systemBalanceBefore = parseAmount(systemWallet.balance);
+        const systemBalanceAfter = systemBalanceBefore + fee;
+
+        await systemWallet.update(
+            {
+                balance: systemBalanceAfter,
+                total_income: parseAmount(systemWallet.total_income) + fee,
+                last_transaction_at: now,
+            },
+            { transaction: dbTransaction }
+        );
+
+        await systemAccount.user.update(
+            {
+                balance: systemBalanceAfter,
+            },
+            { transaction: dbTransaction }
+        );
+
+        await Transaction.create(
+            {
+                transaction_no: generateTransactionNo('SF'),
+                user_id: systemAccount.user.id,
+                type: 'recharge',
+                amount: fee,
+                direction: 'in',
+                balance_before: systemBalanceBefore,
+                balance_after: systemBalanceAfter,
+                status: 'success',
+                related_type: 'withdraw',
+                related_id: userTransaction.id,
+                third_party_no: thirdPartyNo,
+                payment_method: payload.payment_method,
+                commission_rate: WITHDRAW_FEE_RATE,
+                commission_amount: fee,
+                description: '提现服务费收入',
+                remark: `用户 ${user.id} 提现服务费`,
+                completed_at: now,
+                extra_data: {
+                    source_user_id: user.id,
+                    source_transaction_no: userTransaction.transaction_no,
+                },
+            },
+            { transaction: dbTransaction }
+        );
+
+        await dbTransaction.commit();
+
+        return {
+            wallet,
+            transaction: userTransaction,
+            fee,
+            actualAmount,
         };
     } catch (error) {
         await dbTransaction.rollback();
@@ -499,14 +801,32 @@ class WalletController {
     static async getWalletActivities(req, res) {
         try {
             const userId = req.user.id;
-            const { page = 1, limit = 20, direction = 'all' } = req.query;
+            const { page = 1, limit = 20, direction = 'all', type, payment_method } = req.query;
             const { activities } = await buildWalletActivities(userId);
+            const normalizedType = normalizeRecordType(type);
+
+            if (normalizedType && !VALID_RECORD_TYPES.includes(normalizedType)) {
+                return res.status(400).json(responseUtils.error('记录类型不支持'));
+            }
+
+            if (payment_method && !VALID_PAYMENT_METHODS.includes(payment_method)) {
+                return res.status(400).json(responseUtils.error('支付方式不支持'));
+            }
 
             const filteredActivities = activities.filter(item => {
-                if (direction === 'all') {
-                    return true;
+                if (direction !== 'all' && item.direction !== direction) {
+                    return false;
                 }
-                return item.direction === direction;
+
+                if (normalizedType && item.type !== normalizedType) {
+                    return false;
+                }
+
+                if (payment_method && item.payment_method !== payment_method) {
+                    return false;
+                }
+
+                return true;
             });
 
             const { offset, limit: pageLimit } = paginationUtils.getPagination(page, limit);
@@ -544,10 +864,19 @@ class WalletController {
 
     static async setPaymentPassword(req, res) {
         try {
-            const { payment_password } = req.body;
+            const { payment_password, account_password } = req.body;
 
             if (!/^\d{6}$/.test(String(payment_password || ''))) {
                 return res.status(400).json(responseUtils.error('支付密码必须为6位数字'));
+            }
+
+            if (!account_password) {
+                return res.status(400).json(responseUtils.error('请输入账户密码进行验证'));
+            }
+
+            const isAccountPasswordValid = await req.user.comparePassword(String(account_password));
+            if (!isAccountPasswordValid) {
+                return res.status(400).json(responseUtils.error('账户密码错误'));
             }
 
             const wallet = await ensureWallet(req.user.id, req.user);
@@ -560,8 +889,9 @@ class WalletController {
                 responseUtils.success(
                     {
                         payment_password_set: true,
+                        updated: Boolean(wallet.payment_password_set),
                     },
-                    '支付密码设置成功'
+                    wallet.payment_password_set ? '支付密码修改成功' : '支付密码设置成功'
                 )
             );
         } catch (error) {
@@ -572,14 +902,18 @@ class WalletController {
 
     static async recharge(req, res) {
         try {
-            const { amount, remark } = req.body;
-            const result = await applyWalletChange(req.user, {
-                amount,
-                direction: 'in',
-                type: 'recharge',
-                description: '虚拟充值',
-                remark,
-            });
+            const payload = {
+                amount: req.body.amount,
+                payment_method: req.body.payment_method || parseLegacyRemark(req.body.remark).payment_method,
+                payment_password: req.body.payment_password,
+                third_party_no: req.body.third_party_no,
+                bank_prefix: req.body.bank_prefix,
+                account_no: req.body.account_no,
+                phone: req.body.phone,
+                remark: req.body.remark,
+            };
+
+            const result = await createRechargeTransaction(req.user, payload);
 
             res.json(
                 responseUtils.success(
@@ -591,33 +925,39 @@ class WalletController {
                 )
             );
         } catch (error) {
-            console.error('虚拟充值失败:', error);
+            console.error('充值失败:', error);
             res.status(400).json(responseUtils.error(error.message || '充值失败'));
         }
     }
 
     static async withdraw(req, res) {
         try {
-            const { amount, remark } = req.body;
-            const result = await applyWalletChange(req.user, {
-                amount,
-                direction: 'out',
-                type: 'withdraw',
-                description: '虚拟提现',
-                remark,
-            });
+            const payload = {
+                amount: req.body.amount,
+                payment_method: req.body.payment_method || parseLegacyRemark(req.body.remark).payment_method,
+                payment_password: req.body.payment_password,
+                third_party_no: req.body.third_party_no,
+                bank_prefix: req.body.bank_prefix,
+                account_no: req.body.account_no,
+                phone: req.body.phone,
+                remark: req.body.remark,
+            };
+
+            const result = await createWithdrawTransaction(req.user, payload);
 
             res.json(
                 responseUtils.success(
                     {
                         balance: parseAmount(result.wallet.balance),
+                        fee: parseAmount(result.fee),
+                        actual_amount: parseAmount(result.actualAmount),
                         transaction: normalizeTransaction(result.transaction),
                     },
                     '提现成功'
                 )
             );
         } catch (error) {
-            console.error('虚拟提现失败:', error);
+            console.error('提现失败:', error);
             res.status(400).json(responseUtils.error(error.message || '提现失败'));
         }
     }

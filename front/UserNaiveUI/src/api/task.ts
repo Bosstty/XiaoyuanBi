@@ -51,7 +51,10 @@ export class TaskApi {
     }
 
     // 更新任务
-    static async updateTask(id: number, data: Partial<CreateTaskData>): Promise<ApiResponse<Task>> {
+    static async updateTask(
+        id: number,
+        data: Partial<CreateTaskData> & { payment_password?: string }
+    ): Promise<ApiResponse<Task>> {
         return apiClient.put(`/tasks/${id}`, data);
     }
 
@@ -119,5 +122,30 @@ export class TaskApi {
         data: { rating: number; comment?: string }
     ): Promise<ApiResponse<Task>> {
         return apiClient.post(`/tasks/${id}/rate`, data);
+    }
+
+    static async requestCancellation(
+        id: number,
+        data: { reason: string; compensation?: number }
+    ): Promise<ApiResponse> {
+        return apiClient.post(`/tasks/${id}/cancellation/request`, data);
+    }
+
+    static async respondCancellation(
+        id: number,
+        data: { action: 'accept' | 'reject' }
+    ): Promise<ApiResponse> {
+        return apiClient.post(`/tasks/${id}/cancellation/respond`, data);
+    }
+
+    static async withdrawCancellation(id: number): Promise<ApiResponse> {
+        return apiClient.post(`/tasks/${id}/cancellation/withdraw`);
+    }
+
+    static async createCancellationTicket(
+        id: number,
+        data: { description?: string }
+    ): Promise<ApiResponse> {
+        return apiClient.post(`/tasks/${id}/cancellation/ticket`, data);
     }
 }

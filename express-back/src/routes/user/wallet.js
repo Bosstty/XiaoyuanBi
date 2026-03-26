@@ -5,6 +5,7 @@ const router = express.Router();
 
 router.get('/overview', WalletController.getWalletOverview);
 router.get('/activities', WalletController.getWalletActivities);
+router.get('/records', WalletController.getWalletActivities);
 router.post('/payment-password', WalletController.setPaymentPassword);
 router.post('/recharge', WalletController.recharge);
 router.post('/withdraw', WalletController.withdraw);

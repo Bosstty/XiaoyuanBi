@@ -20,7 +20,9 @@
                             alt="avatar"
                             class="account-center__avatar-image"
                         />
-                        <span v-else class="account-center__avatar-fallback">{{ userInitial }}</span>
+                        <span v-else class="account-center__avatar-fallback">
+                            {{ userInitial }}
+                        </span>
                     </div>
                     <button
                         v-if="userStore.isAuthenticated"
@@ -88,22 +90,7 @@
                             <strong>¥{{ Number(userStore.user?.balance || 0).toFixed(2) }}</strong>
                             <p>冻结金额 ¥{{ frozenBalanceText }}</p>
                         </div>
-                        <div class="account-center__wallet-actions">
-                            <button
-                                type="button"
-                                class="account-center__wallet-action touch-feedback"
-                                @click.stop="handleWalletAction('withdraw')"
-                            >
-                                提现
-                            </button>
-                            <button
-                                type="button"
-                                class="account-center__wallet-action touch-feedback"
-                                @click.stop="handleWalletAction('recharge')"
-                            >
-                                充值
-                            </button>
-                        </div>
+
                         <NIcon :size="18"><ChevronForwardOutline /></NIcon>
                     </button>
                 </div>
@@ -291,7 +278,9 @@
             <div class="courier-application-modal__head">
                 <div>
                     <span class="courier-application-modal__eyebrow">Runner Upgrade</span>
-                    <h3>{{ courierApplicationMode === 'submit' ? '申请配送员' : '修改配送员申请' }}</h3>
+                    <h3>
+                        {{ courierApplicationMode === 'submit' ? '申请配送员' : '修改配送员申请' }}
+                    </h3>
                 </div>
                 <p>提交基础身份信息与身份证照片后，管理员会尽快完成审核。</p>
             </div>
@@ -429,9 +418,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, markRaw, onMounted, reactive, ref } from 'vue';
+import { computed, markRaw, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NIcon, NInput, NModal, NSwitch, useDialog, useMessage } from 'naive-ui';
+import { NButton, NIcon, NModal, NSwitch, useDialog, useMessage } from 'naive-ui';
 import {
     BagHandleOutline,
     CameraOutline,
@@ -458,7 +447,6 @@ const dialog = useDialog();
 const message = useMessage();
 const userStore = useUserStore();
 const appStore = useAppStore();
-const walletActionAmount = ref('');
 const delivererApplication = ref<DelivererApplication | null>(null);
 const delivererApplicationLoading = ref(false);
 const walletOverview = ref<WalletOverview | null>(null);
@@ -867,63 +855,9 @@ const handleMenuClick = (path: string) => {
     router.push(path);
 };
 
-const handleWalletAction = async (mode: 'recharge' | 'withdraw') => {
-    walletActionAmount.value = '';
-
-    dialog.create({
-        title: mode === 'recharge' ? '虚拟充值' : '虚拟提现',
-        positiveText: '确认',
-        negativeText: '取消',
-        content: () =>
-            h(NInput, {
-                value: walletActionAmount.value,
-                placeholder: mode === 'recharge' ? '请输入充值金额' : '请输入提现金额',
-                onUpdateValue: value => {
-                    walletActionAmount.value = value;
-                },
-            }),
-        async onPositiveClick() {
-            const amount = Number.parseFloat(walletActionAmount.value);
-
-            if (!Number.isFinite(amount) || amount <= 0) {
-                message.error('金额格式不正确');
-                return false;
-            }
-
-            try {
-                const response =
-                    mode === 'recharge'
-                        ? await WalletApi.recharge({ amount })
-                        : await WalletApi.withdraw({ amount });
-
-                if (!response.success || !response.data) {
-                    throw new Error(
-                        response.message || (mode === 'recharge' ? '充值失败' : '提现失败')
-                    );
-                }
-
-                if (userStore.user) {
-                    userStore.user.balance = Number(response.data.balance || 0);
-                    localStorage.setItem('user', JSON.stringify(userStore.user));
-                }
-
-                message.success(
-                    `${mode === 'recharge' ? '充值' : '提现'}成功，当前余额 ¥${Number(response.data.balance || 0).toFixed(2)}`
-                );
-                await Promise.all([userStore.fetchUserProfile(), loadWalletOverview()]);
-                return true;
-            } catch (error) {
-                message.error(
-                    error instanceof Error
-                        ? error.message
-                        : mode === 'recharge'
-                          ? '充值失败'
-                          : '提现失败'
-                );
-                return false;
-            }
-        },
-    });
+const handleWalletAction = (mode: 'recharge' | 'withdraw') => {
+    appStore.hapticFeedback('light');
+    router.push(mode === 'recharge' ? '/wallet/recharge' : '/wallet/withdraw');
 };
 
 const handleThemeChange = (value: boolean) => {

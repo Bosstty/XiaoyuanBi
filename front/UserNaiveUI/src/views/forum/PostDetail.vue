@@ -1,56 +1,56 @@
 <template>
     <div class="post-detail-page" :class="{ 'is-dark': appStore.isDark }">
-        <!-- 顶部导航 -->
-        <header class="top-nav">
-            <button type="button" class="back-btn" @click="router.back()" aria-label="返回">
-                <svg viewBox="0 0 24 24" width="24" height="24">
+        <header class="detail-nav">
+            <button type="button" class="icon-btn" @click="router.back()" aria-label="返回">
+                <svg viewBox="0 0 24 24" width="22" height="22">
                     <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor" />
                 </svg>
             </button>
-            <span class="nav-title">帖子详情</span>
-            <div class="nav-actions">
-                <button
-                    v-if="post && Number(post.author_id) === Number(userStore.user?.id)"
-                    class="action-btn delete-btn"
-                    @click="handleDelete"
-                    aria-label="删除"
-                >
-                    <svg viewBox="0 0 24 24" width="20" height="20">
-                        <path
-                            d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
-                            fill="currentColor"
-                        />
-                    </svg>
-                </button>
-            </div>
+            <h1>帖子详情</h1>
+            <button
+                v-if="post && Number(post.author_id) === Number(userStore.user?.id)"
+                type="button"
+                class="icon-btn icon-btn--danger"
+                @click="handleDelete"
+                aria-label="删除"
+            >
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path
+                        d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                        fill="currentColor"
+                    />
+                </svg>
+            </button>
+            <div v-else class="nav-spacer"></div>
         </header>
 
-        <main class="detail-main">
-            <div v-if="loading" class="loading-state">
+        <main class="detail-shell">
+            <div v-if="loading" class="state-box">
                 <NSpin size="large" />
                 <p>加载中...</p>
             </div>
 
             <template v-else-if="post">
-                <!-- 帖子主体 -->
-                <article class="post-article">
-                    <!-- 分类和状态 -->
-                    <div class="post-meta-top">
-                        <div class="category-badge" :data-type="post.category">
-                            <span class="cat-dot"></span>
-                            <span class="cat-text">{{ getCategoryLabel(post.category) }}</span>
+                <article class="post-card">
+                    <div class="post-head">
+                        <div class="chip-row">
+                            <span class="category-chip" :data-type="post.category">
+                                <i></i>
+                                {{ getCategoryLabel(post.category) }}
+                            </span>
+                            <span class="status-chip" :data-status="post.status">
+                                {{ getStatusLabel(post.status) }}
+                            </span>
                         </div>
-                        <span class="status-tag" :data-status="post.status">
-                            {{ getStatusLabel(post.status) }}
+                        <span class="muted">
+                            {{ formatTime(post.createdAt || post.created_at) }}
                         </span>
                     </div>
 
-                    <!-- 标题 -->
                     <h1 class="post-title">{{ post.title }}</h1>
 
-                    <!-- 作者信息栏 -->
-                    <div class="author-bar">
-                        <div class="author-avatar">
+                    <div class="author-card">
+                        <div class="avatar">
                             <img
                                 v-if="resolveAvatarUrl(post.author?.avatar)"
                                 :src="resolveAvatarUrl(post.author?.avatar)"
@@ -58,127 +58,111 @@
                             />
                             <span v-else>{{ authorName.charAt(0) }}</span>
                         </div>
-                        <div class="author-info">
-                            <span class="author-name">{{ authorName }}</span>
-                            <span class="author-sub">
-                                <span v-if="post.author?.college">{{ post.author.college }}</span>
-                                <span v-if="post.author?.major">· {{ post.author.major }}</span>
+                        <div class="author-copy">
+                            <strong>{{ authorName }}</strong>
+                            <span>
+                                {{ post.author?.college || '未填写学院' }}
+                                <template v-if="post.author?.major">
+                                    · {{ post.author.major }}
+                                </template>
                             </span>
-                        </div>
-                        <div class="post-time">
-                            {{ formatTime(post.createdAt || post.created_at) }}
                         </div>
                     </div>
 
-                    <!-- 内容区 -->
-                    <div class="post-content">
-                        <p v-if="post.summary" class="post-summary">{{ post.summary }}</p>
+                    <div class="content-block">
+                        <p v-if="post.summary" class="summary">{{ post.summary }}</p>
                         <div class="content-text">{{ post.content }}</div>
+                    </div>
 
-                        <!-- 图片画廊 -->
-                        <div v-if="post.images?.length" class="image-gallery">
-                            <div
-                                v-for="(img, idx) in post.images"
-                                :key="idx"
-                                class="gallery-item"
-                                @click="previewingImage = img"
-                            >
-                                <img :src="img" :alt="`图片 ${idx + 1}`" />
+                    <div v-if="post.images?.length" class="gallery">
+                        <button
+                            v-for="(img, idx) in post.images"
+                            :key="idx"
+                            type="button"
+                            class="gallery-item"
+                            @click="previewingImage = img"
+                        >
+                            <img :src="img" :alt="`帖子图片 ${idx + 1}`" />
+                        </button>
+                    </div>
+
+                    <div v-if="post.tags?.length" class="tags">
+                        <span v-for="tag in post.tags" :key="tag" class="tag">#{{ tag }}</span>
+                    </div>
+
+                    <div class="stats">
+                        <span class="stat-pill">
+                            {{ post.viewCount || post.view_count || 0 }} 浏览
+                        </span>
+                        <span class="stat-pill">
+                            {{ post.commentCount || post.comment_count || 0 }} 评论
+                        </span>
+                        <button
+                            type="button"
+                            class="like-pill"
+                            :class="{ 'is-liked': isLiked }"
+                            @click="handleLikePost"
+                        >
+                            {{ post.likeCount || post.like_count || 0 }} 点赞
+                        </button>
+                    </div>
+                </article>
+
+                <section class="comments-card">
+                    <div class="section-head">
+                        <h2>
+                            评论
+                            <span>{{ comments.length }}</span>
+                        </h2>
+                    </div>
+
+                    <div class="composer">
+                        <div class="avatar avatar--self">
+                            {{
+                                userStore.user?.real_name?.charAt(0) ||
+                                userStore.user?.username?.charAt(0) ||
+                                '我'
+                            }}
+                        </div>
+                        <div class="composer-main">
+                            <div v-if="replyTarget" class="reply-banner">
+                                <span>正在回复 {{ getCommentAuthor(replyTarget) }}</span>
+                                <button type="button" @click="clearReplyTarget">取消</button>
+                            </div>
+                            <NInput
+                                ref="commentInputRef"
+                                v-model:value="commentInput"
+                                type="textarea"
+                                :autosize="{ minRows: 2, maxRows: 5 }"
+                                :placeholder="composerPlaceholder"
+                            />
+                            <div class="composer-actions">
+                                <span>
+                                    {{
+                                        replyTarget
+                                            ? '将作为回复发送到评论区'
+                                            : '文明评论，友善交流'
+                                    }}
+                                </span>
+                                <NButton
+                                    type="primary"
+                                    :loading="commentSubmitting"
+                                    :disabled="!commentInput.trim()"
+                                    @click="handleCreateComment"
+                                >
+                                    {{ replyTarget ? '回复' : '发布' }}
+                                </NButton>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 标签 -->
-                    <div v-if="post.tags?.length" class="tag-list">
-                        <span v-for="tag in post.tags" :key="tag" class="tag-item">#{{ tag }}</span>
-                    </div>
-
-                    <!-- 统计数据 -->
-                    <div class="post-stats">
-                        <div class="stat-item">
-                            <svg viewBox="0 0 24 24" width="18" height="18">
-                                <path
-                                    d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
-                                    fill="currentColor"
-                                />
-                            </svg>
-                            <span>{{ post.viewCount || post.view_count || 0 }} 浏览</span>
-                        </div>
-                        <div class="stat-item">
-                            <svg viewBox="0 0 24 24" width="18" height="18">
-                                <path
-                                    d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18z"
-                                    fill="currentColor"
-                                />
-                            </svg>
-                            <span>{{ post.commentCount || post.comment_count || 0 }} 评论</span>
-                        </div>
-                        <div
-                            class="stat-item like-item"
-                            :class="{ 'is-liked': isLiked }"
-                            @click="handleLikePost"
+                    <div v-if="threadedComments.length" class="comment-list">
+                        <article
+                            v-for="comment in threadedComments"
+                            :key="comment.id"
+                            class="comment-card"
                         >
-                            <svg viewBox="0 0 24 24" width="18" height="18">
-                                <path
-                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                                    fill="currentColor"
-                                />
-                            </svg>
-                            <span>{{ post.likeCount || post.like_count || 0 }} 点赞</span>
-                        </div>
-                    </div>
-                </article>
-
-                <!-- 评论区 -->
-                <section class="comments-section">
-                    <div class="section-header">
-                        <h2 class="section-title">
-                            <svg viewBox="0 0 24 24" width="22" height="22">
-                                <path
-                                    d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18z"
-                                    fill="currentColor"
-                                />
-                            </svg>
-                            评论
-                            <span class="comment-count">{{ comments.length }}</span>
-                        </h2>
-                    </div>
-
-                    <!-- 评论输入 -->
-                    <div class="comment-input-area">
-                        <div class="input-avatar">
-                            <span>
-                                {{
-                                    userStore.user?.real_name?.charAt(0) ||
-                                    userStore.user?.username?.charAt(0) ||
-                                    '我'
-                                }}
-                            </span>
-                        </div>
-                        <div class="input-wrapper">
-                            <NInput
-                                v-model:value="commentInput"
-                                type="textarea"
-                                :autosize="{ minRows: 2, maxRows: 4 }"
-                                placeholder="写下你的看法..."
-                                class="comment-textarea"
-                            />
-                            <NButton
-                                type="primary"
-                                :loading="commentSubmitting"
-                                :disabled="!commentInput.trim()"
-                                @click="handleCreateComment"
-                                class="submit-btn"
-                            >
-                                发布
-                            </NButton>
-                        </div>
-                    </div>
-
-                    <!-- 评论列表 -->
-                    <div v-if="comments.length" class="comment-list">
-                        <article v-for="comment in comments" :key="comment.id" class="comment-item">
-                            <div class="comment-avatar">
+                            <div class="avatar avatar--comment">
                                 <img
                                     v-if="resolveAvatarUrl(comment.author?.avatar)"
                                     :src="resolveAvatarUrl(comment.author?.avatar)"
@@ -186,78 +170,126 @@
                                 />
                                 <span v-else>{{ getCommentAuthor(comment).charAt(0) }}</span>
                             </div>
-                            <div class="comment-body">
-                                <div class="comment-header">
-                                    <span class="comment-author">
-                                        {{ getCommentAuthor(comment) }}
-                                    </span>
-                                    <span class="comment-time">
+                            <div class="comment-main">
+                                <div class="comment-head">
+                                    <div class="author-line">
+                                        <strong>{{ getCommentAuthor(comment) }}</strong>
+                                        <span
+                                            v-if="isPostAuthor(comment.author_id)"
+                                            class="identity-badge"
+                                        >
+                                            楼主
+                                        </span>
+                                    </div>
+                                    <span>
                                         {{ formatTime(comment.createdAt || comment.created_at) }}
                                     </span>
                                 </div>
                                 <div class="comment-content">{{ comment.content }}</div>
                                 <div class="comment-actions">
                                     <button
-                                        class="like-btn"
+                                        type="button"
+                                        class="minor-btn"
                                         :class="{ 'is-liked': likedComments.has(comment.id) }"
                                         @click="handleLikeComment(comment.id)"
                                     >
-                                        <svg viewBox="0 0 24 24" width="16" height="16">
-                                            <path
-                                                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                                                fill="currentColor"
-                                            />
-                                        </svg>
-                                        {{ comment.likeCount || comment.like_count || 0 }}
+                                        点赞 {{ comment.likeCount || comment.like_count || 0 }}
                                     </button>
+                                    <button
+                                        type="button"
+                                        class="minor-btn"
+                                        @click="handleReply(comment)"
+                                    >
+                                        回复
+                                    </button>
+                                </div>
+
+                                <div v-if="comment.replies?.length" class="reply-list">
+                                    <article
+                                        v-for="reply in comment.replies"
+                                        :key="reply.id"
+                                        class="reply-item"
+                                    >
+                                        <div class="reply-head">
+                                            <div class="author-line">
+                                                <strong>{{ getCommentAuthor(reply) }}</strong>
+                                                <span
+                                                    v-if="isPostAuthor(reply.author_id)"
+                                                    class="identity-badge"
+                                                >
+                                                    楼主
+                                                </span>
+                                            </div>
+                                            <span>
+                                                {{
+                                                    formatTime(reply.createdAt || reply.created_at)
+                                                }}
+                                            </span>
+                                        </div>
+                                        <div class="comment-content">
+                                            <template v-if="reply.replyToUser">
+                                                <em>
+                                                    回复 @{{
+                                                        reply.replyToUser.real_name ||
+                                                        reply.replyToUser.username
+                                                    }}
+                                                </em>
+                                                {{ reply.content }}
+                                            </template>
+                                            <template v-else>{{ reply.content }}</template>
+                                        </div>
+                                        <div class="comment-actions">
+                                            <button
+                                                type="button"
+                                                class="minor-btn"
+                                                :class="{ 'is-liked': likedComments.has(reply.id) }"
+                                                @click="handleLikeComment(reply.id)"
+                                            >
+                                                点赞 {{ reply.likeCount || reply.like_count || 0 }}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="minor-btn"
+                                                @click="handleReply(reply)"
+                                            >
+                                                回复
+                                            </button>
+                                        </div>
+                                    </article>
                                 </div>
                             </div>
                         </article>
                     </div>
 
-                    <div v-else class="empty-comments">
-                        <svg viewBox="0 0 24 24" width="48" height="48">
-                            <path
-                                d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18z"
-                                fill="currentColor"
-                                opacity="0.3"
-                            />
-                        </svg>
-                        <p>暂无评论</p>
-                        <span>来说点什么吧</span>
+                    <div v-else class="empty-box">
+                        <p>还没有评论</p>
+                        <span>成为第一个回复的人</span>
                     </div>
                 </section>
             </template>
 
-            <div v-else class="error-state">
-                <svg viewBox="0 0 24 24" width="64" height="64">
-                    <path
-                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"
-                        fill="currentColor"
-                        opacity="0.3"
-                    />
-                </svg>
-                <h2>帖子不存在</h2>
-                <p>这条帖子可能已被删除</p>
+            <div v-else class="state-box">
+                <p>帖子不存在或已被删除</p>
                 <NButton type="primary" round @click="router.back()">返回</NButton>
             </div>
         </main>
 
-        <!-- 图片预览弹窗 -->
-        <div v-if="previewingImage" class="image-preview-modal" @click="previewingImage = ''">
-            <button class="preview-close" @click="previewingImage = ''">×</button>
+        <div v-if="previewingImage" class="preview-mask" @click="previewingImage = ''">
+            <button type="button" class="preview-close" @click="previewingImage = ''">×</button>
             <img :src="previewingImage" alt="预览图片" />
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { NButton, NInput, NSpin, useDialog, useMessage } from 'naive-ui';
 import type { ForumComment, ForumPost } from '@/types';
 import { forumApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
+
+type ThreadComment = ForumComment & { replies: ForumComment[] };
 
 const route = useRoute();
 const router = useRouter();
@@ -272,23 +304,51 @@ const post = ref<ForumPost | null>(null);
 const comments = ref<ForumComment[]>([]);
 const commentInput = ref('');
 const isLiked = ref(false);
-const likedComments = ref<Set<number>>(new Set());
+const likedComments = ref(new Set<number>());
 const previewingImage = ref('');
+const replyTarget = ref<ForumComment | null>(null);
+const commentInputRef = ref<any>(null);
 
 const postId = computed(() => Number(route.params.id || 0));
-const authorName = computed(() => {
-    const author = post.value?.author;
-    return author?.real_name || author?.username || '匿名用户';
+const authorName = computed(
+    () => post.value?.author?.real_name || post.value?.author?.username || '匿名用户'
+);
+const composerPlaceholder = computed(() =>
+    replyTarget.value ? `回复 ${getCommentAuthor(replyTarget.value)}...` : '写下你的看法...'
+);
+const isPostAuthor = (authorId?: number) =>
+    Number(authorId) > 0 && Number(authorId) === Number(post.value?.author_id);
+
+const threadedComments = computed<ThreadComment[]>(() => {
+    const roots = comments.value
+        .filter(item => !item.parent_id)
+        .map(item => ({ ...item, replies: [] as ForumComment[] }));
+    const rootMap = new Map<number, ThreadComment>();
+    roots.forEach(item => rootMap.set(item.id, item));
+    comments.value
+        .filter(item => item.parent_id)
+        .forEach(item => {
+            const root = rootMap.get(Number(item.parent_id));
+            if (root) root.replies.push(item);
+        });
+    roots.forEach(item =>
+        item.replies.sort(
+            (a, b) =>
+                new Date(a.createdAt || a.created_at || 0).getTime() -
+                new Date(b.createdAt || b.created_at || 0).getTime()
+        )
+    );
+    return roots.sort(
+        (a, b) =>
+            new Date(b.createdAt || b.created_at || 0).getTime() -
+            new Date(a.createdAt || a.created_at || 0).getTime()
+    );
 });
 
 const resolveAvatarUrl = (value?: string | null) => {
     if (!value) return '';
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
-        return value;
-    }
-    if (value.startsWith('/uploads/')) {
-        return `${window.location.origin}${value}`;
-    }
+    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
+    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
     return value;
 };
 
@@ -300,7 +360,6 @@ const getCategoryLabel = (category?: string) =>
         task: '任务互助',
         skill: '技能分享',
     })[category || ''] ?? '论坛';
-
 const getStatusLabel = (status?: string) =>
     ({
         published: '已发布',
@@ -314,7 +373,6 @@ const formatTime = (value?: string) => {
     if (!value) return '--';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '--';
-
     const diff = Date.now() - date.getTime();
     if (diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))} 分钟前`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
@@ -329,20 +387,26 @@ const formatTime = (value?: string) => {
 const getCommentAuthor = (comment: ForumComment) =>
     comment.author?.real_name || comment.author?.username || '匿名用户';
 
+const clearReplyTarget = () => {
+    replyTarget.value = null;
+};
+
+const handleReply = async (comment: ForumComment) => {
+    replyTarget.value = comment;
+    await nextTick();
+    commentInputRef.value?.focus?.();
+    commentInputRef.value?.textareaElRef?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+};
+
 const loadPost = async () => {
     if (!postId.value) return;
-
     loading.value = true;
     try {
         const [postRes, commentRes] = await Promise.all([
             forumApi.getPost(postId.value),
-            forumApi.getComments(postId.value, { page: 1, limit: 50, order: 'desc' }),
+            forumApi.getComments(postId.value, { page: 1, limit: 100, order: 'desc' }),
         ]);
-
-        if (!postRes.success || !postRes.data) {
-            throw new Error(postRes.message || '获取帖子失败');
-        }
-
+        if (!postRes.success || !postRes.data) throw new Error(postRes.message || '获取帖子失败');
         post.value = postRes.data;
         comments.value = commentRes.success ? commentRes.data?.comments || [] : [];
     } catch (error: any) {
@@ -354,15 +418,14 @@ const loadPost = async () => {
 
 const handleLikePost = async () => {
     if (!post.value) return;
-
     try {
         const res = await forumApi.likePost(post.value.id);
-        if (res.success) {
-            const nextCount =
-                res.data?.likeCount ?? (post.value.likeCount || post.value.like_count || 0) + 1;
-            post.value.likeCount = nextCount;
-            post.value.like_count = nextCount;
-        }
+        if (!res.success) return;
+        const nextCount =
+            res.data?.likeCount ?? (post.value.likeCount || post.value.like_count || 0) + 1;
+        post.value.likeCount = nextCount;
+        post.value.like_count = nextCount;
+        isLiked.value = true;
     } catch (error: any) {
         message.error(error?.message || '点赞失败');
     }
@@ -370,23 +433,22 @@ const handleLikePost = async () => {
 
 const handleCreateComment = async () => {
     if (!post.value || !commentInput.value.trim()) return;
-
     commentSubmitting.value = true;
     try {
+        const target = replyTarget.value;
         const res = await forumApi.createComment(post.value.id, {
             content: commentInput.value.trim(),
+            parent_id: target ? target.parent_id || target.id : undefined,
+            reply_to_id: target ? target.author_id : undefined,
         });
-
-        if (!res.success || !res.data) {
-            throw new Error(res.message || '评论失败');
-        }
-
+        if (!res.success || !res.data) throw new Error(res.message || '评论失败');
         comments.value = [res.data, ...comments.value];
         commentInput.value = '';
+        replyTarget.value = null;
         const nextCount = (post.value.commentCount || post.value.comment_count || 0) + 1;
         post.value.commentCount = nextCount;
         post.value.comment_count = nextCount;
-        message.success('评论成功');
+        message.success(target ? '回复成功' : '评论成功');
     } catch (error: any) {
         message.error(error?.message || '评论失败');
     } finally {
@@ -398,18 +460,17 @@ const handleLikeComment = async (commentId: number) => {
     try {
         const res = await forumApi.likeComment(commentId);
         if (!res.success) return;
-
-        comments.value = comments.value.map(comment => {
-            if (comment.id !== commentId) return comment;
-            const nextCount =
-                res.data?.likeCount ?? (comment.likeCount || comment.like_count || 0) + 1;
-            return {
-                ...comment,
-                likeCount: nextCount,
-                like_count: nextCount,
-            };
-        });
-
+        comments.value = comments.value.map(comment =>
+            comment.id === commentId
+                ? {
+                      ...comment,
+                      likeCount:
+                          res.data?.likeCount ?? (comment.likeCount || comment.like_count || 0) + 1,
+                      like_count:
+                          res.data?.likeCount ?? (comment.likeCount || comment.like_count || 0) + 1,
+                  }
+                : comment
+        );
         likedComments.value.add(commentId);
     } catch (error: any) {
         message.error(error?.message || '点赞失败');
@@ -418,7 +479,6 @@ const handleLikeComment = async (commentId: number) => {
 
 const handleDelete = () => {
     if (!post.value) return;
-
     dialog.warning({
         title: '删除帖子',
         content: '删除后不可恢复，是否继续？',
@@ -427,9 +487,7 @@ const handleDelete = () => {
         async onPositiveClick() {
             try {
                 const res = await forumApi.deletePost(post.value!.id);
-                if (!res.success) {
-                    throw new Error(res.message || '删除失败');
-                }
+                if (!res.success) throw new Error(res.message || '删除失败');
                 message.success('删除成功');
                 router.replace('/forum/my');
             } catch (error: any) {
@@ -445,701 +503,553 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ===== 页面基础 ===== */
 .post-detail-page {
     min-height: 100vh;
-    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-    color: #1e293b;
+    background:
+        radial-gradient(circle at top right, rgba(75, 184, 255, 0.08), transparent 28%),
+        linear-gradient(180deg, #f4f7fb 0%, #edf2fa 100%);
+    color: #172033;
 }
-
 .is-dark {
-    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    background: linear-gradient(180deg, #0f172a 0%, #162336 100%);
     color: #e2e8f0;
 }
-
-/* ===== 顶部导航 ===== */
-.top-nav {
+.detail-nav {
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 20;
     display: flex;
     align-items: center;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(23, 32, 51, 0.06);
 }
-
-.is-dark .top-nav {
-    background: rgba(15, 23, 42, 0.85);
-    border-color: rgba(255, 255, 255, 0.08);
+.is-dark .detail-nav {
+    background: rgba(15, 23, 42, 0.88);
+    border-color: rgba(255, 255, 255, 0.06);
 }
-
-.back-btn {
-    width: 40px;
-    height: 40px;
-    padding: 0;
+.detail-nav h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+.icon-btn,
+.nav-spacer {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    flex-shrink: 0;
+}
+.icon-btn {
     border: none;
-    color: #475569;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
+    color: #4a5d79;
 }
-
-.back-btn:hover {
-    background: rgba(0, 0, 0, 0.1);
-}
-
-.is-dark .back-btn {
-    background: rgba(255, 255, 255, 0.08);
-    color: #94a3b8;
-}
-
-.is-dark .back-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
-}
-
-.nav-title {
-    flex: 1;
-    margin-left: 12px;
-    font-size: 17px;
-    font-weight: 600;
-    color: #1e293b;
-}
-
-.is-dark .nav-title {
-    color: #f1f5f9;
-}
-
-.nav-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.action-btn {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border: none;
-    border-radius: 12px;
-    background: rgba(239, 68, 68, 0.1);
+.icon-btn--danger {
     color: #ef4444;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
 }
-
-.action-btn:hover {
-    background: rgba(239, 68, 68, 0.15);
-}
-
-/* ===== 主内容区 ===== */
-.detail-main {
-    max-width: 800px;
+.detail-shell {
+    max-width: 860px;
     margin: 0 auto;
-    padding: 20px 16px 40px;
+    padding: 18px 16px 40px;
 }
-
-/* ===== 加载和错误状态 ===== */
-.loading-state,
-.error-state {
-    min-height: 60vh;
+.state-box {
+    min-height: 55vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 16px;
-    color: #64748b;
+    gap: 12px;
+    color: #738198;
 }
-
-.error-state h2 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
-    color: #475569;
+.post-card,
+.comments-card {
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: 24px;
+    box-shadow: 0 16px 40px rgba(23, 48, 79, 0.08);
 }
-
-.error-state p {
-    margin: 0;
-    color: #94a3b8;
+.is-dark .post-card,
+.is-dark .comments-card {
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: none;
 }
-
-/* ===== 帖子文章 ===== */
-.post-article {
-    background: #ffffff;
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow:
-        0 1px 3px rgba(0, 0, 0, 0.05),
-        0 4px 12px rgba(0, 0, 0, 0.03);
+.post-card {
+    padding: 22px;
 }
-
-.is-dark .post-article {
-    background: #1e293b;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-/* 分类和状态 */
-.post-meta-top {
+.post-head,
+.comment-head,
+.reply-head,
+.composer-actions,
+.reply-banner,
+.section-head,
+.author-card,
+.stats,
+.comment-actions,
+.author-line {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
 }
-
-.category-badge {
+.post-head,
+.section-head,
+.composer-actions,
+.reply-banner {
+    justify-content: space-between;
+}
+.post-head {
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.chip-row,
+.tags,
+.stats,
+.comment-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.category-chip,
+.status-chip,
+.stat-pill,
+.like-pill,
+.tag,
+.minor-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    background: #f1f5f9;
+    justify-content: center;
+    border-radius: 999px;
+    font-weight: 700;
+}
+.category-chip,
+.status-chip {
+    min-height: 34px;
+    padding: 0 14px;
     font-size: 13px;
-    font-weight: 600;
-    color: #64748b;
 }
-
-.is-dark .category-badge {
-    background: rgba(255, 255, 255, 0.08);
-    color: #94a3b8;
+.category-chip {
+    gap: 8px;
+    background: #f1f5fb;
+    color: #52627c;
 }
-
-.cat-dot {
+.category-chip i {
     width: 8px;
     height: 8px;
-    border-radius: 50%;
-    background: #3b82f6;
+    border-radius: 999px;
+    background: #2f6bff;
 }
-
-.category-badge[data-type='life'] .cat-dot {
-    background: #f97316;
+.category-chip[data-type='life'] i {
+    background: #ff9b3d;
 }
-.category-badge[data-type='campus'] .cat-dot {
-    background: #22c55e;
+.category-chip[data-type='campus'] i {
+    background: #19b36b;
 }
-.category-badge[data-type='task'] .cat-dot {
-    background: #8b5cf6;
+.category-chip[data-type='task'] i {
+    background: #4b6bff;
 }
-.category-badge[data-type='skill'] .cat-dot {
-    background: #06b6d4;
+.category-chip[data-type='skill'] i {
+    background: #4bb8ff;
 }
-.category-badge[data-type='academic'] .cat-dot {
-    background: #3b82f6;
+.status-chip {
+    background: #ddfce7;
+    color: #179954;
 }
-
-.status-tag {
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    background: #dcfce7;
-    color: #16a34a;
+.status-chip[data-status='pending_review'] {
+    background: #fff4d6;
+    color: #d97706;
 }
-
-.status-tag[data-status='pending_review'] {
-    background: #fef9c3;
-    color: #ca8a04;
-}
-
-.status-tag[data-status='draft'] {
-    background: #f1f5f9;
+.status-chip[data-status='draft'] {
+    background: #eef2f7;
     color: #64748b;
 }
-
-.status-tag[data-status='rejected'],
-.status-tag[data-status='hidden'] {
+.status-chip[data-status='rejected'],
+.status-chip[data-status='hidden'] {
     background: #fee2e2;
     color: #dc2626;
 }
-
-/* 标题 */
-.post-title {
-    margin: 0 0 20px;
-    font-size: 26px;
-    line-height: 1.35;
-    font-weight: 800;
-    color: #0f172a;
+.muted {
+    font-size: 13px;
+    color: #8a96aa;
 }
-
-.is-dark .post-title {
+.post-title {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1.28;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+.author-card {
+    gap: 12px;
+    margin: 20px 0 18px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: #f6f8fc;
+}
+.is-dark .author-card {
+    background: rgba(255, 255, 255, 0.05);
+}
+.meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 0 18px;
+}
+.meta-item {
+    padding: 14px 12px;
+    border-radius: 18px;
+    background: #f8fbff;
+    border: 1px solid #e6edf7;
+}
+.meta-item span {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: #8a96aa;
+}
+.meta-item strong {
+    font-size: 16px;
+    color: #172033;
+}
+.is-dark .meta-item {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.is-dark .meta-item strong {
     color: #f8fafc;
 }
-
-/* 作者栏 */
-.author-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-    background: #f8fafc;
-    border-radius: 16px;
-}
-
-.is-dark .author-bar {
-    background: rgba(255, 255, 255, 0.04);
-}
-
-.author-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+.avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #2f6bff, #77b5ff);
     color: #fff;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
     font-weight: 700;
     overflow: hidden;
     flex-shrink: 0;
 }
-
-.author-avatar img {
+.avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
-
-.author-info {
-    flex: 1;
-    min-width: 0;
+.avatar--self,
+.avatar--comment {
+    width: 44px;
+    height: 44px;
 }
-
-.author-name {
+.avatar--comment {
+    background: linear-gradient(135deg, #dbeafe, #dbe7ff);
+    color: #2f6bff;
+}
+.author-copy,
+.comment-main {
+    min-width: 0;
+    flex: 1;
+}
+.author-copy strong {
     display: block;
     font-size: 15px;
-    font-weight: 700;
-    color: #1e293b;
+    color: #172033;
 }
-
-.is-dark .author-name {
-    color: #f1f5f9;
+.is-dark .author-copy strong {
+    color: #f8fafc;
 }
-
-.author-sub {
+.author-copy span,
+.comment-head span,
+.reply-head span {
+    display: block;
     font-size: 13px;
-    color: #94a3b8;
+    color: #8a96aa;
 }
-
-.post-time {
-    font-size: 13px;
-    color: #94a3b8;
+.content-block {
+    display: grid;
+    gap: 14px;
 }
-
-/* 内容区 */
-.post-content {
-    margin-bottom: 20px;
-}
-
-.post-summary {
-    margin: 0 0 16px;
-    padding: 16px;
-    background: #f8fafc;
-    border-radius: 12px;
+.summary {
+    margin: 0;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: linear-gradient(90deg, rgba(47, 107, 255, 0.08), rgba(75, 184, 255, 0.04));
+    border-left: 4px solid #2f6bff;
     font-size: 15px;
     line-height: 1.7;
-    color: #475569;
-    border-left: 4px solid #3b82f6;
+    color: #44607f;
 }
-
-.is-dark .post-summary {
-    background: rgba(59, 130, 246, 0.1);
-    color: #94a3b8;
-}
-
 .content-text {
-    font-size: 15px;
-    line-height: 1.8;
+    font-size: 16px;
+    line-height: 1.9;
     color: #334155;
     white-space: pre-wrap;
     word-break: break-word;
 }
-
-.is-dark .content-text {
-    color: #cbd5e1;
+.is-dark .content-text,
+.is-dark .comment-content {
+    color: #d2deec;
 }
-
-/* 图片画廊 */
-.image-gallery {
+.gallery {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
     gap: 12px;
-    margin-top: 20px;
+    margin-top: 4px;
 }
-
 .gallery-item {
     aspect-ratio: 1;
-    border-radius: 12px;
+    border: none;
+    padding: 0;
+    border-radius: 16px;
     overflow: hidden;
-    cursor: pointer;
-    transition: transform 0.2s;
+    background: #dbe7f7;
 }
-
-.gallery-item:hover {
-    transform: scale(1.02);
-}
-
 .gallery-item img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
-
-/* 标签 */
-.tag-list {
-    display: flex;
+.tags {
+    margin-top: 18px;
+}
+.tag {
+    padding: 8px 14px;
+    background: #f1f5fb;
+    font-size: 13px;
+    color: #607089;
+}
+.stats {
+    gap: 14px;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 20px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid #e6edf7;
 }
-
-.tag-item {
-    padding: 6px 14px;
-    border-radius: 16px;
-    background: #f1f5f9;
-    font-size: 13px;
-    font-weight: 500;
-    color: #64748b;
-}
-
-.is-dark .tag-item {
-    background: rgba(255, 255, 255, 0.08);
-    color: #94a3b8;
-}
-
-/* 统计数据 */
-.post-stats {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding-top: 16px;
-    border-top: 1px solid #e2e8f0;
-}
-
-.is-dark .post-stats {
-    border-color: rgba(255, 255, 255, 0.08);
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+.stat-pill,
+.like-pill {
+    min-height: 40px;
+    padding: 0 14px;
     font-size: 14px;
-    color: #64748b;
 }
-
-.stat-item svg {
-    opacity: 0.7;
+.stat-pill {
+    background: #f6f8fc;
+    color: #66758e;
 }
-
-.like-item {
+.like-pill {
     margin-left: auto;
-    padding: 8px 16px;
-    border-radius: 20px;
-    background: #fee2e2;
+    border: none;
+    background: #ffe4e6;
     color: #ef4444;
-    cursor: pointer;
-    transition: all 0.2s;
 }
-
-.like-item:hover {
-    background: #fecaca;
-}
-
-.like-item.is-liked {
+.like-pill.is-liked {
     background: #ef4444;
     color: #fff;
 }
-
-.is-dark .like-item {
-    background: rgba(239, 68, 68, 0.15);
-    color: #f87171;
+.comments-card {
+    margin-top: 18px;
+    padding: 20px;
 }
-
-.is-dark .like-item.is-liked {
-    background: #ef4444;
-    color: #fff;
-}
-
-/* ===== 评论区 ===== */
-.comments-section {
-    margin-top: 20px;
-}
-
-.section-header {
-    margin-bottom: 16px;
-}
-
-.section-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-    color: #1e293b;
-}
-
-.is-dark .section-title {
-    color: #f1f5f9;
-}
-
-.comment-count {
-    padding: 2px 10px;
-    border-radius: 10px;
-    background: #e2e8f0;
-    font-size: 13px;
-    font-weight: 600;
-    color: #64748b;
-}
-
-.is-dark .comment-count {
-    background: rgba(255, 255, 255, 0.1);
-    color: #94a3b8;
-}
-
-/* 评论输入 */
-.comment-input-area {
-    display: flex;
-    gap: 12px;
-    padding: 16px;
-    background: #ffffff;
-    border-radius: 16px;
-    margin-bottom: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.is-dark .comment-input-area {
-    background: #1e293b;
-    box-shadow: none;
-}
-
-.input-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 700;
-    flex-shrink: 0;
-}
-
-.input-wrapper {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.comment-textarea {
-    border-radius: 12px;
-}
-
-.submit-btn {
-    align-self: flex-end;
-}
-
-/* 评论列表 */
-.comment-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.comment-item {
-    display: flex;
-    gap: 12px;
-    padding: 16px;
-    background: #ffffff;
-    border-radius: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.is-dark .comment-item {
-    background: #1e293b;
-    box-shadow: none;
-}
-
-.comment-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
-    color: #3b82f6;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 700;
-    flex-shrink: 0;
-    overflow: hidden;
-}
-
-.comment-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.comment-body {
-    flex: 1;
-    min-width: 0;
-}
-
-.comment-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-}
-
-.comment-author {
-    font-size: 14px;
-    font-weight: 700;
-    color: #1e293b;
-}
-
-.is-dark .comment-author {
-    color: #f1f5f9;
-}
-
-.comment-time {
-    font-size: 12px;
-    color: #94a3b8;
-}
-
-.comment-content {
-    font-size: 14px;
-    line-height: 1.7;
-    color: #475569;
-    word-break: break-word;
-}
-
-.is-dark .comment-content {
-    color: #cbd5e1;
-}
-
-.comment-actions {
-    margin-top: 10px;
-}
-
-.like-btn {
+.section-head h2 {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
+    gap: 10px;
+    margin: 0 0 16px;
+    font-size: 22px;
+    font-weight: 800;
+}
+.section-head span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #dbe6f5;
+    color: #5a6b86;
+    font-size: 14px;
+}
+.composer {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 20px;
+    background: #f8fbff;
+    border: 1px solid #e6edf7;
+}
+.composer-main {
+    flex: 1;
+}
+.reply-banner {
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: #eef4ff;
+    color: #436388;
     font-size: 13px;
-    color: #94a3b8;
-    cursor: pointer;
-    transition: all 0.2s;
+    font-weight: 600;
 }
-
-.like-btn:hover {
-    background: #f1f5f9;
+.reply-banner button {
+    border: none;
+    background: transparent;
+    color: #2f6bff;
+    font-size: 13px;
 }
-
-.like-btn.is-liked {
+.composer-actions {
+    gap: 12px;
+    margin-top: 10px;
+}
+.composer-actions span {
+    font-size: 12px;
+    color: #8a96aa;
+}
+.comment-list {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+}
+.comment-card {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 20px;
+    background: #fbfdff;
+    border: 1px solid #e8eff8;
+}
+.comment-head,
+.reply-head {
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.author-line {
+    gap: 8px;
+}
+.identity-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #e8f3ff;
+    color: #2f6bff;
+    font-size: 11px;
+    font-weight: 700;
+}
+.comment-head strong {
+    font-size: 15px;
+}
+.reply-head strong {
+    font-size: 13px;
+}
+.comment-content {
+    font-size: 14px;
+    line-height: 1.75;
+    color: #40516a;
+    word-break: break-word;
+}
+.minor-btn {
+    min-height: 32px;
+    padding: 0 12px;
+    border: none;
+    background: #eef3fb;
+    color: #6c7c95;
+    font-size: 12px;
+}
+.minor-btn.is-liked {
+    background: #ffe4e6;
     color: #ef4444;
 }
-
-.is-dark .like-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+.reply-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+    padding-left: 12px;
+    border-left: 2px solid #dbe6f6;
 }
-
-/* 空评论状态 */
-.empty-comments {
+.reply-item {
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: #f4f8fd;
+}
+.reply-item em {
+    margin-right: 6px;
+    color: #2f6bff;
+    font-style: normal;
+    font-weight: 700;
+}
+.empty-box {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 40px 20px;
-    color: #94a3b8;
+    justify-content: center;
+    padding: 36px 20px;
+    color: #8a96aa;
 }
-
-.empty-comments p {
-    margin: 12px 0 4px;
-    font-size: 15px;
-    font-weight: 600;
-    color: #64748b;
+.empty-box p {
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #5e6f89;
 }
-
-.empty-comments span {
-    font-size: 13px;
-}
-
-/* ===== 图片预览 ===== */
-.image-preview-modal {
+.preview-mask {
     position: fixed;
     inset: 0;
-    z-index: 1000;
+    z-index: 50;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background: rgba(0, 0, 0, 0.85);
-    cursor: zoom-out;
+    background: rgba(0, 0, 0, 0.88);
 }
-
 .preview-close {
     position: absolute;
-    top: 20px;
-    right: 20px;
+    top: 18px;
+    right: 18px;
     width: 40px;
     height: 40px;
     border: none;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
     color: #fff;
     font-size: 24px;
-    line-height: 1;
-    cursor: pointer;
 }
-
-.image-preview-modal img {
+.preview-mask img {
     max-width: 100%;
     max-height: 90vh;
-    border-radius: 12px;
     object-fit: contain;
+    border-radius: 16px;
 }
-
-/* ===== 响应式 ===== */
 @media (max-width: 640px) {
-    .post-title {
-        font-size: 22px;
+    .detail-shell {
+        padding: 14px 12px 32px;
     }
-
-    .post-article {
+    .post-card,
+    .comments-card {
+        border-radius: 20px;
+    }
+    .post-card {
         padding: 18px;
-        border-radius: 16px;
     }
-
-    .author-bar {
-        padding: 12px;
+    .post-title {
+        font-size: 28px;
     }
-
-    .post-stats {
-        flex-wrap: wrap;
-        gap: 12px;
+    .meta-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-
-    .like-item {
+    .like-pill {
         margin-left: 0;
     }
-
-    .image-gallery {
-        grid-template-columns: repeat(2, 1fr);
+    .composer,
+    .comment-card {
+        padding: 14px;
+    }
+    .composer-actions {
+        flex-direction: column;
+        align-items: stretch;
     }
 }
 </style>
