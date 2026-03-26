@@ -28,7 +28,11 @@
         <section v-if="isDeliverer" class="order-center__section">
             <div class="order-center__section-head">
                 <h3>可接订单预览</h3>
-                <button type="button" class="order-center__link-btn" @click="router.push('/pickup/hall')">
+                <button
+                    type="button"
+                    class="order-center__link-btn"
+                    @click="router.push('/pickup/hall')"
+                >
                     进入大厅
                 </button>
             </div>
@@ -72,7 +76,9 @@
                     <div class="order-center__card-foot">
                         <div class="order-center__publisher">
                             <NAvatar :size="28" round />
-                            <span>{{ order.user?.username || order.user?.real_name || '匿名用户' }}</span>
+                            <span>
+                                {{ order.user?.username || order.user?.real_name || '匿名用户' }}
+                            </span>
                         </div>
                         <strong>¥{{ formatMoney(order.price) }}</strong>
                     </div>
@@ -129,7 +135,11 @@
                             <strong>{{ getStatusLabel(activeOrder.status) }}</strong>
                             <span>{{ getOrderTypeLabel(activeOrder.type) }}</span>
                         </div>
-                        <NTag size="small" :bordered="false" :type="getStatusType(activeOrder.status)">
+                        <NTag
+                            size="small"
+                            :bordered="false"
+                            :type="getStatusType(activeOrder.status)"
+                        >
                             {{ isDeliverer ? '当前接单' : '当前订单' }}
                         </NTag>
                     </div>
@@ -151,7 +161,9 @@
                         <div class="order-center__status-meta-row">
                             <div class="order-center__status-field">
                                 <span>联系人</span>
-                                <strong>{{ activeOrder.contact_name }} {{ activeOrder.contact_phone }}</strong>
+                                <strong>
+                                    {{ activeOrder.contact_name }} {{ activeOrder.contact_phone }}
+                                </strong>
                             </div>
                             <div class="order-center__status-field">
                                 <span>创建时间</span>
@@ -164,9 +176,17 @@
             <div v-else class="order-center__empty order-center__empty--compact">
                 <h4>暂无进行中的订单</h4>
                 <p>
-                    {{ isDeliverer ? '当前没有正在处理的订单，新的订单状态会显示在这里。' : '当前没有需要跟进的订单，创建或接单后会在这里显示状态。' }}
+                    {{
+                        isDeliverer
+                            ? '当前没有正在处理的订单，新的订单状态会显示在这里。'
+                            : '当前没有需要跟进的订单，创建或接单后会在这里显示状态。'
+                    }}
                 </p>
-                <NButton type="primary" round @click="router.push(isDeliverer ? '/pickup/my' : '/pickup/create')">
+                <NButton
+                    type="primary"
+                    round
+                    @click="router.push(isDeliverer ? '/pickup/my' : '/pickup/create')"
+                >
                     {{ isDeliverer ? '查看订单' : '创建订单' }}
                 </NButton>
             </div>
@@ -211,7 +231,12 @@ const heroDescription = computed(() =>
 const filteredOrders = computed(() => orders.value);
 
 const activeOrder = computed<PickupOrder | null>(() => {
-    const statusPriority: PickupOrder['status'][] = ['delivering', 'picking', 'accepted', 'pending'];
+    const statusPriority: PickupOrder['status'][] = [
+        'delivering',
+        'picking',
+        'accepted',
+        'pending',
+    ];
     for (const status of statusPriority) {
         const matched = myOrders.value.find(order => order.status === status);
         if (matched) return matched;
@@ -494,7 +519,10 @@ onMounted(async () => {
 
 .order-center__status-card--active {
     cursor: pointer;
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
 }
 
 .order-center__status-card--active:hover {
@@ -522,7 +550,10 @@ onMounted(async () => {
     cursor: pointer;
     background: var(--action-card-bg);
     color: var(--action-card-title);
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
 }
 
 .order-center__action-card strong {

@@ -619,8 +619,7 @@ async function transferFrozenCompensationToAssignee(task, amount, description, t
 async function settleAcceptedCancellation(task, transaction) {
     const taskAmount = parseAmount(task.price);
     const compensationAmount = parseAmount(task.cancellation_compensation);
-    const publisherInitiated =
-        Number(task.cancellation_initiator_id) === Number(task.publisher_id);
+    const publisherInitiated = Number(task.cancellation_initiator_id) === Number(task.publisher_id);
 
     if (publisherInitiated) {
         if (compensationAmount > taskAmount) {
@@ -1475,10 +1474,9 @@ class TaskController {
         } catch (error) {
             console.error('完成任务失败:', error);
             const errorMessage = error.message || '完成任务失败';
-            const isBusinessError = [
-                '当前任务存在待确认的取消申请',
-                '当前任务正在争议处理中',
-            ].some(message => errorMessage.includes(message));
+            const isBusinessError = ['当前任务存在待确认的取消申请', '当前任务正在争议处理中'].some(
+                message => errorMessage.includes(message)
+            );
             return res
                 .status(isBusinessError ? 400 : 500)
                 .json(responseUtils.error(isBusinessError ? errorMessage : '完成任务失败'));
@@ -1673,7 +1671,9 @@ class TaskController {
 
                 if (task.status !== 'in_progress' || !task.assignee_id) {
                     await dbTransaction.rollback();
-                    return res.status(400).json(responseUtils.error('当前任务状态不允许发起取消协商'));
+                    return res
+                        .status(400)
+                        .json(responseUtils.error('当前任务状态不允许发起取消协商'));
                 }
 
                 if (task.cancellation_status === 'pending') {
@@ -1744,9 +1744,7 @@ class TaskController {
             ].some(message => errorMessage.includes(message));
             return res
                 .status(isBusinessError ? 400 : 500)
-                .json(
-                    responseUtils.error(isBusinessError ? errorMessage : '发起任务取消协商失败')
-                );
+                .json(responseUtils.error(isBusinessError ? errorMessage : '发起任务取消协商失败'));
         }
     }
 
@@ -1783,7 +1781,9 @@ class TaskController {
 
                 if (task.status !== 'in_progress' || !task.assignee_id) {
                     await dbTransaction.rollback();
-                    return res.status(400).json(responseUtils.error('当前任务状态不允许处理取消协商'));
+                    return res
+                        .status(400)
+                        .json(responseUtils.error('当前任务状态不允许处理取消协商'));
                 }
 
                 if (task.cancellation_status !== 'pending') {
@@ -1842,9 +1842,7 @@ class TaskController {
             ].some(message => errorMessage.includes(message));
             return res
                 .status(isBusinessError ? 400 : 500)
-                .json(
-                    responseUtils.error(isBusinessError ? errorMessage : '处理任务取消协商失败')
-                );
+                .json(responseUtils.error(isBusinessError ? errorMessage : '处理任务取消协商失败'));
         }
     }
 
@@ -1900,9 +1898,7 @@ class TaskController {
             );
             return res
                 .status(isBusinessError ? 400 : 500)
-                .json(
-                    responseUtils.error(isBusinessError ? errorMessage : '撤回任务取消协商失败')
-                );
+                .json(responseUtils.error(isBusinessError ? errorMessage : '撤回任务取消协商失败'));
         }
     }
 
@@ -1935,12 +1931,16 @@ class TaskController {
 
                 if (task.status !== 'in_progress' || !task.assignee_id) {
                     await dbTransaction.rollback();
-                    return res.status(400).json(responseUtils.error('当前任务状态不允许创建争议工单'));
+                    return res
+                        .status(400)
+                        .json(responseUtils.error('当前任务状态不允许创建争议工单'));
                 }
 
                 if (task.cancellation_status !== 'rejected') {
                     await dbTransaction.rollback();
-                    return res.status(400).json(responseUtils.error('只有取消协商被拒绝后才能创建工单'));
+                    return res
+                        .status(400)
+                        .json(responseUtils.error('只有取消协商被拒绝后才能创建工单'));
                 }
 
                 if (task.cancellation_ticket_id) {
@@ -1990,9 +1990,7 @@ class TaskController {
             ].some(message => errorMessage.includes(message));
             return res
                 .status(isBusinessError ? 400 : 500)
-                .json(
-                    responseUtils.error(isBusinessError ? errorMessage : '创建任务争议工单失败')
-                );
+                .json(responseUtils.error(isBusinessError ? errorMessage : '创建任务争议工单失败'));
         }
     }
 

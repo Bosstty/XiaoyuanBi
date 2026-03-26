@@ -1000,20 +1000,24 @@ const handleCapturePhoto = () => {
     canvas.height = height;
     context.drawImage(video, 0, 0, width, height);
 
-    canvas.toBlob(blob => {
-        if (!blob) {
-            cameraErrorMessage.value = '拍照失败，请重试';
-            return;
-        }
+    canvas.toBlob(
+        blob => {
+            if (!blob) {
+                cameraErrorMessage.value = '拍照失败，请重试';
+                return;
+            }
 
-        const file = new File([blob], `proof-${Date.now()}.jpg`, {
-            type: 'image/jpeg',
-        });
+            const file = new File([blob], `proof-${Date.now()}.jpg`, {
+                type: 'image/jpeg',
+            });
 
-        stopCameraStream();
-        showCameraModal.value = false;
-        prepareProofPreview(file);
-    }, 'image/jpeg', 0.92);
+            stopCameraStream();
+            showCameraModal.value = false;
+            prepareProofPreview(file);
+        },
+        'image/jpeg',
+        0.92
+    );
 };
 
 const handleCloseCameraModal = () => {
