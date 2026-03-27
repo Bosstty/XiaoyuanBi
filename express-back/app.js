@@ -6,6 +6,7 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
+const uploadsDir = path.join(process.cwd(), 'uploads');
 
 // 导入主路由
 const mainRouter = require('./src/routes/main');
@@ -33,7 +34,7 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 // 请求日志中间件
 app.use((req, res, next) => {

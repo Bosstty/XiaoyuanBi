@@ -143,13 +143,13 @@
         <v-chart :option="revenueByTypeChartOption" style="height: 260px" autoresize />
       </el-card>
 
-      <!-- 支付方式分布 -->
+      <!-- 提现方式分布 -->
       <el-card class="chart-card" shadow="never">
         <template #header>
           <div class="chart-header">
             <div class="chart-title-group">
-              <h3>支付方式分布</h3>
-              <span class="chart-subtitle">抽成对应支付渠道金额</span>
+              <h3>提现方式分布</h3>
+              <span class="chart-subtitle">成功提现按到账方式统计</span>
             </div>
           </div>
         </template>
@@ -960,6 +960,7 @@ const getRevenueTypeLabel = (type) => {
   const typeNames = {
     pickup_order: '代取抽成',
     task: '任务抽成',
+    withdraw: '提现抽成',
   }
   return typeNames[type] || type || '-'
 }
@@ -1089,20 +1090,33 @@ const fetchRevenueData = async () => {
       }))
     }
 
-    // 支付方式
-    if (d.payment_method_distribution) {
-      const methodColors = { alipay: '#1677ff', balance: '#ff6b6b', wechat: '#07c160' }
-      paymentMethodChartOption.value.series[0].data = d.payment_method_distribution.map((i) => ({
+    // 提现方式
+    const withdrawMethodDistribution = (
+      d.withdraw_method_distribution ||
+      d.payment_method_distribution ||
+      []
+    ).filter((i) => ['alipay', 'bank_card'].includes(i.payment_method))
+    if (withdrawMethodDistribution.length > 0) {
+      const methodColors = {
+        alipay: '#1677ff',
+        bank_card: '#ff6b6b',
+        wechat: '#07c160',
+        balance: '#94a3b8',
+      }
+      paymentMethodChartOption.value.series[0].data = withdrawMethodDistribution.map((i) => ({
         name: getPaymentMethodLabel(i.payment_method),
         value: parseFloat(i.amount) || 0,
         itemStyle: { color: methodColors[i.payment_method] || '#94a3b8' },
       }))
-      paymentList.value = d.payment_method_distribution.map((i) => ({
+      paymentList.value = withdrawMethodDistribution.map((i) => ({
         name: getPaymentMethodLabel(i.payment_method),
         amount: parseFloat(i.amount) || 0,
         count: i.count,
         color: methodColors[i.payment_method] || '#94a3b8',
       }))
+    } else {
+      paymentMethodChartOption.value.series[0].data = []
+      paymentList.value = []
     }
 
     // 佣金
@@ -1252,10 +1266,25 @@ const refreshData = async () => {
 
 const exportReport = () => {
   const rows = [
-    { 模块: '核心指标', 指标: '总收入', 值: metrics.totalRevenue, 备注: `增长 ${metrics.revenueGrowth.toFixed(1)}%` },
-    { 模块: '核心指标', 指标: '订单总数', 值: metrics.totalOrders, 备注: `完成率 ${metrics.completionRate}%` },
+    {
+      模块: '核心指标',
+      指标: '总收入',
+      值: metrics.totalRevenue,
+      备注: `增长 ${metrics.revenueGrowth.toFixed(1)}%`,
+    },
+    {
+      模块: '核心指标',
+      指标: '订单总数',
+      值: metrics.totalOrders,
+      备注: `完成率 ${metrics.completionRate}%`,
+    },
     { 模块: '核心指标', 指标: '用户数', 值: metrics.totalUsers, 备注: `新增 ${metrics.newUsers}` },
-    { 模块: '核心指标', 指标: '平均订单价值', 值: metrics.avgOrderValue.toFixed(2), 备注: `任务 ${metrics.totalTasks}` },
+    {
+      模块: '核心指标',
+      指标: '平均订单价值',
+      值: metrics.avgOrderValue.toFixed(2),
+      备注: `任务 ${metrics.totalTasks}`,
+    },
     ...revenueDetails.value.map((item) => ({
       模块: '收入明细',
       指标: `${item.date} ${item.typeLabel}`,

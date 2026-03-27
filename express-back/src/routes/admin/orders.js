@@ -5,6 +5,9 @@ const AdminOrderController = require('../../controllers/admin/OrderController');
 // 获取订单列表
 router.get('/', AdminOrderController.getOrders);
 
+// 执行担保期订单结算
+router.post('/settlements/run', AdminOrderController.runSettlementJob);
+
 // 获取订单详情
 router.get('/:id', AdminOrderController.getOrderDetail);
 

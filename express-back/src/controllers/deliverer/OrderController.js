@@ -1,9 +1,82 @@
-const { PickupOrder, User, Deliverer, Wallet, Transaction } = require('../../models');
+const {
+    PickupOrder,
+    PickupOrderItem,
+    User,
+    Deliverer,
+    Wallet,
+    Transaction,
+} = require('../../models');
 const { responseUtils, paginationUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const SecurityService = require('../../services/SecurityService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
+
+const buildLegacyExpressItems = order => {
+    if (order.type !== 'express') return [];
+    if (Array.isArray(order.items) && order.items.length > 0) {
+        return order.items;
+    }
+    if (!order.pickup_code && !order.contact_phone && !order.weight && !order.size) {
+        return [];
+    }
+    return [
+        {
+            id: null,
+            order_id: order.id,
+            item_index: 1,
+            pickup_code: order.pickup_code || '',
+            phone_tail: order.contact_phone || '',
+            weight: order.weight ?? null,
+            size: order.size || '',
+        },
+    ];
+};
+
+const serializePickupOrder = order => {
+    const raw = typeof order?.toJSON === 'function' ? order.toJSON() : order;
+    if (!raw) return raw;
+
+    if (raw.type === 'express') {
+        raw.items = buildLegacyExpressItems(raw);
+    } else {
+        raw.items = [];
+    }
+
+    return raw;
+};
+
+const maskPendingOrderPreview = order => {
+    const raw = serializePickupOrder(order);
+    if (!raw || raw.status !== 'pending' || raw.deliverer_id) {
+        return raw;
+    }
+
+    raw.contact_phone = null;
+    raw.pickup_code = null;
+    if (raw.type === 'express') {
+        raw.description = '接单后可查看快递明细';
+    }
+    raw.items = (raw.items || []).map(item => ({
+        ...item,
+        pickup_code: null,
+        phone_tail: null,
+    }));
+    if (raw.user) {
+        raw.user.phone = null;
+    }
+
+    return raw;
+};
+
+const pickupOrderInclude = [
+    {
+        model: PickupOrderItem,
+        as: 'items',
+        attributes: ['id', 'order_id', 'item_index', 'pickup_code', 'phone_tail', 'weight', 'size'],
+        required: false,
+    },
+];
 
 async function getLockedUserAndWallet(userId, transaction) {
     const user = await User.findByPk(userId, {
@@ -122,6 +195,7 @@ class DelivererOrderController {
             const { count, rows } = await PickupOrder.findAndCountAll({
                 where,
                 include: [
+                    ...pickupOrderInclude,
                     {
                         model: User,
                         as: 'user',
@@ -135,9 +209,15 @@ class DelivererOrderController {
                 ],
                 offset,
                 limit: queryLimit,
+                distinct: true,
             });
 
-            const pagination = paginationUtils.formatPaginatedResponse(rows, page, limit, count);
+            const pagination = paginationUtils.formatPaginatedResponse(
+                rows.map(maskPendingOrderPreview),
+                page,
+                limit,
+                count
+            );
 
             res.json(
                 responseUtils.paginated(
@@ -167,6 +247,7 @@ class DelivererOrderController {
                     deliverer_id: null,
                 },
                 include: [
+                    ...pickupOrderInclude,
                     {
                         model: User,
                         as: 'user',
@@ -185,7 +266,7 @@ class DelivererOrderController {
             // 暂时返回所有订单
             const nearbyOrders = orders
                 .map(order => ({
-                    ...order.toJSON(),
+                    ...maskPendingOrderPreview(order),
                     distance: Math.random() * radius, // 模拟距离
                 }))
                 .filter(order => order.distance <= radius);
@@ -245,6 +326,7 @@ class DelivererOrderController {
 
             const updatedOrder = await PickupOrder.findByPk(id, {
                 include: [
+                    ...pickupOrderInclude,
                     {
                         model: User,
                         as: 'user',
@@ -258,7 +340,7 @@ class DelivererOrderController {
                 ],
             });
 
-            res.json(responseUtils.success(updatedOrder, '订单接受成功'));
+            res.json(responseUtils.success(serializePickupOrder(updatedOrder), '订单接受成功'));
         } catch (error) {
             console.error('接受订单失败:', error);
             res.status(500).json(responseUtils.error('接受订单失败'));
@@ -279,6 +361,7 @@ class DelivererOrderController {
             const { count, rows } = await PickupOrder.findAndCountAll({
                 where,
                 include: [
+                    ...pickupOrderInclude,
                     {
                         model: User,
                         as: 'user',
@@ -301,9 +384,15 @@ class DelivererOrderController {
                 order: [['created_at', 'DESC']],
                 offset,
                 limit: queryLimit,
+                distinct: true,
             });
 
-            const pagination = paginationUtils.formatPaginatedResponse(rows, page, limit, count);
+            const pagination = paginationUtils.formatPaginatedResponse(
+                rows.map(serializePickupOrder),
+                page,
+                limit,
+                count
+            );
 
             res.json(
                 responseUtils.paginated(pagination.data, pagination.pagination, '获取我的订单成功')
@@ -322,6 +411,7 @@ class DelivererOrderController {
 
             const order = await PickupOrder.findByPk(id, {
                 include: [
+                    ...pickupOrderInclude,
                     {
                         model: User,
                         as: 'user',
@@ -359,17 +449,7 @@ class DelivererOrderController {
                 return res.status(403).json(responseUtils.error('无权限查看此订单'));
             }
 
-            const orderData = order.toJSON();
-
-            if (orderData.status === 'pending' && !orderData.deliverer_id) {
-                orderData.contact_phone = null;
-                orderData.pickup_code = null;
-                if (orderData.user) {
-                    orderData.user.phone = null;
-                }
-            }
-
-            res.json(responseUtils.success(orderData, '获取订单详情成功'));
+            res.json(responseUtils.success(maskPendingOrderPreview(order), '获取订单详情成功'));
         } catch (error) {
             console.error('获取订单详情失败:', error);
             res.status(500).json(responseUtils.error('获取订单详情失败'));

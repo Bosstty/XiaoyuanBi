@@ -1,11 +1,32 @@
 const { PickupOrder, User, Deliverer } = require('../../models');
 const { Op } = require('sequelize');
+const PickupSettlementService = require('../../services/PickupSettlementService');
 
 /**
  * 订单管理控制器
  * Order Management Controller
  */
 class OrderController {
+    static async runSettlementJob(req, res) {
+        try {
+            const { limit = 100 } = req.body || {};
+            const result = await PickupSettlementService.settleDueOrders(Number(limit) || 100);
+
+            return res.json({
+                success: true,
+                message: '订单担保结算执行完成',
+                data: result,
+            });
+        } catch (error) {
+            console.error('Run settlement job error:', error);
+            return res.status(500).json({
+                success: false,
+                message: '执行订单担保结算失败',
+                error: error.message,
+            });
+        }
+    }
+
     /**
      * 获取订单列表
      * Get orders list with pagination and filters

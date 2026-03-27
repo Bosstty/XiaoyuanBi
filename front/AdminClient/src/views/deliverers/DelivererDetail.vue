@@ -46,14 +46,6 @@
         <el-descriptions-item label="手机号">
           {{ deliverer.phone }}
         </el-descriptions-item>
-        <el-descriptions-item label="出行方式">
-          <el-tag :type="getVehicleType(deliverer.vehicle_type)" size="small">
-            {{ getVehicleText(deliverer.vehicle_type) }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="车牌号">
-          {{ deliverer.vehicle_number || '无' }}
-        </el-descriptions-item>
         <el-descriptions-item label="注册时间" :span="2">
           {{ formatDateTime(deliverer.createdAt) }}
         </el-descriptions-item>
@@ -74,9 +66,6 @@
         </el-descriptions-item>
         <el-descriptions-item label="认证时间">
           {{ deliverer.approval_time ? formatDateTime(deliverer.approval_time) : '待认证' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="健康证有效期">
-          {{ deliverer.certificate_expiry || '无' }}
         </el-descriptions-item>
         <el-descriptions-item label="紧急联系人">
           {{ deliverer.emergency_contact_name || '未填写' }}

@@ -2,11 +2,35 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+
+const uploadRoot = path.join(process.cwd(), 'uploads');
+const uploadCategoryMap = {
+    chat: ['chat'],
+    'order-pickup': ['orders', 'pickup'],
+    'order-delivery': ['orders', 'delivery'],
+    'order-review': ['orders', 'reviews'],
+    avatar: ['avatars'],
+    misc: ['misc'],
+};
+
+const resolveUploadSegments = category => {
+    const normalized = String(category || 'misc')
+        .trim()
+        .toLowerCase();
+    return uploadCategoryMap[normalized] || uploadCategoryMap.misc;
+};
+
+const buildPublicUploadPath = (segments, filename) =>
+    `/uploads/${segments.join('/')}/${filename}`.replace(/\\/g, '/');
 
 // 配置文件上传
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/');
+        const segments = resolveUploadSegments(req.body?.category || req.query?.category);
+        const targetDir = path.join(uploadRoot, ...segments);
+        fs.mkdirSync(targetDir, { recursive: true });
+        cb(null, targetDir);
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -42,6 +66,8 @@ router.post('/single', upload.single('file'), (req, res) => {
             });
         }
 
+        const segments = resolveUploadSegments(req.body?.category || req.query?.category);
+        const publicPath = buildPublicUploadPath(segments, req.file.filename);
         res.json({
             success: true,
             message: '文件上传成功',
@@ -49,8 +75,9 @@ router.post('/single', upload.single('file'), (req, res) => {
                 filename: req.file.filename,
                 originalname: req.file.originalname,
                 size: req.file.size,
-                path: `/uploads/${req.file.filename}`,
-                url: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`,
+                category: req.body?.category || req.query?.category || 'misc',
+                path: publicPath,
+                url: `${req.protocol}://${req.get('host')}${publicPath}`,
             },
         });
     } catch (error) {
@@ -72,12 +99,17 @@ router.post('/multiple', upload.array('files', 5), (req, res) => {
             });
         }
 
+        const segments = resolveUploadSegments(req.body?.category || req.query?.category);
         const files = req.files.map(file => ({
             filename: file.filename,
             originalname: file.originalname,
             size: file.size,
-            path: `/uploads/${file.filename}`,
-            url: `${req.protocol}://${req.get('host')}/uploads/${file.filename}`,
+            category: req.body?.category || req.query?.category || 'misc',
+            path: buildPublicUploadPath(segments, file.filename),
+            url: `${req.protocol}://${req.get('host')}${buildPublicUploadPath(
+                segments,
+                file.filename
+            )}`,
         }));
 
         res.json({

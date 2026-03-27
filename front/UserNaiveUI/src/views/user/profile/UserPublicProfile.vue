@@ -141,6 +141,20 @@
                             <div class="review-comment">
                                 {{ review.comment || '该评价未填写文字内容' }}
                             </div>
+                            <div
+                                v-if="review.images?.length"
+                                class="review-images"
+                            >
+                                <button
+                                    v-for="(image, index) in review.images"
+                                    :key="`${review.id}-${index}`"
+                                    type="button"
+                                    class="review-images__item"
+                                    @click="openImagePreview(review.images || [], index)"
+                                >
+                                    <img :src="resolveAvatarUrl(image)" alt="评价图片" />
+                                </button>
+                            </div>
                         </article>
                     </div>
                     <div v-else class="empty-box">暂无订单评价</div>
@@ -152,6 +166,14 @@
                 <NButton type="primary" @click="router.back()">返回</NButton>
             </div>
         </main>
+
+        <div
+            v-if="previewImage"
+            class="image-preview"
+            @click="closeImagePreview"
+        >
+            <img :src="previewImage" alt="预览图片" class="image-preview__image" />
+        </div>
     </div>
 </template>
 
@@ -170,6 +192,7 @@ const appStore = useAppStore();
 
 const loading = ref(true);
 const profileData = ref<UserPublicProfile | null>(null);
+const previewImage = ref('');
 
 const userId = computed(() => Number(route.params.id || 0));
 const displayName = computed(
@@ -181,6 +204,15 @@ const resolveAvatarUrl = (value?: string | null) => {
     if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
     if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
     return value;
+};
+
+const openImagePreview = (images: string[], index: number) => {
+    const target = images[index];
+    previewImage.value = resolveAvatarUrl(target) || '';
+};
+
+const closeImagePreview = () => {
+    previewImage.value = '';
 };
 
 const fetchProfile = async () => {
@@ -474,6 +506,43 @@ onMounted(() => {
     color: #40516a;
     white-space: pre-wrap;
     word-break: break-word;
+}
+.review-images {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+.review-images__item {
+    border: none;
+    padding: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #e6eefb;
+    aspect-ratio: 1;
+}
+.review-images__item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.image-preview {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.82);
+    padding: 24px;
+}
+.image-preview__image {
+    max-width: min(92vw, 720px);
+    max-height: 82vh;
+    border-radius: 18px;
+    object-fit: contain;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
 }
 .empty-box {
     padding: 18px;

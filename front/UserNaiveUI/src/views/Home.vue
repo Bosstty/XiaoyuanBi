@@ -31,7 +31,7 @@
                     </div>
                     <div class="campus-home__primary-copy">
                         <span>即时履约</span>
-                        <h2>订单中心</h2>
+                        <h2>我的订单</h2>
                         <p>快递代取、外卖代拿、药品代购、生活用品采购。</p>
                     </div>
                     <div class="campus-home__metric-row">

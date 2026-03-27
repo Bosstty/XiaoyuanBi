@@ -1,11 +1,132 @@
-const { PickupOrder, Task, User, Deliverer, Wallet, Transaction } = require('../../models');
+const {
+    PickupOrder,
+    PickupOrderItem,
+    ServiceTicket,
+    Task,
+    User,
+    Deliverer,
+    Wallet,
+    Transaction,
+} = require('../../models');
 const { orderUtils, responseUtils, paginationUtils, cryptoUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 const SecurityService = require('../../services/SecurityService');
+const PickupSettlementService = require('../../services/PickupSettlementService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
 const roundRating = value => Number(Number(value || 0).toFixed(2));
+const normalizeImageList = value => {
+    if (!value) return null;
+
+    const source =
+        typeof value === 'string'
+            ? (() => {
+                  try {
+                      return JSON.parse(value);
+                  } catch (_error) {
+                      return [value];
+                  }
+              })()
+            : value;
+
+    if (!Array.isArray(source)) {
+        return null;
+    }
+
+    const cleaned = source
+        .map(item => (typeof item === 'string' ? item.trim() : ''))
+        .filter(Boolean);
+
+    return cleaned.length ? cleaned : null;
+};
+
+const normalizeExpressItemsInput = value => {
+    if (!value) return [];
+
+    const source =
+        typeof value === 'string'
+            ? (() => {
+                  try {
+                      return JSON.parse(value);
+                  } catch (_error) {
+                      return [];
+                  }
+              })()
+            : value;
+
+    if (!Array.isArray(source)) {
+        return [];
+    }
+
+    return source
+        .map((item, index) => ({
+            item_index: index + 1,
+            pickup_code:
+                typeof item?.pickup_code === 'string' ? item.pickup_code.trim() : undefined,
+            phone_tail:
+                typeof item?.phone_tail === 'string' ? item.phone_tail.trim() : undefined,
+            weight:
+                item?.weight === null || item?.weight === undefined || item?.weight === ''
+                    ? null
+                    : Number.parseFloat(item.weight),
+            size: typeof item?.size === 'string' ? item.size.trim() : undefined,
+        }))
+        .filter(
+            item =>
+                item.pickup_code ||
+                item.phone_tail ||
+                item.weight !== null ||
+                item.size
+        )
+        .map(item => ({
+            ...item,
+            weight: Number.isFinite(item.weight) ? item.weight : null,
+        }));
+};
+
+const buildLegacyExpressItems = order => {
+    if (order.type !== 'express') return [];
+    if (Array.isArray(order.items) && order.items.length > 0) {
+        return order.items;
+    }
+    if (!order.pickup_code && !order.contact_phone && !order.weight && !order.size) {
+        return [];
+    }
+    return [
+        {
+            id: null,
+            order_id: order.id,
+            item_index: 1,
+            pickup_code: order.pickup_code || '',
+            phone_tail: order.contact_phone || '',
+            weight: order.weight ?? null,
+            size: order.size || '',
+        },
+    ];
+};
+
+const serializePickupOrder = order => {
+    const raw = typeof order?.toJSON === 'function' ? order.toJSON() : order;
+    if (!raw) return raw;
+
+    if (raw.type === 'express') {
+        raw.items = buildLegacyExpressItems(raw);
+    } else {
+        raw.items = [];
+    }
+
+    return raw;
+};
+
+const pickupOrderInclude = [
+    {
+        model: PickupOrderItem,
+        as: 'items',
+        attributes: ['id', 'order_id', 'item_index', 'pickup_code', 'phone_tail', 'weight', 'size'],
+        required: false,
+    },
+];
 
 async function syncUserCompositeRating(userId, transaction) {
     const [taskStats, orderStats] = await Promise.all([
@@ -85,6 +206,30 @@ async function getLockedUserAndWallet(userId, transaction) {
     }
 
     return { user, wallet };
+}
+
+async function awardPaymentPoints(user, wallet, amount, transaction) {
+    const earnedPoints = Math.floor(parseAmount(amount));
+    if (earnedPoints <= 0) {
+        return 0;
+    }
+
+    await Promise.all([
+        user.update(
+            {
+                points: Number(user.points || 0) + earnedPoints,
+            },
+            { transaction }
+        ),
+        wallet.update(
+            {
+                points: Number(wallet.points || 0) + earnedPoints,
+            },
+            { transaction }
+        ),
+    ]);
+
+    return earnedPoints;
 }
 
 async function freezePickupFunds(userId, amount, paymentPassword, transaction) {
@@ -221,6 +366,8 @@ async function settlePickupPayment(order, transaction) {
         { transaction }
     );
 
+    await awardPaymentPoints(publisher, publisherWallet, amount, transaction);
+
     if (!order.deliverer_id) {
         return;
     }
@@ -315,7 +462,7 @@ class UserOrderController {
             } = req.body;
 
             const minimumPriceMap = {
-                express: 2,
+                express: 3,
                 food: 3,
                 medicine: 5,
                 daily: 3,
@@ -341,6 +488,7 @@ class UserOrderController {
 
             const totalAmount = parseAmount(price) + parseAmount(tip);
             const dbTransaction = await PickupOrder.sequelize.transaction();
+            const expressItems = normalizeExpressItemsInput(req.body.items);
 
             let order;
 
@@ -348,6 +496,22 @@ class UserOrderController {
                 await freezePickupFunds(userId, totalAmount, payment_password, dbTransaction);
 
                 const orderNo = orderUtils.generateOrderNo('PO');
+                const primaryExpressItem =
+                    expressItems[0] ||
+                    (type === 'express'
+                        ? {
+                              pickup_code: typeof pickup_code === 'string' ? pickup_code.trim() : null,
+                              weight:
+                                  weight === null || weight === undefined || weight === ''
+                                      ? null
+                                      : Number.parseFloat(weight),
+                              size: typeof size === 'string' ? size.trim() : null,
+                          }
+                        : null);
+
+                if (type === 'express' && !expressItems.length && !primaryExpressItem?.pickup_code) {
+                    throw new Error('请至少填写一件快递信息');
+                }
 
                 order = await PickupOrder.create(
                     {
@@ -362,9 +526,9 @@ class UserOrderController {
                         delivery_time,
                         contact_name,
                         contact_phone,
-                        pickup_code: type === 'express' ? pickup_code : null,
-                        weight,
-                        size,
+                        pickup_code: type === 'express' ? primaryExpressItem?.pickup_code || null : null,
+                        weight: type === 'express' ? primaryExpressItem?.weight ?? null : weight,
+                        size: type === 'express' ? primaryExpressItem?.size || null : size,
                         price,
                         tip: tip || 0,
                         urgent: urgent || false,
@@ -377,6 +541,20 @@ class UserOrderController {
                     { transaction: dbTransaction }
                 );
 
+                if (type === 'express' && expressItems.length > 0) {
+                    await PickupOrderItem.bulkCreate(
+                        expressItems.map(item => ({
+                            order_id: order.id,
+                            item_index: item.item_index,
+                            pickup_code: item.pickup_code || null,
+                            phone_tail: item.phone_tail || null,
+                            weight: item.weight,
+                            size: item.size || null,
+                        })),
+                        { transaction: dbTransaction }
+                    );
+                }
+
                 await dbTransaction.commit();
             } catch (error) {
                 await dbTransaction.rollback();
@@ -386,6 +564,7 @@ class UserOrderController {
             // 获取完整的订单信息（包含用户信息）
             const fullOrder = await PickupOrder.findByPk(order.id, {
                 include: [
+                    ...pickupOrderInclude,
                     {
                         model: User,
                         as: 'user',
@@ -395,11 +574,20 @@ class UserOrderController {
             });
 
             res.json(
-                responseUtils.success(fullOrder, `订单创建成功，已冻结 ¥${totalAmount.toFixed(2)}`)
+                responseUtils.success(
+                    serializePickupOrder(fullOrder),
+                    `订单创建成功，已冻结 ¥${totalAmount.toFixed(2)}`
+                )
             );
         } catch (error) {
             console.error('创建订单失败:', error);
-            const knownErrors = ['请先设置支付密码', '请输入支付密码', '支付密码错误', '余额不足'];
+            const knownErrors = [
+                '请先设置支付密码',
+                '请输入支付密码',
+                '支付密码错误',
+                '余额不足',
+                '请至少填写一件快递信息',
+            ];
             if (knownErrors.some(item => error.message?.includes(item))) {
                 return res.status(400).json(responseUtils.error(error.message));
             }
@@ -437,6 +625,7 @@ class UserOrderController {
             const { count, rows } = await PickupOrder.findAndCountAll({
                 where,
                 include: [
+                    ...pickupOrderInclude,
                     {
                         model: User,
                         as: 'user',
@@ -465,9 +654,15 @@ class UserOrderController {
                 order: [['created_at', 'DESC']],
                 offset,
                 limit: queryLimit,
+                distinct: true,
             });
 
-            const pagination = paginationUtils.formatPaginatedResponse(rows, page, limit, count);
+            const pagination = paginationUtils.formatPaginatedResponse(
+                rows.map(serializePickupOrder),
+                page,
+                limit,
+                count
+            );
 
             res.json(
                 responseUtils.paginated(pagination.data, pagination.pagination, '获取我的订单成功')
@@ -486,6 +681,7 @@ class UserOrderController {
 
             const order = await PickupOrder.findByPk(id, {
                 include: [
+                    ...pickupOrderInclude,
                     {
                         model: User,
                         as: 'user',
@@ -522,10 +718,157 @@ class UserOrderController {
                 return res.status(403).json(responseUtils.error('无权限查看此订单'));
             }
 
-            res.json(responseUtils.success(order, '获取订单详情成功'));
+            res.json(responseUtils.success(serializePickupOrder(order), '获取订单详情成功'));
         } catch (error) {
             console.error('获取订单详情失败:', error);
             res.status(500).json(responseUtils.error('获取订单详情失败'));
+        }
+    }
+
+    // 修改订单金额
+    static async updateOrder(req, res) {
+        try {
+            const { id } = req.params;
+            const userId = req.user.id;
+            const payloadKeys = Object.keys(req.body || {}).filter(
+                key => req.body[key] !== undefined
+            );
+            const { price, payment_password } = req.body || {};
+
+            const order = await PickupOrder.findByPk(id);
+
+            if (!order) {
+                return res.status(404).json(responseUtils.error('订单不存在'));
+            }
+
+            if (order.user_id !== userId) {
+                return res.status(403).json(responseUtils.error('无权限修改此订单'));
+            }
+
+            const allowedKeys = ['price', 'payment_password'];
+            const hasOnlyAllowedKeys =
+                payloadKeys.length > 0 && payloadKeys.every(key => allowedKeys.includes(key));
+
+            if (!(hasOnlyAllowedKeys && payloadKeys.includes('price'))) {
+                return res
+                    .status(400)
+                    .json(responseUtils.error('当前仅支持修改订单金额，不能修改订单内容'));
+            }
+
+            if (!['pending', 'accepted', 'picking'].includes(order.status)) {
+                return res.status(400).json(responseUtils.error('当前订单状态不允许修改金额'));
+            }
+
+            if (order.payment_status !== 'unpaid') {
+                return res.status(400).json(responseUtils.error('当前订单支付状态不允许修改金额'));
+            }
+
+            const nextPrice = parseAmount(price);
+            const currentPrice = parseAmount(order.price);
+
+            if (!nextPrice || nextPrice <= 0) {
+                return res.status(400).json(responseUtils.error('订单金额必须大于0'));
+            }
+
+            if (nextPrice < currentPrice) {
+                return res.status(400).json(responseUtils.error('订单金额只能增加，不能减少'));
+            }
+
+            if (nextPrice === currentPrice) {
+                const sameOrder = await PickupOrder.findByPk(id, {
+                    include: [
+                        ...pickupOrderInclude,
+                        {
+                            model: User,
+                            as: 'user',
+                            attributes: ['id', 'username', 'avatar', 'rating', 'phone'],
+                        },
+                        {
+                            model: User,
+                            as: 'deliverer',
+                            attributes: ['id', 'username', 'avatar', 'rating', 'phone'],
+                            required: false,
+                        },
+                        {
+                            model: Deliverer,
+                            as: 'delivererInfo',
+                            attributes: ['id', 'user_id', 'real_name', 'phone'],
+                            required: false,
+                            include: [
+                                {
+                                    model: User,
+                                    as: 'user',
+                                    attributes: ['id', 'username', 'real_name', 'avatar', 'phone'],
+                                },
+                            ],
+                        },
+                    ],
+                });
+                return res.json(responseUtils.success(serializePickupOrder(sameOrder), '订单金额未变化'));
+            }
+
+            const dbTransaction = await PickupOrder.sequelize.transaction();
+            try {
+                await freezePickupFunds(
+                    order.user_id,
+                    nextPrice - currentPrice,
+                    payment_password,
+                    dbTransaction
+                );
+
+                await order.update({ price: nextPrice }, { transaction: dbTransaction });
+                await dbTransaction.commit();
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
+            }
+
+            const updatedOrder = await PickupOrder.findByPk(id, {
+                include: [
+                    ...pickupOrderInclude,
+                    {
+                        model: User,
+                        as: 'user',
+                        attributes: ['id', 'username', 'avatar', 'rating', 'phone'],
+                    },
+                    {
+                        model: User,
+                        as: 'deliverer',
+                        attributes: ['id', 'username', 'avatar', 'rating', 'phone'],
+                        required: false,
+                    },
+                    {
+                        model: Deliverer,
+                        as: 'delivererInfo',
+                        attributes: ['id', 'user_id', 'real_name', 'phone'],
+                        required: false,
+                        include: [
+                            {
+                                model: User,
+                                as: 'user',
+                                attributes: ['id', 'username', 'real_name', 'avatar', 'phone'],
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            return res.json(responseUtils.success(serializePickupOrder(updatedOrder), '订单金额更新成功'));
+        } catch (error) {
+            console.error('更新订单失败:', error);
+            const errorMessage = error.message || '更新订单失败';
+            const isBusinessError = [
+                '余额不足',
+                '当前订单状态不允许修改金额',
+                '当前订单支付状态不允许修改金额',
+                '请先设置支付密码',
+                '请输入支付密码',
+                '支付密码错误',
+                '订单金额只能增加，不能减少',
+            ].some(message => errorMessage.includes(message));
+            return res
+                .status(isBusinessError ? 400 : 500)
+                .json(responseUtils.error(isBusinessError ? errorMessage : '更新订单失败'));
         }
     }
 
@@ -551,7 +894,9 @@ class UserOrderController {
             if (order.status === 'accepted') {
                 return res
                     .status(400)
-                    .json(responseUtils.error('订单已被接单，请先联系配送员协商，待对方同意后再取消'));
+                    .json(
+                        responseUtils.error('订单已被接单，请先联系配送员协商，待对方同意后再取消')
+                    );
             }
 
             if (order.status !== 'pending') {
@@ -615,16 +960,7 @@ class UserOrderController {
             const dbTransaction = await PickupOrder.sequelize.transaction();
 
             try {
-                await settlePickupPayment(order, dbTransaction);
-
-                await order.update(
-                    {
-                        status: 'completed',
-                        delivery_complete_time: new Date(),
-                        payment_status: 'paid',
-                    },
-                    { transaction: dbTransaction }
-                );
+                await PickupSettlementService.holdOrderSettlement(order, dbTransaction, new Date());
 
                 await dbTransaction.commit();
             } catch (error) {
@@ -632,7 +968,7 @@ class UserOrderController {
                 throw error;
             }
 
-            res.json(responseUtils.success(order, '订单确认完成，款项已结算给配送员'));
+            res.json(responseUtils.success(order, '订单确认完成，款项已进入48小时担保期'));
         } catch (error) {
             console.error('确认订单完成失败:', error);
             res.status(500).json(responseUtils.error('确认订单完成失败'));
@@ -643,7 +979,7 @@ class UserOrderController {
     static async rateOrder(req, res) {
         try {
             const { id } = req.params;
-            const { rating, comment } = req.body;
+            const { rating, comment, images } = req.body;
             const userId = req.user.id;
 
             const order = await PickupOrder.findByPk(id);
@@ -670,6 +1006,7 @@ class UserOrderController {
             await order.update({
                 rating,
                 rating_comment: comment,
+                images: normalizeImageList(images),
             });
 
             // 更新配送员综合评分（订单 + 任务）
@@ -681,6 +1018,55 @@ class UserOrderController {
         } catch (error) {
             console.error('评价订单失败:', error);
             res.status(500).json(responseUtils.error('评价订单失败'));
+        }
+    }
+
+    // 创建订单工单
+    static async createServiceTicket(req, res) {
+        try {
+            const { id } = req.params;
+            const userId = req.user.id;
+            const { description, type = 'complaint', priority = 'high' } = req.body || {};
+
+            const order = await PickupOrder.findByPk(id);
+
+            if (!order) {
+                return res.status(404).json(responseUtils.error('订单不存在'));
+            }
+
+            if (order.user_id !== userId) {
+                return res.status(403).json(responseUtils.error('无权限为此订单创建工单'));
+            }
+
+            const normalizedDescription = String(description || '').trim();
+            if (!normalizedDescription) {
+                return res.status(400).json(responseUtils.error('请填写需要客服介入的问题描述'));
+            }
+
+            const normalizedType = ['complaint', 'refund', 'dispute', 'suggestion', 'other'].includes(type)
+                ? type
+                : 'complaint';
+            const normalizedPriority = ['low', 'medium', 'high', 'urgent'].includes(priority)
+                ? priority
+                : 'high';
+
+            const ticket = await ServiceTicket.create({
+                ticket_no: `ST${Date.now()}${Math.random().toString().slice(2, 6)}`,
+                type: normalizedType,
+                order_id: order.id,
+                user_id: userId,
+                deliverer_id: order.deliverer_id || null,
+                title: `订单客服介入：${order.title}`,
+                description: normalizedDescription,
+                priority: normalizedPriority,
+                status: 'pending',
+                service_id: null,
+            });
+
+            return res.json(responseUtils.success(ticket, '工单已创建，请等待客服介入处理'));
+        } catch (error) {
+            console.error('创建订单工单失败:', error);
+            return res.status(500).json(responseUtils.error('创建订单工单失败'));
         }
     }
 

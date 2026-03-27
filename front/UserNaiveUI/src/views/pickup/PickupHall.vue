@@ -56,7 +56,21 @@
                         <h3 class="card-title">{{ order.title }}</h3>
                         <div class="publisher">
                             <div class="pub-avatar">
-                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                <img
+                                    v-if="resolveAvatarUrl(order.user?.avatar)"
+                                    :src="resolveAvatarUrl(order.user?.avatar)"
+                                    :alt="
+                                        order.user?.username || order.user?.real_name || '用户头像'
+                                    "
+                                    class="pub-avatar__image"
+                                />
+                                <svg
+                                    v-else
+                                    viewBox="0 0 24 24"
+                                    width="16"
+                                    height="16"
+                                    aria-hidden="true"
+                                >
                                     <path
                                         d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
                                         fill="currentColor"
@@ -69,18 +83,33 @@
                         </div>
                     </div>
 
-                    <p class="card-desc">{{ order.description || '暂无订单描述' }}</p>
+                    <p v-if="getOrderSummary(order)" class="card-desc">
+                        {{ getOrderSummary(order) }}
+                    </p>
+
+                    <div class="location-map">
+                        <div class="map-line"></div>
+                        <div
+                            v-for="(location, locationIndex) in getPickupLocations(order)"
+                            :key="`pickup-${order.id}-${locationIndex}`"
+                            class="map-point"
+                        >
+                            <span class="dot-p"></span>
+                            <span class="label-p">取</span>
+                            <span class="text-p">{{ location }}</span>
+                        </div>
+                        <div
+                            v-for="(location, locationIndex) in getDeliveryLocations(order)"
+                            :key="`delivery-${order.id}-${locationIndex}`"
+                            class="map-point"
+                        >
+                            <span class="dot-d"></span>
+                            <span class="label-p">送</span>
+                            <span class="text-p">{{ location }}</span>
+                        </div>
+                    </div>
 
                     <div class="card-meta">
-                        <span>
-                            <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
-                                <path
-                                    d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
-                                    fill="currentColor"
-                                />
-                            </svg>
-                            {{ order.pickup_location }}
-                        </span>
                         <span>
                             <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
                                 <path
@@ -99,21 +128,22 @@
                     <div class="card-foot">
                         <div class="foot-info">
                             <div class="info-item">
-                                <span class="info-label">报酬</span>
+                                <span class="info-label">应付</span>
                                 <span class="info-price">
                                     ¥{{ formatAmount(order.price, order.tip) }}
                                 </span>
                             </div>
-                            <div class="info-item">
-                                <span class="info-label">送达</span>
-                                <span class="info-val">{{ order.delivery_location }}</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">联系</span>
-                                <span class="info-val">{{ order.contact_name }}</span>
-                            </div>
                         </div>
                         <div class="foot-actions" @click.stop>
+                            <NButton
+                                size="small"
+                                round
+                                secondary
+                                class="contact-action-btn"
+                                @click="handleContactUser(order)"
+                            >
+                                联系
+                            </NButton>
                             <NButton
                                 size="small"
                                 type="primary"
@@ -139,7 +169,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NSpin, useMessage } from 'naive-ui';
-import { DelivererOrderApi } from '@/api';
+import { DelivererOrderApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
 import type { PickupOrder } from '@/types';
 
@@ -190,8 +220,64 @@ const getStatusLabel = (status: PickupOrder['status']) =>
         }) as Record<PickupOrder['status'], string>
     )[status] || status;
 
+const getOrderSummary = (order: PickupOrder) => {
+    if (order.type === 'express' || order.type === 'food') {
+        return '';
+    }
+    return order.description || '';
+};
+
+const getMaskedContactLabel = (order: PickupOrder) => {
+    if (order.type === 'express') return '接单后可见';
+    if (order.type === 'food') return '接单后可见';
+    return order.contact_name || '接单后可见';
+};
+
+const normalizeLocationList = (value?: string[] | string | null) => {
+    if (Array.isArray(value)) {
+        return Array.from(
+            new Set(
+                value.map(item => (typeof item === 'string' ? item.trim() : '')).filter(Boolean)
+            )
+        );
+    }
+
+    if (typeof value !== 'string') {
+        return [];
+    }
+
+    const source = value.trim();
+    if (!source) {
+        return [];
+    }
+
+    const splitValues = source
+        .split(/\r?\n|；|;|\|/)
+        .map(item => item.trim())
+        .filter(Boolean);
+
+    return Array.from(new Set(splitValues.length ? splitValues : [source]));
+};
+
+const getPickupLocations = (order: PickupOrder) => {
+    const locations = normalizeLocationList(order.pickup_locations || order.pickup_location);
+    return locations.length ? locations : ['--'];
+};
+
+const getDeliveryLocations = (order: PickupOrder) => {
+    const locations = normalizeLocationList(order.delivery_locations || order.delivery_location);
+    return locations.length ? locations : ['--'];
+};
+
 const formatAmount = (price?: number | string, tip?: number | string) =>
     (Number(price || 0) + Number(tip || 0)).toFixed(2);
+
+const resolveAvatarUrl = (value?: string | null) => {
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
+    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
+    return value;
+};
 
 const formatRelativeTime = (value?: string | null) => {
     if (!value) return '--';
@@ -247,6 +333,29 @@ const handleAcceptOrder = async (order: PickupOrder) => {
         message.error(error instanceof Error ? error.message : '接单失败');
     } finally {
         acceptingId.value = null;
+    }
+};
+
+const handleContactUser = async (order: PickupOrder) => {
+    const peerUserId = Number(order.user?.id || order.user_id || 0);
+    if (!peerUserId) {
+        message.warning('未找到用户信息');
+        return;
+    }
+
+    try {
+        const response = await chatApi.createConversation({
+            peer_user_id: peerUserId,
+            order_id: order.id,
+            initial_message: `想沟通订单「${order.title}」的配送细节。`,
+        });
+        appStore.hapticFeedback('light');
+        router.push({
+            path: '/chat',
+            query: response.data?.id ? { conversationId: String(response.data.id) } : {},
+        });
+    } catch (error: any) {
+        message.error(error?.message || '打开聊天失败');
     }
 };
 
@@ -353,7 +462,7 @@ onMounted(async () => {
 }
 
 .list-area {
-    padding: 10px 16px 32px;
+    padding: 10px 16px calc(120px + env(safe-area-inset-bottom, 0px));
 }
 
 .pickup-card {
@@ -439,6 +548,14 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+}
+
+.pub-avatar__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .card-desc {
@@ -446,6 +563,62 @@ onMounted(async () => {
     font-size: 15px;
     line-height: 1.65;
     color: #64748b;
+}
+
+.location-map {
+    position: relative;
+    margin-top: 16px;
+    border-radius: 18px;
+    background: rgba(148, 163, 184, 0.06);
+    padding: 16px 16px 16px 18px;
+}
+
+.map-line {
+    position: absolute;
+    left: 23px;
+    top: 29px;
+    bottom: 29px;
+    width: 2px;
+    background: rgba(148, 163, 184, 0.22);
+}
+
+.map-point {
+    position: relative;
+    display: grid;
+    grid-template-columns: 18px 18px 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.map-point + .map-point {
+    margin-top: 14px;
+}
+
+.dot-p,
+.dot-d {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--blue);
+    z-index: 1;
+}
+
+.dot-d {
+    border-color: #f97316;
+}
+
+.label-p {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.text-p {
+    font-size: 15px;
+    line-height: 1.5;
+    font-weight: 700;
+    color: var(--text);
 }
 
 .card-meta {
@@ -482,9 +655,11 @@ onMounted(async () => {
 }
 
 .foot-info {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr) minmax(0, 0.8fr);
     gap: 18px;
     min-width: 0;
+    flex: 1;
 }
 
 .info-item {
@@ -505,14 +680,30 @@ onMounted(async () => {
     font-weight: 800;
 }
 
+.info-order-no {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text);
+    word-break: break-all;
+    line-height: 1.5;
+}
+
 .info-val {
     font-size: 14px;
     font-weight: 700;
     color: var(--text);
-    max-width: 112px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.foot-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.contact-action-btn {
+    color: #475569 !important;
 }
 
 .state-box {
@@ -552,12 +743,15 @@ onMounted(async () => {
 
     .foot-info {
         width: 100%;
-        justify-content: space-between;
+        grid-template-columns: 1fr;
         gap: 12px;
     }
 
     .foot-actions {
         width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
     }
 
     .foot-actions :deep(.n-button) {

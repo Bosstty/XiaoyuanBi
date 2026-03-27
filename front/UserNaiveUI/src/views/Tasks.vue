@@ -89,7 +89,9 @@
                             <NIcon :size="14"><PersonIcon /></NIcon>
                             {{ task.max_applicants || 0 }} 人上限
                         </span>
-                        <span class="task-center__reward">¥{{ Number(task.price || 0).toFixed(2) }}</span>
+                        <span class="task-center__reward">
+                            ¥{{ Number(task.price || 0).toFixed(2) }}
+                        </span>
                     </div>
                 </article>
             </div>
@@ -137,7 +139,7 @@ const taskCategories = [
     {
         id: 1,
         key: 'study',
-        title: '学习类',
+        title: '学习辅导类',
         description: '辅导、笔记、论文、研究',
         icon: StudyIcon,
         route: '/tasks/list?category=study',
@@ -146,7 +148,7 @@ const taskCategories = [
     {
         id: 2,
         key: 'design',
-        title: '设计类',
+        title: '艺术设计类',
         description: '海报、LOGO、视频包装',
         icon: DesignIcon,
         route: '/tasks/list?category=design',
@@ -155,7 +157,7 @@ const taskCategories = [
     {
         id: 3,
         key: 'tech',
-        title: '技术类',
+        title: '专业技术类',
         description: '编程、网站、小程序、系统',
         icon: TechIcon,
         route: '/tasks/list?category=tech',
@@ -164,7 +166,7 @@ const taskCategories = [
     {
         id: 4,
         key: 'writing',
-        title: '文案类',
+        title: '文章编辑类',
         description: '文章、策划、翻译、简历优化',
         icon: WritingIcon,
         route: '/tasks/list?category=writing',
@@ -173,7 +175,7 @@ const taskCategories = [
     {
         id: 5,
         key: 'life',
-        title: '生活类',
+        title: '生活服务类',
         description: '跑腿、搬运、陪同、日常协助',
         icon: LifeIcon,
         route: '/tasks/list?category=life',
@@ -662,5 +664,4 @@ onMounted(() => {
     background: rgba(255, 255, 255, 0.08);
     color: #9fc0ff;
 }
-
 </style>

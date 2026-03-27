@@ -124,14 +124,6 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="出行方式" align="center" min-width="100">
-          <template #default="{ row }">
-            <el-tag :type="getVehicleType(row.vehicle_type)" size="small">
-              {{ getVehicleText(row.vehicle_type) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
         <el-table-column label="在线状态" align="center" min-width="90">
           <template #default="{ row }">
             <span class="status-dot" :class="row.is_online ? 'online' : 'offline'">

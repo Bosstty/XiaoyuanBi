@@ -220,11 +220,11 @@ const viewTabs: Array<{ key: ViewKey; label: string }> = [{ key: 'all', label: '
 
 const categoryTabs: Array<{ key: CategoryKey; label: string }> = [
     { key: 'all', label: '全部' },
-    { key: 'study', label: '学习' },
-    { key: 'design', label: '设计' },
-    { key: 'tech', label: '技术' },
-    { key: 'writing', label: '文案' },
-    { key: 'life', label: '生活' },
+    { key: 'study', label: '学习辅导类' },
+    { key: 'design', label: '艺术设计类' },
+    { key: 'tech', label: '专业技术类' },
+    { key: 'writing', label: '文章编辑类' },
+    { key: 'life', label: '生活服务类' },
 ];
 
 const parseCategoryFromRoute = (value: unknown): CategoryKey => {
@@ -237,9 +237,13 @@ const parseCategoryFromRoute = (value: unknown): CategoryKey => {
 const hasNextPage = computed(() => currentPage.value < totalPages.value);
 
 const getCategoryLabel = (cat: string) =>
-    ({ study: '学习类', design: '设计类', tech: '技术类', writing: '文案类', life: '生活类' })[
-        cat
-    ] ?? '任务';
+    ({
+        study: '学习辅导类',
+        design: '艺术设计类',
+        tech: '专业技术类',
+        writing: '文章编辑类',
+        life: '生活服务类',
+    })[cat] ?? '任务';
 
 const getStatusLabel = (status: string) =>
     ({

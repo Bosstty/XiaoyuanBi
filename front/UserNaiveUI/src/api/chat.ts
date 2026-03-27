@@ -33,7 +33,15 @@ export const chatApi = {
     }) => apiClient.post('/chat/messages', data),
 
     // 上传聊天图片
-    uploadImage: (file: File) => publicApiClient.upload('/upload/single', file),
+    uploadImage: (
+        file: File,
+        category: 'chat' | 'order-pickup' | 'order-delivery' | 'order-review' = 'chat'
+    ) => {
+        const formData = new FormData();
+        formData.append('category', category);
+        formData.append('file', file);
+        return publicApiClient.upload(`/upload/single?category=${encodeURIComponent(category)}`, formData);
+    },
 
     // 标记消息已读
     markAsRead: (conversation_id: number) =>

@@ -23,6 +23,14 @@ export class PickupApi {
     return apiClient.get(`/orders/${id}`)
   }
 
+  // 修改订单金额
+  static async updateOrder(
+    id: number,
+    data: { price: number; payment_password: string }
+  ): Promise<ApiResponse<PickupOrder>> {
+    return apiClient.patch(`/orders/${id}`, data)
+  }
+
   // 接受订单
   static async acceptOrder(id: number): Promise<ApiResponse<PickupOrder>> {
     return apiClient.post(`/orders/${id}/accept`)
@@ -57,8 +65,15 @@ export class PickupApi {
   // 评价订单
   static async rateOrder(
     id: number,
-    data: { rating: number; comment?: string }
+    data: { rating: number; comment?: string; images?: string[] }
   ): Promise<ApiResponse<PickupOrder>> {
     return apiClient.post(`/orders/${id}/rate`, data)
+  }
+
+  static async createServiceTicket(
+    id: number,
+    data: { description: string; type?: 'complaint' | 'refund' | 'dispute' | 'suggestion' | 'other'; priority?: 'low' | 'medium' | 'high' | 'urgent' }
+  ): Promise<ApiResponse<any>> {
+    return apiClient.post(`/orders/${id}/tickets`, data)
   }
 }

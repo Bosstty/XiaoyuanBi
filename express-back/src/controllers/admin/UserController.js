@@ -124,6 +124,13 @@ class AdminUserController {
                         as: 'publishedTasks',
                         attributes: ['id', 'title', 'status', 'price', 'created_at'],
                     },
+                    {
+                        model: Deliverer,
+                        as: 'delivererProfile',
+                        attributes: {
+                            exclude: ['createdAt', 'updatedAt'],
+                        },
+                    },
                 ],
             });
 

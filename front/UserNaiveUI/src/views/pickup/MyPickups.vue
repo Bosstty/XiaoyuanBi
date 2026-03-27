@@ -2,15 +2,14 @@
     <div class="campus-orders" :class="{ 'is-dark': appStore.isDark }">
         <header class="campus-nav-sticky">
             <div class="nav-row">
-                <div class="nav-back-group" @click="router.back()">
+                <button type="button" class="nav-back-btn" @click="router.back()">
                     <svg viewBox="0 0 24 24" class="icon-svg">
                         <path
                             d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
                             fill="currentColor"
                         />
                     </svg>
-                    <span class="nav-title">我的订单</span>
-                </div>
+                </button>
                 <div class="tabs-group">
                     <button
                         v-for="tab in tabs"
@@ -41,7 +40,10 @@
         </header>
 
         <main class="order-viewport">
-            <div v-if="!loading">
+            <div v-if="loading" class="loading-wrap">
+                <NSpin size="large" class="orders-loading-spinner" />
+            </div>
+            <div v-else>
                 <div v-if="orders.length === 0" class="no-data-view">
                     <div class="no-data-icon">
                         <svg viewBox="0 0 24 24" class="svg-large">
@@ -134,7 +136,7 @@
                                     round
                                     @click="handleConfirm(order)"
                                 >
-                                    确认送达
+                                    确认收货
                                 </NButton>
                                 <NButton
                                     v-if="canRate(order)"
@@ -158,6 +160,82 @@
             </div>
         </main>
 
+        <NModal
+            v-model:show="showRatingModal"
+            preset="card"
+            title="评价订单"
+            style="width: 92vw; max-width: 420px"
+        >
+            <div class="rating-modal">
+                <div class="rating-stars">
+                    <button
+                        v-for="star in 5"
+                        :key="star"
+                        type="button"
+                        class="rating-star"
+                        :class="{ active: star <= rating }"
+                        @click="rating = star"
+                    >
+                        ★
+                    </button>
+                </div>
+                <NInput
+                    v-model:value="ratingComment"
+                    type="textarea"
+                    placeholder="请输入评价内容"
+                    :rows="3"
+                    maxlength="200"
+                    show-count
+                />
+                <div class="rating-images">
+                    <div class="rating-images__head">
+                        <span>评价图片</span>
+                        <button
+                            type="button"
+                            class="rating-images__upload"
+                            :disabled="ratingUploading || ratingImages.length >= 6"
+                            @click="handleSelectRatingImages"
+                        >
+                            {{ ratingUploading ? '上传中...' : '上传图片' }}
+                        </button>
+                    </div>
+                    <div v-if="ratingImages.length" class="rating-images__grid">
+                        <div
+                            v-for="(image, index) in ratingImages"
+                            :key="`${image}-${index}`"
+                            class="rating-images__item"
+                        >
+                            <img
+                                :src="resolveAssetUrl(image)"
+                                alt="评价图片"
+                                class="rating-images__preview"
+                            />
+                            <button
+                                type="button"
+                                class="rating-images__remove"
+                                @click="removeRatingImage(index)"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="rating-modal__actions">
+                    <NButton @click="showRatingModal = false">取消</NButton>
+                    <NButton type="primary" :loading="submittingRating" @click="submitRating">
+                        提交评价
+                    </NButton>
+                </div>
+            </div>
+        </NModal>
+        <input
+            ref="ratingImageInputRef"
+            type="file"
+            accept="image/*"
+            multiple
+            style="display: none"
+            @change="handleRatingImagesSelected"
+        />
         <div class="safe-bottom"></div>
     </div>
 </template>
@@ -165,8 +243,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NInput, NModal, NTag, useDialog, useMessage } from 'naive-ui';
-import { DelivererOrderApi, PickupApi } from '@/api';
+import { NButton, NInput, NModal, NSpin, NTag, useDialog, useMessage } from 'naive-ui';
+import { DelivererOrderApi, PickupApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
 import type { PaginationMeta, PickupOrder } from '@/types';
 
@@ -181,7 +259,7 @@ const userStore = useUserStore();
 
 const loading = ref(true);
 const loadingMore = ref(false);
-const currentType = ref<OrderTypeFilter>('all');
+const currentType = ref<OrderTypeFilter>('published');
 const currentStatus = ref<OrderStatusFilter>('');
 const orders = ref<PickupOrder[]>([]);
 const pagination = ref<PaginationMeta | null>(null);
@@ -191,6 +269,9 @@ const submittingRating = ref(false);
 const currentOrder = ref<PickupOrder | null>(null);
 const rating = ref(5);
 const ratingComment = ref('');
+const ratingImages = ref<string[]>([]);
+const ratingUploading = ref(false);
+const ratingImageInputRef = ref<HTMLInputElement | null>(null);
 
 const tabs = computed(() =>
     userStore.user?.is_deliverer
@@ -324,6 +405,13 @@ const formatDateTime = (value?: string) => {
     ).padStart(2, '0')}`;
 };
 
+const resolveAssetUrl = (value?: string | null) => {
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
+    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
+    return value;
+};
+
 const partnerLabel = (order: PickupOrder) => (isPublisher(order) ? '配送员' : '发布人');
 
 const partnerName = (order: PickupOrder) => {
@@ -333,8 +421,7 @@ const partnerName = (order: PickupOrder) => {
     return order.user?.username || order.user?.real_name || '匿名用户';
 };
 
-const canCancel = (order: PickupOrder) =>
-    isPublisher(order) && order.status === 'pending';
+const canCancel = (order: PickupOrder) => isPublisher(order) && order.status === 'pending';
 
 const canConfirm = (order: PickupOrder) => isPublisher(order) && order.status === 'delivering';
 
@@ -368,31 +455,86 @@ const handleCancel = (order: PickupOrder) => {
 };
 
 const handleConfirm = (order: PickupOrder) => {
-    dialog.info({
-        title: '确认完成',
-        content: '确认这笔订单已经配送完成？',
-        positiveText: '确认',
-        negativeText: '取消',
+    dialog.warning({
+        title: '确认收货',
+        content: '确认已收到货物吗？确认后订单将完成，并结算款项给配送员。',
+        positiveText: '确认收货',
+        negativeText: '再看看',
         async onPositiveClick() {
             try {
                 const response = await PickupApi.confirmOrder(order.id);
                 if (!response.success) {
-                    throw new Error(response.message || '确认完成失败');
+                    throw new Error(response.message || '确认收货失败');
                 }
-                message.success('订单已确认完成');
+                message.success('已确认收货，订单已完成');
                 await fetchOrders(1, false);
             } catch (error: any) {
-                message.error(error?.message || '确认完成失败');
+                message.error(error?.message || '确认收货失败');
             }
         },
     });
 };
 
-const openRating = (order: PickupOrder) => {
-    currentOrder.value = order;
+const resetRatingForm = () => {
     rating.value = 5;
     ratingComment.value = '';
+    ratingImages.value = [];
+    ratingUploading.value = false;
+    if (ratingImageInputRef.value) {
+        ratingImageInputRef.value.value = '';
+    }
+};
+
+const openRating = (order: PickupOrder) => {
+    currentOrder.value = order;
+    resetRatingForm();
     showRatingModal.value = true;
+};
+
+const handleSelectRatingImages = () => {
+    ratingImageInputRef.value?.click();
+};
+
+const handleRatingImagesSelected = async (event: Event) => {
+    const input = event.target as HTMLInputElement | null;
+    const files = Array.from(input?.files || []);
+    if (!files.length) return;
+
+    const availableSlots = Math.max(0, 6 - ratingImages.value.length);
+    const selectedFiles = files.slice(0, availableSlots);
+
+    if (!selectedFiles.length) {
+        if (input) input.value = '';
+        message.warning('最多上传 6 张评价图片');
+        return;
+    }
+
+    ratingUploading.value = true;
+    try {
+        const uploadedUrls = await Promise.all(
+            selectedFiles.map(async file => {
+                const uploadRes = await chatApi.uploadImage(file, 'order-review');
+                const imageUrl = uploadRes.data?.path || uploadRes.data?.url;
+                if (!imageUrl) {
+                    throw new Error('评价图片上传失败');
+                }
+                return imageUrl;
+            })
+        );
+        ratingImages.value = [...ratingImages.value, ...uploadedUrls];
+        if (files.length > availableSlots) {
+            message.warning('最多上传 6 张评价图片，其余图片已忽略');
+        }
+    } catch (error: any) {
+        message.error(error?.message || '评价图片上传失败');
+    } finally {
+        ratingUploading.value = false;
+        if (input) input.value = '';
+    }
+};
+
+const removeRatingImage = (index: number) => {
+    ratingImages.value = ratingImages.value.filter((_, currentIndex) => currentIndex !== index);
 };
 
 const submitRating = async () => {
@@ -403,6 +545,7 @@ const submitRating = async () => {
         const response = await PickupApi.rateOrder(currentOrder.value.id, {
             rating: rating.value,
             comment: ratingComment.value || undefined,
+            images: ratingImages.value.length ? ratingImages.value : undefined,
         });
 
         if (!response.success) {
@@ -411,6 +554,7 @@ const submitRating = async () => {
 
         message.success('评价成功');
         showRatingModal.value = false;
+        resetRatingForm();
         await fetchOrders(1, false);
     } catch (error: any) {
         message.error(error?.message || '评价失败');
@@ -420,9 +564,7 @@ const submitRating = async () => {
 };
 
 onMounted(async () => {
-    if (!userStore.user?.is_deliverer && currentType.value === 'accepted') {
-        currentType.value = 'published';
-    }
+    currentType.value = userStore.user?.is_deliverer ? 'accepted' : 'published';
     await fetchOrders();
 });
 </script>
@@ -469,25 +611,23 @@ onMounted(async () => {
     padding: 16px 16px 10px;
 }
 
-.nav-back-group {
+.nav-back-btn {
     display: flex;
     align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    background: transparent;
     color: var(--text);
     cursor: pointer;
     flex-shrink: 0;
-    min-height: 28px;
 }
 
 .icon-svg {
     width: 20px;
     height: 20px;
-}
-
-.nav-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text);
-    margin-left: 6px;
 }
 
 .tabs-group {
@@ -546,6 +686,17 @@ onMounted(async () => {
 
 .order-viewport {
     padding: 8px 16px;
+}
+
+.loading-wrap {
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.orders-loading-spinner :deep(.n-base-loading__container) {
+    color: #3b82f6;
 }
 
 .order-stack {
@@ -713,6 +864,100 @@ onMounted(async () => {
 .actions-group {
     display: flex;
     gap: 8px;
+}
+
+.rating-modal {
+    display: grid;
+    gap: 14px;
+}
+
+.rating-stars {
+    display: flex;
+    gap: 10px;
+}
+
+.rating-star {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.14);
+    color: #94a3b8;
+    font-size: 22px;
+}
+
+.rating-star.active {
+    background: rgba(59, 130, 246, 0.14);
+    color: #f59e0b;
+}
+
+.rating-images {
+    display: grid;
+    gap: 10px;
+}
+
+.rating-images__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.rating-images__head span {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.rating-images__upload {
+    border: none;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 12px;
+}
+
+.rating-images__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.rating-images__item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #eef4ff;
+    aspect-ratio: 1;
+}
+
+.rating-images__preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.rating-images__remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.rating-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
 }
 
 .no-data-view {

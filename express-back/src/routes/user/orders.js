@@ -19,6 +19,9 @@ router.get('/nearby-deliverers', UserOrderController.findNearbyDeliverers);
 // 获取订单详情
 router.get('/:id', UserOrderController.getOrderDetail);
 
+// 修改订单金额
+router.patch('/:id', UserOrderController.updateOrder);
+
 // 取消订单
 router.post('/:id/cancel', UserOrderController.cancelOrder);
 
@@ -27,6 +30,9 @@ router.post('/:id/confirm', UserOrderController.confirmOrder);
 
 // 评价订单
 router.post('/:id/rate', UserOrderController.rateOrder);
+
+// 创建订单工单
+router.post('/:id/tickets', UserOrderController.createServiceTicket);
 
 // 申请退款
 router.post('/:id/refund', UserOrderController.requestRefund);

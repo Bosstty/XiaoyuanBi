@@ -80,6 +80,16 @@ export interface UserLoginData {
 }
 
 // 代取订单类型
+export interface PickupOrderItem {
+    id?: number | null;
+    order_id?: number;
+    item_index: number;
+    pickup_code?: string | null;
+    phone_tail?: string | null;
+    weight?: number | null;
+    size?: string | null;
+}
+
 export interface PickupOrder {
     id: number;
     order_no: string;
@@ -90,6 +100,8 @@ export interface PickupOrder {
     description?: string;
     pickup_location: string;
     delivery_location: string;
+    pickup_locations?: string[];
+    delivery_locations?: string[];
     pickup_time?: string;
     delivery_time?: string;
     contact_name: string;
@@ -97,6 +109,7 @@ export interface PickupOrder {
     pickup_code?: string;
     weight?: number;
     size?: string;
+    items?: PickupOrderItem[];
     price: number;
     tip: number;
     urgent: boolean;
@@ -135,6 +148,7 @@ export interface CreatePickupOrderData {
     pickup_code?: string;
     weight?: number;
     size?: string;
+    items?: PickupOrderItem[];
     price: number;
     tip?: number;
     urgent?: boolean;
@@ -261,6 +275,7 @@ export interface UserPublicProfile {
         id: number;
         rating: number;
         comment?: string;
+        images?: string[];
         title: string;
         createdAt: string;
         reviewer?: Pick<User, 'id' | 'username' | 'real_name' | 'avatar'>;

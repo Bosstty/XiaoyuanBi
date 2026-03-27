@@ -91,20 +91,20 @@ const tabs: TabItem[] = [
         matchBase: '/tasks',
     },
     {
-        name: 'chat',
-        label: '消息',
-        icon: MailOutline,
-        activeIcon: Mail,
-        route: '/chat',
-        matchBase: '/chat',
-    },
-    {
         name: 'forum',
         label: '论坛',
         icon: ChatbubblesOutline,
         activeIcon: Chatbubbles,
         route: '/forum',
         matchBase: '/forum',
+    },
+    {
+        name: 'chat',
+        label: '消息',
+        icon: MailOutline,
+        activeIcon: Mail,
+        route: '/chat',
+        matchBase: '/chat',
     },
     {
         name: 'profile',
@@ -251,7 +251,9 @@ watch(
     position: relative;
     margin-bottom: 5px;
     color: #6c7892;
-    transition: color 0.2s ease, transform 0.2s ease;
+    transition:
+        color 0.2s ease,
+        transform 0.2s ease;
 }
 
 .tab-item.active .tab-icon {

@@ -255,9 +255,13 @@ const loadMore = () => hasNextPage.value && fetchTasks(currentPage.value + 1, tr
 const isPublisher = (task: Task) => task.publisher_id === userStore.user?.id;
 
 const getCategoryLabel = (cat: string) =>
-    ({ study: '学习类', design: '设计类', tech: '技术类', writing: '文案类', life: '生活类' })[
-        cat
-    ] ?? '任务';
+    ({
+        study: '学习辅导类',
+        design: '艺术设计类',
+        tech: '专业技术类',
+        writing: '文章编辑类',
+        life: '生活服务类',
+    })[cat] ?? '任务';
 
 const getStatusLabel = (status: string) =>
     ({

@@ -131,27 +131,32 @@
           <el-card class="verification-card">
             <el-row :gutter="20">
               <el-col :span="8">
-                <div class="verification-item" :class="{ verified: userInfo.email_verified }">
+                <div class="verification-item" :class="{ verified: isDelivererVerified }">
                   <div class="verification-icon">
                     <el-icon><Message /></el-icon>
                   </div>
                   <div class="verification-content">
-                    <div class="verification-title">邮箱验证</div>
+                    <div class="verification-title">配送员认证</div>
                     <div class="verification-status">
-                      {{ userInfo.email_verified ? '已验证' : '未验证' }}
+                      {{ getDelivererVerificationText() }}
                     </div>
                   </div>
                 </div>
               </el-col>
               <el-col :span="8">
-                <div class="verification-item" :class="{ verified: userInfo.phone_verified }">
+                <div class="verification-item" :class="{ verified: hasDelivererApplication }">
                   <div class="verification-icon">
                     <el-icon><Phone /></el-icon>
                   </div>
                   <div class="verification-content">
-                    <div class="verification-title">手机验证</div>
-                    <div class="verification-status">
-                      {{ userInfo.phone_verified ? '已验证' : '未验证' }}
+                    <div class="verification-title">配送员审核</div>
+                    <div class="verification-status-row">
+                      <span class="verification-status">
+                        {{ getDelivererApplicationStatusText() }}
+                      </span>
+                      <span v-if="userInfo.delivererProfile?.approval_time" class="verification-time">
+                        {{ formatDate(userInfo.delivererProfile?.approval_time) }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -186,6 +191,39 @@
                 </div>
               </el-col>
             </el-row>
+
+            <div v-if="hasDelivererApplication" class="deliverer-certificates">
+              <div class="deliverer-certificates__title">配送员认证照片</div>
+              <div class="deliverer-certificates__grid">
+                <div v-if="delivererIdCardFrontUrl" class="deliverer-certificate-card">
+                  <div class="deliverer-certificate-label">身份证正面</div>
+                  <el-image
+                    :src="delivererIdCardFrontUrl"
+                    :preview-src-list="[delivererIdCardFrontUrl]"
+                    fit="cover"
+                    class="deliverer-certificate-image"
+                  />
+                </div>
+                <div v-if="delivererIdCardBackUrl" class="deliverer-certificate-card">
+                  <div class="deliverer-certificate-label">身份证反面</div>
+                  <el-image
+                    :src="delivererIdCardBackUrl"
+                    :preview-src-list="[delivererIdCardBackUrl]"
+                    fit="cover"
+                    class="deliverer-certificate-image"
+                  />
+                </div>
+                <div v-if="delivererHealthCertificateUrl" class="deliverer-certificate-card">
+                  <div class="deliverer-certificate-label">健康证照片</div>
+                  <el-image
+                    :src="delivererHealthCertificateUrl"
+                    :preview-src-list="[delivererHealthCertificateUrl]"
+                    fit="cover"
+                    class="deliverer-certificate-image"
+                  />
+                </div>
+              </div>
+            </div>
           </el-card>
 
           <!-- 登录信息 -->
@@ -375,6 +413,22 @@ const resolveAssetUrl = (value) => {
 
 const studentCardUrl = computed(() =>
   resolveAssetUrl(userInfo.value?.verification_data?.student_card),
+)
+const delivererProfile = computed(() => userInfo.value?.delivererProfile || null)
+const hasDelivererApplication = computed(() => Boolean(delivererProfile.value?.id))
+const isDelivererVerified = computed(
+  () =>
+    Boolean(delivererProfile.value?.verified) ||
+    delivererProfile.value?.application_status === 'approved',
+)
+const delivererIdCardFrontUrl = computed(() =>
+  resolveAssetUrl(delivererProfile.value?.id_card_front),
+)
+const delivererIdCardBackUrl = computed(() =>
+  resolveAssetUrl(delivererProfile.value?.id_card_back),
+)
+const delivererHealthCertificateUrl = computed(() =>
+  resolveAssetUrl(delivererProfile.value?.health_certificate),
 )
 
 // 获取用户详情
@@ -603,6 +657,27 @@ const getStudentVerificationText = () => {
   if (status === 'pending') return '审核中'
   if (status === 'rejected') return '认证未通过'
   return '未认证'
+}
+
+const getDelivererVerificationText = () => {
+  if (!hasDelivererApplication.value) return '未申请'
+  if (isDelivererVerified.value) return '已认证'
+  if (delivererProfile.value?.application_status === 'rejected') return '认证未通过'
+  if (delivererProfile.value?.application_status === 'banned') return '已封禁'
+  return '审核中'
+}
+
+const getDelivererApplicationStatusText = () => {
+  if (!hasDelivererApplication.value) return '未提交申请'
+
+  const status = delivererProfile.value?.application_status
+  const statusMap = {
+    pending: '待审核',
+    approved: '审核通过',
+    rejected: '审核驳回',
+    banned: '已封禁',
+  }
+  return statusMap[status] || '待审核'
 }
 
 // 订单状态
@@ -913,6 +988,46 @@ onMounted(() => {
   color: var(--text-secondary);
 }
 
+.deliverer-certificates {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.deliverer-certificates__title {
+  margin-bottom: 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.deliverer-certificates__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.deliverer-certificate-card {
+  padding: 14px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid rgba(99, 102, 241, 0.12);
+}
+
+.deliverer-certificate-label {
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.deliverer-certificate-image {
+  width: 100%;
+  height: 140px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
 /* 表格卡片 */
 .card-header {
   display: flex;
@@ -975,6 +1090,10 @@ onMounted(() => {
   }
 
   .action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .deliverer-certificates__grid {
     grid-template-columns: 1fr;
   }
 }

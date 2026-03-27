@@ -123,10 +123,83 @@ const PickupOrder = sequelize.define(
             defaultValue: 'unpaid',
             comment: '支付状态',
         },
+        settlement_status: {
+            type: DataTypes.ENUM(
+                'none',
+                'holding',
+                'settled',
+                'partial_refunded',
+                'refunded',
+                'partial_compensated',
+                'compensated'
+            ),
+            defaultValue: 'none',
+            comment: '结算状态',
+        },
+        settlement_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '订单待结算基准金额',
+        },
+        deliverer_frozen_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '当前冻结在配送员账户内的金额',
+        },
+        refund_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '已退款金额',
+        },
+        compensation_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '系统内已补偿金额',
+        },
+        offline_compensation_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '需线下赔付的补偿金额',
+        },
+        settlement_started_at: {
+            type: DataTypes.DATE,
+            allowNull: true,
+            comment: '进入担保结算时间',
+        },
+        settlement_hold_until: {
+            type: DataTypes.DATE,
+            allowNull: true,
+            comment: '担保结算截止时间',
+        },
+        settled_at: {
+            type: DataTypes.DATE,
+            allowNull: true,
+            comment: '最终结算时间',
+        },
+        platform_commission_rate: {
+            type: DataTypes.DECIMAL(5, 4),
+            allowNull: true,
+            comment: '平台抽成费率',
+        },
+        platform_commission_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '平台抽成金额',
+        },
+        platform_commission_settled_at: {
+            type: DataTypes.DATE,
+            allowNull: true,
+            comment: '平台抽成入账时间',
+        },
+        settlement_note: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            comment: '结算备注',
+        },
         images: {
             type: DataTypes.JSON,
             allowNull: true,
-            comment: '订单图片',
+            comment: '订单评价图片',
         },
         notes: {
             type: DataTypes.TEXT,

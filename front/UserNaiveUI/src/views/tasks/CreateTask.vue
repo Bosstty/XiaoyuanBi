@@ -242,11 +242,11 @@ const attachmentsText = ref('');
 const imagesText = ref('');
 
 const categoryOptions: Array<{ value: CreateTaskData['category']; label: string }> = [
-    { value: 'study', label: '学习' },
-    { value: 'design', label: '设计' },
-    { value: 'tech', label: '技术' },
-    { value: 'writing', label: '文案' },
-    { value: 'life', label: '生活' },
+    { value: 'study', label: '学习辅导类' },
+    { value: 'design', label: '艺术设计类' },
+    { value: 'tech', label: '专业技术类' },
+    { value: 'writing', label: '文章编辑类' },
+    { value: 'life', label: '生活服务类' },
 ];
 
 const form = reactive<Partial<CreateTaskData>>({

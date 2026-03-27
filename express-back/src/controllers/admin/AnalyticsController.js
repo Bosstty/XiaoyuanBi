@@ -296,18 +296,23 @@ class AnalyticsController {
                 raw: true,
             });
 
-            // 支付方式分布
-            const paymentMethodDistribution = await Transaction.findAll({
+            // 提现方式分布
+            const withdrawMethodDistribution = await Transaction.findAll({
                 where: {
-                    ...commissionWhere,
-                    payment_method: { [Op.not]: null },
+                    status: 'success',
+                    related_type: 'withdraw',
+                    payment_method: {
+                        [Op.in]: ['alipay', 'bank_card'],
+                    },
+                    created_at: { [Op.between]: dateRange },
                 },
                 attributes: [
                     'payment_method',
-                    [sequelize.fn('SUM', sequelize.col('commission_amount')), 'amount'],
+                    [sequelize.fn('SUM', sequelize.col('amount')), 'amount'],
                     [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
                 ],
                 group: ['payment_method'],
+                order: [[sequelize.fn('SUM', sequelize.col('amount')), 'DESC']],
                 raw: true,
             });
 
@@ -337,7 +342,7 @@ class AnalyticsController {
                     revenue_trend: revenueTrend,
                     revenue_by_type: revenueByType,
                     commission_stats: commissionStats,
-                    payment_method_distribution: paymentMethodDistribution,
+                    withdraw_method_distribution: withdrawMethodDistribution,
                     revenue_details: revenueDetails,
                     period,
                 })

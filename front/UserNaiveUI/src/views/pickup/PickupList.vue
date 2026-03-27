@@ -11,9 +11,9 @@
                     v-if="isDeliverer"
                     type="button"
                     class="order-center__hero-btn order-center__hero-btn--ghost touch-feedback"
-                    @click="router.push('/pickup/hall')"
+                    @click="router.push('/pickup/my')"
                 >
-                    订单中心
+                    我的订单
                 </button>
                 <button
                     type="button"

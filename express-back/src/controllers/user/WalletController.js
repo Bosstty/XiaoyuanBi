@@ -220,7 +220,9 @@ function resolveAccountNo(payload, scene = 'recharge') {
     const legacy = parseLegacyRemark(payload.remark);
     const paymentMethod = payload.payment_method || legacy.payment_method || null;
     const rawThirdPartyNo = payload.third_party_no || legacy.third_party_no || null;
-    const bankPrefix = String(payload.bank_prefix || '').trim().toUpperCase();
+    const bankPrefix = String(payload.bank_prefix || '')
+        .trim()
+        .toUpperCase();
     const accountNo = String(payload.account_no || '').trim();
     const phone = String(payload.phone || '').trim();
 
@@ -904,7 +906,8 @@ class WalletController {
         try {
             const payload = {
                 amount: req.body.amount,
-                payment_method: req.body.payment_method || parseLegacyRemark(req.body.remark).payment_method,
+                payment_method:
+                    req.body.payment_method || parseLegacyRemark(req.body.remark).payment_method,
                 payment_password: req.body.payment_password,
                 third_party_no: req.body.third_party_no,
                 bank_prefix: req.body.bank_prefix,
@@ -934,7 +937,8 @@ class WalletController {
         try {
             const payload = {
                 amount: req.body.amount,
-                payment_method: req.body.payment_method || parseLegacyRemark(req.body.remark).payment_method,
+                payment_method:
+                    req.body.payment_method || parseLegacyRemark(req.body.remark).payment_method,
                 payment_password: req.body.payment_password,
                 third_party_no: req.body.third_party_no,
                 bank_prefix: req.body.bank_prefix,

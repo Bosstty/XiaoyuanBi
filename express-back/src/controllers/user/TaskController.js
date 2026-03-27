@@ -192,6 +192,30 @@ async function getLockedUserAndWallet(userId, transaction) {
     return { user, wallet };
 }
 
+async function awardPaymentPoints(user, wallet, amount, transaction) {
+    const earnedPoints = Math.floor(parseAmount(amount));
+    if (earnedPoints <= 0) {
+        return 0;
+    }
+
+    await Promise.all([
+        user.update(
+            {
+                points: Number(user.points || 0) + earnedPoints,
+            },
+            { transaction }
+        ),
+        wallet.update(
+            {
+                points: Number(wallet.points || 0) + earnedPoints,
+            },
+            { transaction }
+        ),
+    ]);
+
+    return earnedPoints;
+}
+
 async function freezeTaskFunds(publisherId, amount, transaction) {
     const { user, wallet } = await getLockedUserAndWallet(publisherId, transaction);
     const availableBalance = parseAmount(wallet.balance);
@@ -300,6 +324,8 @@ async function settleTaskPayment(task, paymentPassword, transaction) {
         },
         { transaction }
     );
+
+    await awardPaymentPoints(publisher, publisherWallet, amount, transaction);
 
     if (!task.assignee_id) {
         return;
@@ -577,6 +603,8 @@ async function transferFrozenCompensationToAssignee(task, amount, description, t
         },
         transaction
     );
+
+    await awardPaymentPoints(publisher, publisherWallet, compensationAmount, transaction);
 
     const { user: assignee, wallet: assigneeWallet } = await getLockedUserAndWallet(
         task.assignee_id,

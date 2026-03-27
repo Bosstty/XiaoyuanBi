@@ -262,7 +262,73 @@
             <el-descriptions-item label="订单ID">
               {{ detailDrawer.data.order_id }}
             </el-descriptions-item>
+            <el-descriptions-item label="订单编号" v-if="detailDrawer.data.order?.order_no">
+              {{ detailDrawer.data.order.order_no }}
+            </el-descriptions-item>
+            <el-descriptions-item label="订单标题" v-if="detailDrawer.data.order?.title">
+              {{ detailDrawer.data.order.title }}
+            </el-descriptions-item>
+            <el-descriptions-item label="订单状态" v-if="detailDrawer.data.order?.status">
+              {{ getOrderStatusText(detailDrawer.data.order.status) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="订单金额" v-if="detailDrawer.data.order">
+              ¥{{ formatMoney(detailDrawer.data.order.price) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="小费" v-if="detailDrawer.data.order">
+              ¥{{ formatMoney(detailDrawer.data.order.tip) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="应付合计" v-if="detailDrawer.data.order">
+              ¥{{ formatMoney(getOrderTotalAmount(detailDrawer.data.order)) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="取件地址" v-if="detailDrawer.data.order?.pickup_location">
+              {{ detailDrawer.data.order.pickup_location }}
+            </el-descriptions-item>
+            <el-descriptions-item label="送达地址" v-if="detailDrawer.data.order?.delivery_location">
+              {{ detailDrawer.data.order.delivery_location }}
+            </el-descriptions-item>
           </el-descriptions>
+
+          <div
+            v-if="detailDrawer.data.order?.pickup_photo || detailDrawer.data.order?.delivery_photo"
+            class="order-photo-grid"
+          >
+            <div v-if="detailDrawer.data.order?.pickup_photo" class="order-photo-card">
+              <div class="order-photo-label">取货照片</div>
+              <el-image
+                :src="resolveImage(detailDrawer.data.order.pickup_photo)"
+                :preview-src-list="[resolveImage(detailDrawer.data.order.pickup_photo)]"
+                fit="cover"
+                class="order-proof-image"
+              />
+            </div>
+            <div v-if="detailDrawer.data.order?.delivery_photo" class="order-photo-card">
+              <div class="order-photo-label">送达照片</div>
+              <el-image
+                :src="resolveImage(detailDrawer.data.order.delivery_photo)"
+                :preview-src-list="[resolveImage(detailDrawer.data.order.delivery_photo)]"
+                fit="cover"
+                class="order-proof-image"
+              />
+            </div>
+          </div>
+
+          <div v-if="detailDrawer.data.order?.items?.length" class="order-items">
+            <div class="order-items__title">快递明细</div>
+            <div
+              v-for="item in detailDrawer.data.order.items"
+              :key="item.id || item.item_index"
+              class="order-item-card"
+            >
+              <div class="order-item-card__title">第{{ item.item_index || 1 }}件</div>
+              <div class="order-item-card__meta">取件码：{{ item.pickup_code || '-' }}</div>
+              <div class="order-item-card__meta">尾号：{{ item.phone_tail || '-' }}</div>
+              <div class="order-item-card__meta">
+                重量：{{ item.weight !== null && item.weight !== undefined ? `${item.weight}kg` : '-' }}
+              </div>
+              <div class="order-item-card__meta">尺寸：{{ item.size || '-' }}</div>
+            </div>
+          </div>
+
           <div v-if="detailDrawer.data.deliverer_id" class="contact-actions">
             <el-button type="primary" text @click="contactAfterSalesDeliverer(detailDrawer.data)">
               联系配送员
@@ -370,6 +436,8 @@ import { exportCsvFile, normalizeExportValue } from '@/utils/export'
 import DashboardFilterHeader from '../dashboard/components/DashboardFilterHeader.vue'
 
 const router = useRouter()
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '')
 const loading = ref(false)
 const ticketList = ref([])
 const dateRange = ref([])
@@ -721,22 +789,18 @@ const handleRefund = async () => {
   }
 
   try {
-    const { value } = await ElMessageBox.prompt(
-      '请输入退款金额和原因（格式：金额|原因）',
-      '退款处理',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputPattern: /^\d+(\.\d+)?\|.+$/,
-        inputErrorMessage: '格式错误，请输入：金额|原因',
+    const { value } = await ElMessageBox.prompt('请输入退款原因', '退款处理', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPlaceholder: '例如：配送员未按要求送达，客服同意退款',
+      inputValidator: (inputValue) => {
+        if (!inputValue || !inputValue.trim()) return '请填写退款原因'
+        return true
       },
-    )
-
-    const [amount, reason] = value.split('|')
+    })
 
     const response = await serviceOrderApi.processRefund(detailDrawer.data.order_id, {
-      amount: parseFloat(amount),
-      reason: reason.trim(),
+      reason: value.trim(),
     })
 
     if (response.success) {
@@ -755,6 +819,11 @@ const handleRefund = async () => {
 const handleCompensate = async () => {
   if (!detailDrawer.data.order_id) {
     ElMessage.warning('该工单没有关联订单')
+    return
+  }
+
+  if (detailDrawer.data.order?.status !== 'completed') {
+    ElMessage.warning('订单尚未完成，请先结束订单，随后再处理补偿工单')
     return
   }
 
@@ -862,6 +931,35 @@ const getStatusTagType = (status) => {
     closed: 'info',
   }
   return types[status] || ''
+}
+
+const getOrderStatusText = (status) => {
+  const texts = {
+    pending: '待接单',
+    accepted: '已接单',
+    picking: '取货处理中',
+    delivering: '配送中',
+    completed: '已完成',
+    cancelled: '已取消',
+  }
+  return texts[status] || status || '-'
+}
+
+const formatMoney = (value) => {
+  const amount = Number.parseFloat(value || 0)
+  return Number.isFinite(amount) ? amount.toFixed(2) : '0.00'
+}
+
+const getOrderTotalAmount = (order) =>
+  Number.parseFloat(order?.price || 0) + Number.parseFloat(order?.tip || 0)
+
+const resolveImage = (content) => {
+  if (!content) return ''
+  if (/^https?:\/\//i.test(content) || content.startsWith('data:')) return content
+  if (content.startsWith('/uploads/')) return `${FILE_BASE_URL}${content}`
+  if (content.startsWith('uploads/')) return `${FILE_BASE_URL}/${content}`
+  if (content.startsWith('/')) return `${FILE_BASE_URL}${content}`
+  return `${FILE_BASE_URL}/${String(content).replace(/^\/+/, '')}`
 }
 
 const formatDateTime = (date) => {
@@ -1047,6 +1145,59 @@ onMounted(() => {
 .user-card .info .contact {
   font-size: 0.85rem;
   color: #909399;
+}
+
+.order-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.order-photo-card,
+.order-item-card {
+  border: 1px solid var(--el-border-color-light, #e4e7ed);
+  border-radius: 12px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.order-photo-label,
+.order-items__title,
+.order-item-card__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.order-proof-image {
+  width: 100%;
+  height: 160px;
+  margin-top: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.order-items {
+  margin-top: 16px;
+}
+
+.order-items__title {
+  margin-bottom: 12px;
+}
+
+.order-item-card + .order-item-card {
+  margin-top: 12px;
+}
+
+.order-item-card__title {
+  margin-bottom: 8px;
+}
+
+.order-item-card__meta {
+  font-size: 0.9rem;
+  color: #475569;
+  line-height: 1.8;
 }
 
 .action-section {

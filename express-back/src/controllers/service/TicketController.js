@@ -1,6 +1,7 @@
-const { ServiceTicket, User, PickupOrder, Wallet, Transaction } = require('../../models');
+const { ServiceTicket, User, PickupOrder, PickupOrderItem, Deliverer } = require('../../models');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
+const PickupSettlementService = require('../../services/PickupSettlementService');
 
 class ServiceTicketController {
     // 获取工单列表
@@ -69,8 +70,45 @@ class ServiceTicketController {
         try {
             const ticket = await ServiceTicket.findByPk(req.params.id, {
                 include: [
-                    { model: User, as: 'user', attributes: ['id', 'username', 'phone'] },
-                    { model: PickupOrder, as: 'order' },
+                    { model: User, as: 'user', attributes: ['id', 'username', 'phone', 'avatar'] },
+                    {
+                        model: PickupOrder,
+                        as: 'order',
+                        include: [
+                            {
+                                model: User,
+                                as: 'user',
+                                attributes: ['id', 'username', 'phone', 'avatar'],
+                            },
+                            {
+                                model: PickupOrderItem,
+                                as: 'items',
+                                attributes: [
+                                    'id',
+                                    'order_id',
+                                    'item_index',
+                                    'pickup_code',
+                                    'phone_tail',
+                                    'weight',
+                                    'size',
+                                ],
+                                required: false,
+                            },
+                            {
+                                model: Deliverer,
+                                as: 'delivererInfo',
+                                attributes: ['id', 'user_id', 'real_name', 'phone'],
+                                required: false,
+                                include: [
+                                    {
+                                        model: User,
+                                        as: 'user',
+                                        attributes: ['id', 'username', 'real_name', 'phone', 'avatar'],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
                 ],
             });
 
@@ -214,47 +252,59 @@ class ServiceTicketController {
     // 处理退款
     async processRefund(req, res) {
         try {
-            const { amount, reason } = req.body;
-            const order = await PickupOrder.findByPk(req.params.id, {
-                include: [{ model: Wallet, as: 'wallet' }],
-            });
+            const { reason } = req.body;
+            const dbTransaction = await PickupOrder.sequelize.transaction();
+            let order;
 
-            if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: '订单不存在',
+            try {
+                order = await PickupOrder.findByPk(req.params.id, {
+                    transaction: dbTransaction,
+                    lock: dbTransaction.LOCK.UPDATE,
                 });
+
+                if (!order) {
+                    await dbTransaction.rollback();
+                    return res.status(404).json({
+                        success: false,
+                        message: '订单不存在',
+                    });
+                }
+
+                const result =
+                    order.status === 'completed'
+                        ? await PickupSettlementService.processRefund(
+                              order,
+                              order.deliverer_frozen_amount,
+                              reason,
+                              dbTransaction
+                          )
+                        : await PickupSettlementService.refundUncompletedOrder(
+                              order,
+                              reason,
+                              dbTransaction
+                          );
+
+                await dbTransaction.commit();
+
+                return res.json({
+                    success: true,
+                    message:
+                        result.mode === 'release_user_frozen'
+                            ? '订单未完成，已退款并解冻用户冻结金额'
+                            : '退款处理成功',
+                    data: {
+                        order,
+                        result,
+                    },
+                });
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
             }
-
-            // 退还金额到用户钱包
-            await Wallet.update(
-                { balance: require('sequelize').literal('balance + ' + amount) },
-                { where: { user_id: order.user_id } }
-            );
-
-            // 创建交易记录
-            await Transaction.create({
-                user_id: order.user_id,
-                type: 'refund',
-                amount: amount,
-                status: 'completed',
-                description: `售后退款: ${reason}`,
-            });
-
-            order.payment_status = 'refunded';
-            order.refund_amount = amount;
-            order.refund_reason = reason;
-            await order.save();
-
-            res.json({
-                success: true,
-                message: '退款处理成功',
-                data: order,
-            });
         } catch (error) {
-            res.status(500).json({
+            res.status(400).json({
                 success: false,
-                message: '退款处理失败',
+                message: error.message || '退款处理失败',
                 error: error.message,
             });
         }
@@ -264,37 +314,58 @@ class ServiceTicketController {
     async processCompensate(req, res) {
         try {
             const { amount, reason } = req.body;
-            const order = await PickupOrder.findByPk(req.params.id);
+            const dbTransaction = await PickupOrder.sequelize.transaction();
 
-            if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: '订单不存在',
+            try {
+                const order = await PickupOrder.findByPk(req.params.id, {
+                    transaction: dbTransaction,
+                    lock: dbTransaction.LOCK.UPDATE,
                 });
+
+                if (!order) {
+                    await dbTransaction.rollback();
+                    return res.status(404).json({
+                        success: false,
+                        message: '订单不存在',
+                    });
+                }
+
+                if (order.status !== 'completed') {
+                    await dbTransaction.rollback();
+                    return res.status(400).json({
+                        success: false,
+                        message: '订单尚未完成，请先结束订单，随后再处理补偿工单',
+                    });
+                }
+
+                const result = await PickupSettlementService.processCompensation(
+                    order,
+                    amount,
+                    reason,
+                    dbTransaction
+                );
+
+                await dbTransaction.commit();
+
+                return res.json({
+                    success: true,
+                    message:
+                        result.offline_amount > 0
+                            ? '补偿已部分处理，超出部分需配送员线下赔付'
+                            : '补偿处理成功',
+                    data: {
+                        order,
+                        result,
+                    },
+                });
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
             }
-
-            // 创建补偿记录（实际项目中可能需要额外的补偿表）
-            await Transaction.create({
-                user_id: order.user_id,
-                type: 'compensation',
-                amount: amount,
-                status: 'completed',
-                description: `订单补偿: ${reason}`,
-            });
-
-            order.compensation_amount = amount;
-            order.compensation_reason = reason;
-            await order.save();
-
-            res.json({
-                success: true,
-                message: '补偿处理成功',
-                data: order,
-            });
         } catch (error) {
-            res.status(500).json({
+            res.status(400).json({
                 success: false,
-                message: '补偿处理失败',
+                message: error.message || '补偿处理失败',
                 error: error.message,
             });
         }

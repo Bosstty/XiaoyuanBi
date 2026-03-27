@@ -3,6 +3,7 @@
 const { sequelize } = require('../config/database');
 const User = require('./user/User');
 const PickupOrder = require('./user/PickupOrder');
+const PickupOrderItem = require('./user/PickupOrderItem');
 const Task = require('./user/Task');
 const TaskApplication = require('./user/TaskApplication');
 const ForumPost = require('./user/ForumPost');
@@ -40,6 +41,15 @@ User.hasMany(PickupOrder, {
 PickupOrder.belongsTo(User, {
     foreignKey: 'user_id',
     as: 'user',
+});
+
+PickupOrder.hasMany(PickupOrderItem, {
+    foreignKey: 'order_id',
+    as: 'items',
+});
+PickupOrderItem.belongsTo(PickupOrder, {
+    foreignKey: 'order_id',
+    as: 'order',
 });
 
 // 配送员与代取订单的关系
@@ -272,6 +282,7 @@ module.exports = {
     // 用户相关
     User,
     PickupOrder,
+    PickupOrderItem,
     Task,
     TaskApplication,
     ForumPost,

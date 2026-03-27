@@ -28,8 +28,8 @@
                             <i class="v-line"></i>
                             <span class="v-text">{{ getTypeLabel(order.type) }}</span>
                         </div>
-                        <NTag size="small" :bordered="false" :type="getStatusTagType(order.status)">
-                            {{ getStatusLabel(order.status) }}
+                        <NTag size="small" :bordered="false" :type="getStatusTagType(order)">
+                            {{ getStatusLabel(order) }}
                         </NTag>
                     </div>
 
@@ -104,33 +104,116 @@
                                     <strong>{{ formatDateTime(order.delivery_time) }}</strong>
                                 </div>
                                 <div
-                                    v-if="order.type === 'express'"
-                                    class="detail-kv detail-kv--code"
+                                    v-if="order.type === 'express' && expressOrderItems.length"
+                                    class="detail-kv detail-kv--stack"
                                 >
-                                    <label>取件码</label>
-                                    <strong>{{ visiblePickupCode }}</strong>
+                                    <label>快递信息</label>
+                                    <div class="express-items">
+                                        <div
+                                            v-for="item in expressOrderItems"
+                                            :key="`${item.item_index}-${item.pickup_code || item.phone_tail || 'item'}`"
+                                            class="express-item"
+                                        >
+                                            <div class="express-item__head">
+                                                <strong>第{{ item.item_index }}件</strong>
+                                            </div>
+                                            <div class="express-item__meta">
+                                                <span>
+                                                    取件码：{{
+                                                        getVisibleItemPickupCode(item.pickup_code)
+                                                    }}
+                                                </span>
+                                                <span>
+                                                    尾号：{{
+                                                        getVisibleItemPhoneTail(item.phone_tail)
+                                                    }}
+                                                </span>
+                                                <span>
+                                                    重量：{{
+                                                        item.weight ? `${item.weight}kg` : '--'
+                                                    }}
+                                                </span>
+                                                <span>尺寸：{{ item.size || '--' }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div v-if="order.pickup_photo" class="detail-kv">
+                                <div v-if="order.pickup_photo" class="detail-kv detail-kv--photo">
                                     <label>取件照片</label>
                                     <a
-                                        class="detail-link"
-                                        :href="order.pickup_photo"
+                                        class="detail-photo-link"
+                                        :href="resolveAssetUrl(order.pickup_photo)"
                                         target="_blank"
                                         rel="noreferrer"
                                     >
-                                        查看照片
+                                        <img
+                                            :src="resolveAssetUrl(order.pickup_photo)"
+                                            alt="取件照片"
+                                            class="detail-photo-thumb"
+                                        />
                                     </a>
                                 </div>
-                                <div v-if="order.delivery_photo" class="detail-kv">
+                                <div v-if="order.delivery_photo" class="detail-kv detail-kv--photo">
                                     <label>送达照片</label>
                                     <a
-                                        class="detail-link"
-                                        :href="order.delivery_photo"
+                                        class="detail-photo-link"
+                                        :href="resolveAssetUrl(order.delivery_photo)"
                                         target="_blank"
                                         rel="noreferrer"
                                     >
-                                        查看照片
+                                        <img
+                                            :src="resolveAssetUrl(order.delivery_photo)"
+                                            alt="送达照片"
+                                            class="detail-photo-thumb"
+                                        />
                                     </a>
+                                </div>
+                            </article>
+
+                            <article
+                                v-if="order.rating || order.rating_comment || order.images?.length"
+                                class="detail-panel"
+                            >
+                                <div class="detail-panel__head">
+                                    <span>我的评价</span>
+                                </div>
+                                <div v-if="order.rating" class="detail-kv">
+                                    <label>评分</label>
+                                    <div class="detail-rating-stars" aria-label="订单评分">
+                                        <span
+                                            v-for="star in 5"
+                                            :key="star"
+                                            class="detail-rating-star"
+                                            :class="{ active: star <= Number(order.rating) }"
+                                        >
+                                            ★
+                                        </span>
+                                    </div>
+                                </div>
+                                <div v-if="order.rating_comment" class="detail-kv detail-kv--stack">
+                                    <label>评价内容</label>
+                                    <strong class="detail-review-text">
+                                        {{ order.rating_comment }}
+                                    </strong>
+                                </div>
+                                <div v-if="order.images?.length" class="detail-kv detail-kv--stack">
+                                    <label>评价图片</label>
+                                    <div class="detail-review-images">
+                                        <a
+                                            v-for="(image, index) in order.images"
+                                            :key="`${image}-${index}`"
+                                            class="detail-review-image-link"
+                                            :href="resolveAssetUrl(image)"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            <img
+                                                :src="resolveAssetUrl(image)"
+                                                alt="评价图片"
+                                                class="detail-review-image"
+                                            />
+                                        </a>
+                                    </div>
                                 </div>
                             </article>
                         </div>
@@ -159,9 +242,19 @@
                     </div>
 
                     <div class="node-footer">
-                        <div class="user-info">
+                        <div
+                            class="user-info"
+                            :class="{ 'user-info--interactive': counterpartUserId }"
+                            @click="goToCounterpartProfile"
+                        >
                             <div class="u-avatar">
-                                <svg viewBox="0 0 24 24" class="u-svg">
+                                <img
+                                    v-if="counterpartAvatarUrl"
+                                    :src="counterpartAvatarUrl"
+                                    :alt="counterpartName"
+                                    class="u-avatar__image"
+                                />
+                                <svg v-else viewBox="0 0 24 24" class="u-svg">
                                     <path
                                         d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"
                                         fill="currentColor"
@@ -230,16 +323,46 @@
                                 :loading="confirming"
                                 @click="handleConfirm"
                             >
-                                确认送达
+                                确认收货
                             </NButton>
                             <NButton
                                 v-if="canRate"
                                 size="tiny"
                                 type="primary"
                                 quaternary
-                                @click="showRatingModal = true"
+                                @click="
+                                    resetRatingForm();
+                                    showRatingModal = true;
+                                "
                             >
                                 评价
+                            </NButton>
+                            <NButton
+                                v-if="canAdjustPrice"
+                                size="tiny"
+                                type="primary"
+                                quaternary
+                                @click="openAdjustPriceModal"
+                            >
+                                修改金额
+                            </NButton>
+                            <NButton
+                                v-if="canCreateTicket"
+                                size="tiny"
+                                round
+                                quaternary
+                                @click="openServiceTicketModal('refund')"
+                            >
+                                申请退款
+                            </NButton>
+                            <NButton
+                                v-if="canCreateTicket"
+                                size="tiny"
+                                round
+                                quaternary
+                                @click="openServiceTicketModal('dispute')"
+                            >
+                                申请补偿
                             </NButton>
                             <NButton
                                 v-if="canChatNow"
@@ -301,15 +424,156 @@
                     maxlength="200"
                     show-count
                 />
+                <div class="rating-images">
+                    <div class="rating-images__head">
+                        <span>评价图片</span>
+                        <button
+                            type="button"
+                            class="rating-images__upload"
+                            :disabled="ratingUploading || ratingImages.length >= 6"
+                            @click="handleSelectRatingImages"
+                        >
+                            {{ ratingUploading ? '上传中...' : '上传图片' }}
+                        </button>
+                    </div>
+                    <div v-if="ratingImages.length" class="rating-images__grid">
+                        <div
+                            v-for="(image, index) in ratingImages"
+                            :key="`${image}-${index}`"
+                            class="rating-images__item"
+                        >
+                            <img
+                                :src="resolveAssetUrl(image)"
+                                alt="评价图片"
+                                class="rating-images__preview"
+                            />
+                            <button
+                                type="button"
+                                class="rating-images__remove"
+                                @click="removeRatingImage(index)"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </MobileModal>
-        <MobileModal
-            v-model:show="showProofSourceModal"
-            title="选择上传方式"
-            bottom-sheet
-            :show-footer="false"
+        <div
+            v-if="showAdjustPriceModal"
+            class="review-modal-mask"
+            @click.self="showAdjustPriceModal = false"
         >
-            <div class="proof-source-sheet">
+            <div class="review-modal">
+                <div class="review-modal__head">
+                    <strong>修改订单金额</strong>
+                    <button
+                        type="button"
+                        class="review-modal__close"
+                        @click="showAdjustPriceModal = false"
+                    >
+                        ×
+                    </button>
+                </div>
+                <p class="review-modal__hint">
+                    仅支持增加订单金额。确认后会额外冻结差额，直到订单完成或取消。
+                </p>
+                <NInput
+                    :value="adjustedPrice === null ? '' : String(adjustedPrice)"
+                    placeholder="请输入新的订单金额"
+                    @update:value="
+                        value =>
+                            (adjustedPrice = Number(String(value).replace(/[^\d.]/g, '')) || null)
+                    "
+                />
+                <NInput
+                    v-model:value="adjustPricePassword"
+                    type="password"
+                    show-password-on="click"
+                    placeholder="请输入 6 位支付密码"
+                    maxlength="6"
+                    style="margin-top: 12px"
+                />
+                <div class="review-modal__actions">
+                    <button
+                        type="button"
+                        class="review-modal__btn review-modal__btn--secondary"
+                        @click="showAdjustPriceModal = false"
+                    >
+                        取消
+                    </button>
+                    <button
+                        type="button"
+                        class="review-modal__btn review-modal__btn--primary"
+                        :disabled="updatingPrice"
+                        @click="submitAdjustedPrice"
+                    >
+                        {{ updatingPrice ? '提交中...' : '确认修改' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div
+            v-if="showServiceTicketModal"
+            class="review-modal-mask"
+            @click.self="showServiceTicketModal = false"
+        >
+            <div class="review-modal">
+                <div class="review-modal__head">
+                    <strong>{{ serviceTicketMode === 'refund' ? '申请退款' : '申请补偿' }}</strong>
+                    <button
+                        type="button"
+                        class="review-modal__close"
+                        @click="showServiceTicketModal = false"
+                    >
+                        ×
+                    </button>
+                </div>
+                <p class="review-modal__hint">
+                    {{
+                        serviceTicketMode === 'refund'
+                            ? '如果订单未正常履约、配送异常或需要退回款项，可以提交退款申请，由客服介入处理。'
+                            : '如果出现超时、态度问题、物品损坏或其他损失情况，可以提交补偿申请，由客服介入处理。'
+                    }}
+                </p>
+                <NInput
+                    v-model:value="serviceTicketDescription"
+                    type="textarea"
+                    :placeholder="
+                        serviceTicketMode === 'refund'
+                            ? '请说明退款原因，尽量写清订单经过、当前状态和退款诉求'
+                            : '请说明补偿原因，尽量写清问题经过、造成的影响和你的补偿诉求'
+                    "
+                    :rows="5"
+                    maxlength="500"
+                    show-count
+                />
+                <div class="review-modal__actions">
+                    <button
+                        type="button"
+                        class="review-modal__btn review-modal__btn--secondary"
+                        @click="showServiceTicketModal = false"
+                    >
+                        取消
+                    </button>
+                    <button
+                        type="button"
+                        class="review-modal__btn review-modal__btn--primary"
+                        :disabled="submittingServiceTicket"
+                        @click="submitServiceTicket"
+                    >
+                        {{ submittingServiceTicket ? '提交中...' : '提交工单' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+        <MobileModal v-model:show="showProofSourceModal" bottom-sheet :show-footer="false">
+            <template #header>
+                <h2 class="proof-source-modal__title" :class="{ 'is-dark': appStore.isDark }">
+                    选择上传方式
+                </h2>
+            </template>
+            <div class="proof-source-sheet" :class="{ 'is-dark': appStore.isDark }">
                 <button
                     type="button"
                     class="proof-source-sheet__action"
@@ -356,9 +620,13 @@
                     <button
                         type="button"
                         class="proof-preview-sheet__action"
-                        @click="handleReselectProof('album')"
+                        :disabled="
+                            delivererAction === 'confirmPickup' ||
+                            delivererAction === 'confirmDelivery'
+                        "
+                        @click="handleSubmitProofPhoto"
                     >
-                        重新上传
+                        确认上传
                     </button>
                 </div>
             </div>
@@ -416,6 +684,14 @@
             style="display: none"
             @change="handleDeliveryPhotoSelected"
         />
+        <input
+            ref="ratingImageInputRef"
+            type="file"
+            accept="image/*"
+            multiple
+            style="display: none"
+            @change="handleRatingImagesSelected"
+        />
     </div>
 </template>
 
@@ -427,7 +703,7 @@ import { StarOutline } from '@vicons/ionicons5';
 import { DelivererOrderApi, PickupApi, chatApi } from '@/api';
 import { MobileEmpty, MobileLoading, MobileModal } from '@/components/mobile';
 import { useAppStore, useUserStore } from '@/stores';
-import type { PickupOrder } from '@/types';
+import type { PickupOrder, PickupOrderItem } from '@/types';
 
 const router = useRouter();
 const route = useRoute();
@@ -443,12 +719,23 @@ const delivererAction = ref<null | 'accept' | 'startPickup' | 'confirmPickup' | 
     null
 );
 const showRatingModal = ref(false);
+const showAdjustPriceModal = ref(false);
+const showServiceTicketModal = ref(false);
 const showProofSourceModal = ref(false);
 const showProofPreviewModal = ref(false);
 const showCameraModal = ref(false);
 const rating = ref(5);
 const ratingComment = ref('');
+const ratingImages = ref<string[]>([]);
+const ratingUploading = ref(false);
+const updatingPrice = ref(false);
+const adjustedPrice = ref<number | null>(null);
+const adjustPricePassword = ref('');
+const submittingServiceTicket = ref(false);
+const serviceTicketDescription = ref('');
+const serviceTicketMode = ref<'refund' | 'dispute'>('refund');
 const order = ref<PickupOrder | null>(null);
+const ratingImageInputRef = ref<HTMLInputElement | null>(null);
 const pickupPhotoInputRef = ref<HTMLInputElement | null>(null);
 const deliveryPhotoInputRef = ref<HTMLInputElement | null>(null);
 const pendingProofAction = ref<null | 'pickup' | 'delivery'>(null);
@@ -502,16 +789,45 @@ const counterpartPhone = computed(() => {
               ''
         : order.value.user?.phone || '';
 });
+const counterpartAvatarUrl = computed(() => {
+    if (!order.value) return '';
+    const avatar = isPublisher.value
+        ? order.value.delivererInfo?.user?.avatar || order.value.deliverer?.avatar || ''
+        : order.value.user?.avatar || '';
+    return resolveAssetUrl(avatar);
+});
 const visibleContactPhone = computed(() => {
     if (!order.value) return '--';
     if (!canRevealSensitiveInfo.value) return '接单后可查看';
     return order.value.contact_phone || '--';
 });
-const visiblePickupCode = computed(() => {
-    if (!order.value) return '--';
-    if (order.value.type !== 'express') return '--';
-    if (!canRevealSensitiveInfo.value) return '接单后可查看';
-    return order.value.pickup_code || '无取件码';
+const expressOrderItems = computed<PickupOrderItem[]>(() => {
+    if (!order.value || order.value.type !== 'express') return [];
+    if (Array.isArray(order.value.items) && order.value.items.length > 0) {
+        return order.value.items.map((item, index) => ({
+            ...item,
+            item_index: item.item_index || index + 1,
+        }));
+    }
+
+    if (
+        !order.value.pickup_code &&
+        !order.value.contact_phone &&
+        !order.value.weight &&
+        !order.value.size
+    ) {
+        return [];
+    }
+
+    return [
+        {
+            item_index: 1,
+            pickup_code: order.value.pickup_code || '',
+            phone_tail: order.value.contact_phone || '',
+            weight: order.value.weight ?? null,
+            size: order.value.size || '',
+        },
+    ];
 });
 const counterpartUserId = computed(() => {
     if (!order.value) return null;
@@ -544,6 +860,14 @@ const canRate = computed(() =>
         !order.value.rating
     )
 );
+const canCreateTicket = computed(() => Boolean(order.value && isPublisher.value));
+const canAdjustPrice = computed(() =>
+    Boolean(
+        order.value &&
+        isPublisher.value &&
+        ['pending', 'accepted', 'picking'].includes(order.value.status)
+    )
+);
 const canAccept = computed(() =>
     Boolean(order.value && userStore.user?.is_deliverer && order.value.status === 'pending')
 );
@@ -565,7 +889,11 @@ const canChatNow = computed(() =>
     Boolean(
         order.value &&
         counterpartUserId.value &&
-        ((isPublisher.value && order.value.deliverer_id) || isDelivererOwner.value)
+        ((isPublisher.value && order.value.deliverer_id) ||
+            isDelivererOwner.value ||
+            (userStore.user?.is_deliverer &&
+                order.value.status === 'pending' &&
+                !order.value.deliverer_id))
     )
 );
 
@@ -576,6 +904,8 @@ const timelineItems = computed(() => {
     const acceptedDone = ['accepted', 'picking', 'delivering', 'completed'].includes(current);
     const pickingDone = ['picking', 'delivering', 'completed'].includes(current);
     const deliveringDone = ['delivering', 'completed'].includes(current);
+    const completedDone = current === 'completed';
+    const hasDeliveryProof = Boolean(order.value.delivery_photo);
 
     return [
         {
@@ -604,19 +934,51 @@ const timelineItems = computed(() => {
         },
         {
             key: 'delivering',
-            title: current === 'cancelled' ? '订单终止' : '配送送达',
+            title: current === 'cancelled' ? '订单终止' : '配送中',
+            text:
+                current === 'cancelled'
+                    ? order.value.cancel_reason || '订单已取消。'
+                    : '订单正在配送途中。',
+            time:
+                current === 'cancelled'
+                    ? formatDateTime(order.value.cancel_time)
+                    : formatDateTime(order.value.pickup_complete_time || order.value.updatedAt),
+            active: current === 'delivering' && !hasDeliveryProof,
+            done: deliveringDone || current === 'cancelled',
+        },
+        {
+            key: 'completed',
+            title:
+                current === 'cancelled'
+                    ? '订单终止'
+                    : current === 'completed'
+                      ? '订单完成'
+                      : hasDeliveryProof
+                        ? '待用户收货'
+                        : '配送送达',
             text:
                 current === 'cancelled'
                     ? order.value.cancel_reason || '订单已取消。'
                     : current === 'completed'
                       ? '订单已送达完成。'
-                      : '订单正在配送途中。',
+                      : hasDeliveryProof
+                        ? '配送员已提交送达照片，等待用户确认收货。'
+                        : '等待配送员提交送达凭证。',
             time:
                 current === 'cancelled'
                     ? formatDateTime(order.value.cancel_time)
-                    : formatDateTime(order.value.delivery_complete_time),
-            active: current === 'delivering' || current === 'cancelled',
-            done: deliveringDone || current === 'cancelled',
+                    : current === 'completed'
+                      ? formatDateTime(order.value.delivery_complete_time)
+                      : hasDeliveryProof
+                        ? formatDateTime(
+                              order.value.delivery_complete_time || order.value.updatedAt
+                          )
+                        : '',
+            active:
+                (current === 'delivering' && hasDeliveryProof) ||
+                current === 'completed' ||
+                current === 'cancelled',
+            done: completedDone || current === 'cancelled',
         },
     ].filter(item => item.done || item.active || item.key === 'created');
 });
@@ -631,7 +993,8 @@ const getTypeLabel = (type?: PickupOrder['type']) => {
     return type ? map[type] || '订单' : '订单';
 };
 
-const getStatusLabel = (status: PickupOrder['status']) => {
+const getStatusLabel = (orderOrStatus: PickupOrder | PickupOrder['status']) => {
+    const status = typeof orderOrStatus === 'string' ? orderOrStatus : orderOrStatus.status;
     const map = {
         pending: '待接单',
         accepted: '已接单',
@@ -640,10 +1003,20 @@ const getStatusLabel = (status: PickupOrder['status']) => {
         completed: '已完成',
         cancelled: '已取消',
     };
+
+    if (
+        typeof orderOrStatus !== 'string' &&
+        orderOrStatus.status === 'delivering' &&
+        orderOrStatus.delivery_photo
+    ) {
+        return '待收货';
+    }
+
     return map[status] || status;
 };
 
-const getStatusTagType = (status: PickupOrder['status']) => {
+const getStatusTagType = (orderOrStatus: PickupOrder | PickupOrder['status']) => {
+    const status = typeof orderOrStatus === 'string' ? orderOrStatus : orderOrStatus.status;
     const map = {
         pending: 'warning',
         accepted: 'info',
@@ -652,6 +1025,15 @@ const getStatusTagType = (status: PickupOrder['status']) => {
         completed: 'success',
         cancelled: 'default',
     } as const;
+
+    if (
+        typeof orderOrStatus !== 'string' &&
+        orderOrStatus.status === 'delivering' &&
+        orderOrStatus.delivery_photo
+    ) {
+        return 'warning';
+    }
+
     return map[status] || 'default';
 };
 
@@ -662,6 +1044,27 @@ const getPaymentLabel = (status: PickupOrder['payment_status']) => {
         refunded: '已退款',
     };
     return map[status] || status;
+};
+
+const resolveAssetUrl = (value?: string | null) => {
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
+        return value;
+    }
+    if (value.startsWith('/uploads/')) {
+        return `${window.location.origin}${value}`;
+    }
+    return value;
+};
+
+const getVisibleItemPickupCode = (value?: string | null) => {
+    if (!canRevealSensitiveInfo.value) return '接单后可查看';
+    return value || '无取件码';
+};
+
+const getVisibleItemPhoneTail = (value?: string | null) => {
+    if (!canRevealSensitiveInfo.value) return '接单后可查看';
+    return value || '--';
 };
 
 const formatAmount = (price?: string | number, tip?: string | number) =>
@@ -715,6 +1118,25 @@ const handleChat = async () => {
     } catch (error: any) {
         message.error(error?.message || '打开聊天失败');
     }
+};
+
+const goToCounterpartProfile = () => {
+    if (!counterpartUserId.value) return;
+    appStore.hapticFeedback('light');
+    router.push(`/users/${counterpartUserId.value}`);
+};
+
+const openAdjustPriceModal = () => {
+    if (!order.value) return;
+    adjustedPrice.value = Number(order.value.price || 0);
+    adjustPricePassword.value = '';
+    showAdjustPriceModal.value = true;
+};
+
+const openServiceTicketModal = (mode: 'refund' | 'dispute') => {
+    serviceTicketMode.value = mode;
+    serviceTicketDescription.value = '';
+    showServiceTicketModal.value = true;
 };
 
 const handleCancel = () => {
@@ -781,8 +1203,8 @@ const handleStartPickup = async () => {
     }
 };
 
-const uploadProofImage = async (file: File) => {
-    const uploadRes = await chatApi.uploadImage(file);
+const uploadProofImage = async (file: File, category: 'order-pickup' | 'order-delivery') => {
+    const uploadRes = await chatApi.uploadImage(file, category);
     const imageUrl = uploadRes.data?.path || uploadRes.data?.url;
     if (!imageUrl) {
         throw new Error('图片上传失败');
@@ -873,6 +1295,62 @@ const resetProofSelection = () => {
     selectedProofPreviewUrl.value = '';
 };
 
+const resetRatingForm = () => {
+    rating.value = 5;
+    ratingComment.value = '';
+    ratingImages.value = [];
+    ratingUploading.value = false;
+    if (ratingImageInputRef.value) {
+        ratingImageInputRef.value.value = '';
+    }
+};
+
+const handleSelectRatingImages = () => {
+    ratingImageInputRef.value?.click();
+};
+
+const handleRatingImagesSelected = async (event: Event) => {
+    const input = event.target as HTMLInputElement | null;
+    const files = Array.from(input?.files || []);
+    if (!files.length) return;
+
+    const availableSlots = Math.max(0, 6 - ratingImages.value.length);
+    const selectedFiles = files.slice(0, availableSlots);
+
+    if (!selectedFiles.length) {
+        if (input) input.value = '';
+        message.warning('最多上传 6 张评价图片');
+        return;
+    }
+
+    ratingUploading.value = true;
+    try {
+        const uploadedUrls = await Promise.all(
+            selectedFiles.map(async file => {
+                const uploadRes = await chatApi.uploadImage(file, 'order-review');
+                const imageUrl = uploadRes.data?.path || uploadRes.data?.url;
+                if (!imageUrl) {
+                    throw new Error('评价图片上传失败');
+                }
+                return imageUrl;
+            })
+        );
+        ratingImages.value = [...ratingImages.value, ...uploadedUrls];
+        if (files.length > availableSlots) {
+            message.warning('最多上传 6 张评价图片，其余图片已忽略');
+        }
+    } catch (error: any) {
+        message.error(error?.message || '评价图片上传失败');
+    } finally {
+        ratingUploading.value = false;
+        if (input) input.value = '';
+    }
+};
+
+const removeRatingImage = (index: number) => {
+    ratingImages.value = ratingImages.value.filter((_, currentIndex) => currentIndex !== index);
+};
+
 const prepareProofPreview = (file: File) => {
     resetProofSelection();
     selectedProofFile.value = file;
@@ -942,38 +1420,55 @@ const handleSubmitProofPhoto = async () => {
         return;
     }
 
-    delivererAction.value =
-        pendingProofAction.value === 'pickup' ? 'confirmPickup' : 'confirmDelivery';
+    const currentOrderId = order.value.id;
+    const currentAction = pendingProofAction.value;
+
+    delivererAction.value = currentAction === 'pickup' ? 'confirmPickup' : 'confirmDelivery';
 
     try {
-        const proofUrl = await uploadProofImage(selectedProofFile.value);
+        const proofUrl = await uploadProofImage(
+            selectedProofFile.value,
+            currentAction === 'pickup' ? 'order-pickup' : 'order-delivery'
+        );
         const response =
-            pendingProofAction.value === 'pickup'
-                ? await DelivererOrderApi.confirmPickup(order.value.id, proofUrl)
-                : await DelivererOrderApi.confirmDelivery(order.value.id, {
+            currentAction === 'pickup'
+                ? await DelivererOrderApi.confirmPickup(currentOrderId, proofUrl)
+                : await DelivererOrderApi.confirmDelivery(currentOrderId, {
                       delivery_photo: proofUrl,
                   });
 
         if (!response.success) {
             throw new Error(
-                response.message ||
-                    (pendingProofAction.value === 'pickup' ? '开始配送失败' : '确认送达失败')
+                response.message || (currentAction === 'pickup' ? '开始配送失败' : '确认送达失败')
             );
         }
 
-        order.value = response.data || order.value;
+        let nextOrder = response.data || order.value;
+
+        if (currentAction === 'pickup' && nextOrder.status === 'picking') {
+            const startDeliveryResponse = await DelivererOrderApi.startDelivery(currentOrderId);
+            if (!startDeliveryResponse.success) {
+                throw new Error(startDeliveryResponse.message || '更新配送状态失败');
+            }
+            nextOrder = startDeliveryResponse.data || {
+                ...nextOrder,
+                status: 'delivering',
+                pickup_photo: proofUrl,
+            };
+        }
+
+        order.value = nextOrder;
         showProofPreviewModal.value = false;
         message.success(
-            pendingProofAction.value === 'pickup'
+            currentAction === 'pickup'
                 ? '取件照片已上传，订单已开始配送'
-                : '送达照片已上传，请等待用户确认完成'
+                : '送达照片已上传，等待用户确认收货'
         );
         appStore.hapticFeedback('medium');
         resetProofSelection();
     } catch (error: any) {
         message.error(
-            error?.message ||
-                (pendingProofAction.value === 'pickup' ? '开始配送失败' : '确认送达失败')
+            error?.message || (currentAction === 'pickup' ? '开始配送失败' : '确认送达失败')
         );
     } finally {
         delivererAction.value = null;
@@ -1027,19 +1522,96 @@ const handleCloseCameraModal = () => {
 
 const handleConfirm = async () => {
     if (!order.value) return;
-    confirming.value = true;
+    dialog.warning({
+        title: '确认收货',
+        content: '确认已收到货物吗？确认后订单将完成，并结算款项给配送员。',
+        positiveText: '确认收货',
+        negativeText: '再看看',
+        async onPositiveClick() {
+            confirming.value = true;
+            try {
+                const response = await PickupApi.confirmOrder(order.value!.id);
+                if (!response.success) {
+                    throw new Error(response.message || '确认收货失败');
+                }
+                order.value = response.data || order.value;
+                message.success('已确认收货，订单已完成');
+                appStore.hapticFeedback('medium');
+            } catch (error: any) {
+                message.error(error?.message || '确认收货失败');
+            } finally {
+                confirming.value = false;
+            }
+        },
+    });
+};
+
+const submitAdjustedPrice = async () => {
+    if (!order.value || !canAdjustPrice.value || updatingPrice.value) return;
+
+    const nextPrice = Number(adjustedPrice.value || 0);
+    const currentPrice = Number(order.value.price || 0);
+
+    if (!nextPrice || nextPrice <= 0) {
+        message.warning('请输入大于 0 的订单金额');
+        return;
+    }
+
+    if (nextPrice < currentPrice) {
+        message.warning('订单金额只能增加，不能减少');
+        return;
+    }
+
+    if (!/^\d{6}$/.test(adjustPricePassword.value)) {
+        message.warning('请输入 6 位支付密码');
+        return;
+    }
+
+    updatingPrice.value = true;
     try {
-        const response = await PickupApi.confirmOrder(order.value.id);
-        if (!response.success) {
-            throw new Error(response.message || '确认完成失败');
+        const response = await PickupApi.updateOrder(order.value.id, {
+            price: nextPrice,
+            payment_password: adjustPricePassword.value,
+        });
+        if (!response.success || !response.data) {
+            throw new Error(response.message || '修改金额失败');
         }
-        order.value = response.data || order.value;
-        message.success('订单已确认完成，款项已结算给配送员');
-        appStore.hapticFeedback('medium');
+        order.value = response.data;
+        showAdjustPriceModal.value = false;
+        message.success(nextPrice === currentPrice ? '订单金额未变化' : '订单金额已更新');
     } catch (error: any) {
-        message.error(error?.message || '确认完成失败');
+        message.error(error?.message || '修改金额失败');
     } finally {
-        confirming.value = false;
+        updatingPrice.value = false;
+    }
+};
+
+const submitServiceTicket = async () => {
+    if (!order.value || !canCreateTicket.value || submittingServiceTicket.value) return;
+
+    const description = serviceTicketDescription.value.trim();
+    if (!description) {
+        message.warning('请填写需要客服介入的问题描述');
+        return;
+    }
+
+    submittingServiceTicket.value = true;
+    try {
+        const response = await PickupApi.createServiceTicket(order.value.id, {
+            description,
+            type: serviceTicketMode.value,
+            priority: 'high',
+        });
+        if (!response.success) {
+            throw new Error(response.message || '创建工单失败');
+        }
+        showServiceTicketModal.value = false;
+        serviceTicketDescription.value = '';
+        message.success('工单已创建，请等待客服介入处理');
+    } catch (error: any) {
+        message.error(error?.message || '创建工单失败');
+    } finally {
+        submittingServiceTicket.value = false;
     }
 };
 
@@ -1049,12 +1621,14 @@ const submitRating = async () => {
         const response = await PickupApi.rateOrder(order.value.id, {
             rating: rating.value,
             comment: ratingComment.value || undefined,
+            images: ratingImages.value.length ? ratingImages.value : undefined,
         });
         if (!response.success) {
             throw new Error(response.message || '评价失败');
         }
         order.value = response.data || order.value;
         showRatingModal.value = false;
+        resetRatingForm();
         message.success('评价成功');
     } catch (error: any) {
         message.error(error?.message || '评价失败');
@@ -1410,6 +1984,105 @@ onBeforeUnmount(() => {
     text-decoration: none;
 }
 
+.detail-kv--photo {
+    align-items: center;
+}
+
+.express-items {
+    display: grid;
+    gap: 10px;
+}
+
+.express-item {
+    display: grid;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface) 70%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--muted) 12%, transparent);
+}
+
+.express-item__head strong {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text);
+}
+
+.express-item__meta {
+    display: grid;
+    gap: 6px;
+}
+
+.express-item__meta span {
+    font-size: 13px;
+    line-height: 1.6;
+    color: color-mix(in srgb, var(--text) 78%, white);
+}
+
+.detail-photo-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    text-decoration: none;
+}
+
+.detail-photo-thumb {
+    display: block;
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--muted) 16%, transparent);
+    background: color-mix(in srgb, var(--surface) 72%, var(--card));
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.detail-rating-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    justify-self: start;
+    margin-left: -6px;
+}
+
+.detail-rating-star {
+    font-size: 18px;
+    line-height: 1;
+    color: #cbd5e1;
+}
+
+.detail-rating-star.active {
+    color: #f59e0b;
+}
+
+.detail-review-text {
+    font-size: 14px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.detail-review-images {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.detail-review-image-link {
+    display: block;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #eef4ff;
+    aspect-ratio: 1;
+}
+
+.detail-review-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .chip-row {
     display: flex;
     flex-wrap: wrap;
@@ -1516,11 +2189,23 @@ onBeforeUnmount(() => {
     justify-content: center;
     background: color-mix(in srgb, var(--surface) 72%, var(--card));
     color: #94a3b8;
+    overflow: hidden;
 }
 
 .u-svg {
     width: 18px;
     height: 18px;
+}
+
+.u-avatar__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.user-info--interactive {
+    cursor: pointer;
 }
 
 .actions-group {
@@ -1533,10 +2218,181 @@ onBeforeUnmount(() => {
     padding: 16px 0;
 }
 
+.review-modal-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 2600;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.review-modal {
+    width: min(420px, 100%);
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 22px 20px 18px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+    display: grid;
+    gap: 12px;
+}
+
+.review-modal__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.review-modal__head strong {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.review-modal__close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.review-modal__hint {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #64748b;
+}
+
+.review-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 4px;
+}
+
+.review-modal__btn {
+    min-width: 96px;
+    height: 40px;
+    border-radius: 999px;
+    border: none;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 0 18px;
+}
+
+.review-modal__btn--secondary {
+    background: #eef2f7;
+    color: #475569;
+}
+
+.review-modal__btn--primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: #ffffff;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
+}
+
+.review-modal__btn:disabled {
+    opacity: 0.65;
+}
+
+.rating-images {
+    margin-top: 14px;
+}
+
+.adjust-price-hint {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+}
+
+.rating-images__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.rating-images__head span {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.rating-images__upload {
+    border: none;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 12px;
+}
+
+.rating-images__upload:disabled {
+    opacity: 0.6;
+}
+
+.rating-images__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.rating-images__item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #eef4ff;
+    aspect-ratio: 1;
+}
+
+.rating-images__preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.rating-images__remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+}
+
 .proof-source-sheet {
     display: grid;
     gap: 12px;
     padding: 8px 0 4px;
+}
+
+.proof-source-modal__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #172033;
+}
+
+.proof-source-modal__title.is-dark {
+    color: #ffffff;
 }
 
 .proof-source-sheet__action {
@@ -1560,6 +2416,19 @@ onBeforeUnmount(() => {
     font-size: 12px;
     line-height: 1.5;
     color: #6b7a90;
+}
+
+.proof-source-sheet.is-dark .proof-source-sheet__action {
+    border: 1px solid #2f4f7e;
+    background: #1f3557;
+}
+
+.proof-source-sheet.is-dark .proof-source-sheet__action strong {
+    color: #ffffff;
+}
+
+.proof-source-sheet.is-dark .proof-source-sheet__action span {
+    color: rgba(255, 255, 255, 0.82);
 }
 
 .proof-preview-sheet {
