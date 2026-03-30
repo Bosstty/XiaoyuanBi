@@ -5,7 +5,7 @@ class DelivererStatusController {
     static async updateStatus(req, res) {
         try {
             const userId = req.user.id;
-            const { status } = req.body; // active | offline | busy
+            const { is_online, online, status } = req.body;
 
             const deliverer = await Deliverer.findOne({
                 where: { user_id: userId },
@@ -18,19 +18,46 @@ class DelivererStatusController {
                 });
             }
 
-            if (deliverer.verification_status !== 'verified') {
+            if (deliverer.application_status !== 'approved' || !deliverer.verified) {
                 return res.status(400).json({
                     success: false,
                     message: '配送员尚未通过审核',
                 });
             }
 
-            await deliverer.update({ status });
+            if (deliverer.status !== 'active') {
+                return res.status(400).json({
+                    success: false,
+                    message: '配送员当前状态不可切换在线状态',
+                });
+            }
+
+            let nextOnline;
+            if (typeof is_online === 'boolean') {
+                nextOnline = is_online;
+            } else if (typeof online === 'boolean') {
+                nextOnline = online;
+            } else if (typeof status === 'string') {
+                nextOnline = ['active', 'online'].includes(status);
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    message: '请提供有效的在线状态',
+                });
+            }
+
+            await deliverer.update({
+                is_online: nextOnline,
+                last_online_at: nextOnline ? new Date() : deliverer.last_online_at || new Date(),
+            });
 
             res.json({
                 success: true,
                 message: '状态更新成功',
-                data: { status },
+                data: {
+                    is_online: deliverer.is_online,
+                    last_online_at: deliverer.last_online_at,
+                },
             });
         } catch (error) {
             console.error('更新配送员状态失败:', error);
@@ -62,7 +89,7 @@ class DelivererStatusController {
             await deliverer.update({
                 current_latitude: latitude,
                 current_longitude: longitude,
-                last_location_update: new Date(),
+                location_updated_at: new Date(),
             });
 
             res.json({
@@ -87,10 +114,12 @@ class DelivererStatusController {
             const deliverer = await Deliverer.findOne({
                 where: { user_id: userId },
                 attributes: [
+                    'is_online',
+                    'last_online_at',
                     'status',
                     'current_latitude',
                     'current_longitude',
-                    'last_location_update',
+                    'location_updated_at',
                 ],
             });
 

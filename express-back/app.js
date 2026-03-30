@@ -7,6 +7,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
 const uploadsDir = path.join(process.cwd(), 'uploads');
+const { createHttpServer, initSocket } = require('./config/socket');
 
 // 导入主路由
 const mainRouter = require('./src/routes/main');
@@ -361,8 +362,10 @@ const PORT = process.env.PORT || 3000;
 async function start() {
     try {
         await testConnection();
+        const server = createHttpServer(app);
+        initSocket(server);
 
-        app.listen(PORT, () => {
+        server.listen(PORT, () => {
             console.log(` 服务地址: http://localhost:${PORT}`);
         });
     } catch (error) {

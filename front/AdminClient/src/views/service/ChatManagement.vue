@@ -53,7 +53,7 @@
                 </div>
                 <div class="conversation-bottom">
                   <span class="conversation-preview">
-                    {{ conv.last_message || '暂无消息' }}
+                    {{ formatConversationPreview(conv.last_message) }}
                   </span>
                 </div>
                 <div class="conversation-role">{{ getPartner(conv).role }}</div>
@@ -271,6 +271,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ChatDotRound, Promotion, Refresh, Search, Service, User } from '@element-plus/icons-vue'
 import { publicApi, serviceChatApi } from '@/api'
+import { createChatSocket } from '@/utils/chatSocket'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '')
@@ -284,8 +285,14 @@ const loading = ref(false)
 const detailLoading = ref(false)
 const sending = ref(false)
 const uploading = ref(false)
-const pollingTimer = ref(null)
 const previewImage = ref('')
+const socket = ref(null)
+const joinedConversationId = ref(null)
+let handleSocketConnect = null
+let handleSocketMessageNew = null
+let handleSocketConversationUpdated = null
+let handleSocketMessageRead = null
+let handleSocketConnectError = null
 
 const conversations = ref([])
 const currentConversation = ref(null)
@@ -361,11 +368,62 @@ const formatMessageTime = (value) => {
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
+const formatConversationPreview = (value) => {
+  const content = String(value || '').trim()
+  if (!content) return '暂无消息'
+
+  const lowerContent = content.toLowerCase()
+  const isUploadPath =
+    content.startsWith('/uploads/') ||
+    content.startsWith('uploads/') ||
+    /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(content)
+
+  if (content === '[图片]' || isUploadPath || lowerContent.startsWith('data:image/')) {
+    return '[图片]'
+  }
+
+  return content
+}
+
 const formatDateTime = (value) => {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString('zh-CN')
+}
+
+const sortConversations = (list) =>
+  [...list].sort((left, right) => {
+    const leftTime = new Date(left?.last_message_at || 0).getTime()
+    const rightTime = new Date(right?.last_message_at || 0).getTime()
+    return rightTime - leftTime
+  })
+
+const upsertConversation = (incoming) => {
+  if (!incoming?.id) return null
+
+  const currentId = Number(currentConversation.value?.id || 0)
+  const existing = conversations.value.find((item) => Number(item.id) === Number(incoming.id))
+  const mergedPartner = existing?.partner || incoming?.partner || null
+  const merged = {
+    ...(existing || {}),
+    ...incoming,
+    ...(mergedPartner ? { partner: mergedPartner } : {}),
+  }
+
+  conversations.value = sortConversations([
+    merged,
+    ...conversations.value.filter((item) => Number(item.id) !== Number(incoming.id)),
+  ])
+
+  if (currentId && currentId === Number(incoming.id)) {
+    currentConversation.value = {
+      ...(currentConversation.value || {}),
+      ...merged,
+    }
+  }
+
+  return merged
 }
 
 const resolveImage = (content) => {
@@ -404,7 +462,7 @@ const scrollToBottom = async () => {
 }
 
 const applyConversationList = (list) => {
-  conversations.value = Array.isArray(list) ? list : []
+  conversations.value = Array.isArray(list) ? sortConversations(list) : []
 
   if (!currentConversation.value?.id) return
 
@@ -412,6 +470,36 @@ const applyConversationList = (list) => {
   if (matched) {
     currentConversation.value = matched
   }
+}
+
+const appendMessage = async (incoming) => {
+  if (!incoming?.id) return
+
+  const exists = messages.value.some((item) => Number(item.id) === Number(incoming.id))
+  if (exists) return
+
+  messages.value.push(incoming)
+  await scrollToBottom()
+}
+
+const updateConversationFromMessage = (conversationId, incomingMessage) => {
+  const existing = conversations.value.find((item) => Number(item.id) === Number(conversationId))
+  if (!existing) return
+
+  const isActiveConversation = Number(currentConversation.value?.id || 0) === Number(conversationId)
+  const isOwn = isOwnMessage(incomingMessage)
+
+  upsertConversation({
+    ...existing,
+    last_message: incomingMessage.type === 'image' ? '[图片]' : incomingMessage.content,
+    last_message_at:
+      incomingMessage.created_at || incomingMessage.createdAt || new Date().toISOString(),
+    unread_count: isActiveConversation
+      ? 0
+      : isOwn
+        ? Number(existing.unread_count || 0)
+        : Number(existing.unread_count || 0) + 1,
+  })
 }
 
 const fetchConversations = async () => {
@@ -504,21 +592,16 @@ const sendMessage = async () => {
       throw new Error(response.message || '发送消息失败')
     }
 
-    messages.value.push(response.data)
-    currentConversation.value.last_message = content
-    currentConversation.value.last_message_at = new Date().toISOString()
-    conversations.value = conversations.value.map((item) =>
-      item.id === currentConversation.value.id
-        ? {
-            ...item,
-            last_message: content,
-            last_message_at: currentConversation.value.last_message_at,
-          }
-        : item,
-    )
+    await appendMessage(response.data)
+    upsertConversation({
+      ...(currentConversation.value || {}),
+      id: currentConversation.value.id,
+      last_message: content,
+      last_message_at: new Date().toISOString(),
+      unread_count: 0,
+    })
 
     messageInput.value = ''
-    await scrollToBottom()
   } catch (error) {
     console.error('发送消息失败:', error)
     ElMessage.error(error.message || '发送消息失败')
@@ -560,20 +643,15 @@ const handleImageSelected = async (event) => {
       throw new Error(sendResponse.message || '发送图片失败')
     }
 
-    messages.value.push(sendResponse.data)
-    currentConversation.value.last_message = '[图片]'
-    currentConversation.value.last_message_at = new Date().toISOString()
-    conversations.value = conversations.value.map((item) =>
-      item.id === currentConversation.value.id
-        ? {
-            ...item,
-            last_message: '[图片]',
-            last_message_at: currentConversation.value.last_message_at,
-          }
-        : item,
-    )
+    await appendMessage(sendResponse.data)
+    upsertConversation({
+      ...(currentConversation.value || {}),
+      id: currentConversation.value.id,
+      last_message: '[图片]',
+      last_message_at: new Date().toISOString(),
+      unread_count: 0,
+    })
 
-    await scrollToBottom()
     ElMessage.success('图片已发送')
   } catch (error) {
     console.error('发送图片失败:', error)
@@ -610,59 +688,133 @@ const viewUserDetail = async () => {
   }
 }
 
-const pollCurrentConversation = async () => {
-  if (!currentConversation.value?.id || sending.value) return
+const leaveConversationRoom = () => {
+  if (!socket.value || !joinedConversationId.value) return
 
-  try {
-    const [conversationRes, detailRes] = await Promise.all([
-      serviceChatApi.getConversations({ page: 1, limit: 50 }),
-      serviceChatApi.getConversationDetail(currentConversation.value.id),
-    ])
-
-    if (conversationRes.success) {
-      applyConversationList(conversationRes.data)
-    }
-
-    if (detailRes.success && detailRes.data) {
-      currentConversation.value = detailRes.data
-      messages.value = Array.isArray(detailRes.data.messages) ? detailRes.data.messages : []
-      conversations.value = conversations.value.map((item) =>
-        item.id === detailRes.data.id ? { ...item, ...detailRes.data, unread_count: 0 } : item,
-      )
-      await serviceChatApi.markAsRead(detailRes.data.id)
-      await scrollToBottom()
-    }
-  } catch (error) {
-    console.error('轮询聊天失败:', error)
-  }
+  socket.value.emit('chat:leave', {
+    conversation_id: joinedConversationId.value,
+  })
+  joinedConversationId.value = null
 }
 
-const startPolling = () => {
-  if (pollingTimer.value) {
-    window.clearInterval(pollingTimer.value)
-  }
+const joinConversationRoom = (conversationId) => {
+  if (!socket.value || !conversationId) return
+  if (Number(joinedConversationId.value || 0) === Number(conversationId)) return
 
-  if (!currentConversation.value?.id) return
-
-  pollingTimer.value = window.setInterval(() => {
-    void pollCurrentConversation()
-  }, 3000)
+  leaveConversationRoom()
+  socket.value.emit('chat:join', {
+    conversation_id: Number(conversationId),
+  })
+  joinedConversationId.value = Number(conversationId)
 }
 
-const stopPolling = () => {
-  if (pollingTimer.value) {
-    window.clearInterval(pollingTimer.value)
-    pollingTimer.value = null
+const connectChatSocket = () => {
+  if (socket.value) return
+
+  const client = createChatSocket()
+  if (!client) return
+
+  socket.value = client
+
+  handleSocketConnect = () => {
+    if (currentConversation.value?.id) {
+      joinConversationRoom(currentConversation.value.id)
+    }
+    void fetchConversations()
   }
+
+  handleSocketMessageNew = async (payload) => {
+    const conversationId = Number(payload?.conversation_id || 0)
+    const incomingMessage = payload?.message
+    if (!conversationId || !incomingMessage) return
+
+    updateConversationFromMessage(conversationId, incomingMessage)
+
+    if (Number(currentConversation.value?.id || 0) === conversationId) {
+      await appendMessage(incomingMessage)
+
+      if (!isOwnMessage(incomingMessage)) {
+        void serviceChatApi.markAsRead(conversationId)
+        upsertConversation({
+          ...(currentConversation.value || {}),
+          id: conversationId,
+          unread_count: 0,
+        })
+      }
+    }
+  }
+
+  handleSocketConversationUpdated = (payload) => {
+    const incomingConversation = payload?.conversation
+    if (!incomingConversation?.id) return
+
+    const exists = conversations.value.some(
+      (item) => Number(item.id) === Number(incomingConversation.id),
+    )
+    if (!exists) {
+      void fetchConversations()
+      return
+    }
+
+    upsertConversation(incomingConversation)
+  }
+
+  handleSocketMessageRead = (payload) => {
+    const conversationId = Number(payload?.conversation_id || 0)
+    if (!conversationId || Number(currentConversation.value?.id || 0) !== conversationId) {
+      return
+    }
+
+    messages.value = messages.value.map((item) =>
+      item.sender_type === 'service' ? { ...item, is_read: true } : item,
+    )
+  }
+
+  handleSocketConnectError = (error) => {
+    console.error('客服聊天 Socket 连接失败:', error)
+  }
+
+  client.on('connect', handleSocketConnect)
+  client.on('chat:message:new', handleSocketMessageNew)
+  client.on('chat:conversation:updated', handleSocketConversationUpdated)
+  client.on('chat:message:read', handleSocketMessageRead)
+  client.on('connect_error', handleSocketConnectError)
+}
+
+const disconnectChatSocket = () => {
+  leaveConversationRoom()
+  if (!socket.value) return
+  if (handleSocketConnect) {
+    socket.value.off('connect', handleSocketConnect)
+  }
+  if (handleSocketMessageNew) {
+    socket.value.off('chat:message:new', handleSocketMessageNew)
+  }
+  if (handleSocketConversationUpdated) {
+    socket.value.off('chat:conversation:updated', handleSocketConversationUpdated)
+  }
+  if (handleSocketMessageRead) {
+    socket.value.off('chat:message:read', handleSocketMessageRead)
+  }
+  if (handleSocketConnectError) {
+    socket.value.off('connect_error', handleSocketConnectError)
+  }
+  socket.value = null
+  handleSocketConnect = null
+  handleSocketMessageNew = null
+  handleSocketConversationUpdated = null
+  handleSocketMessageRead = null
+  handleSocketConnectError = null
 }
 
 onMounted(async () => {
+  connectChatSocket()
   await fetchConversations()
   await openConversationById(route.query.conversationId)
 })
 
 onBeforeUnmount(() => {
-  stopPolling()
+  disconnectChatSocket()
 })
 
 watch(
@@ -677,13 +829,13 @@ watch(
 watch(
   () => currentConversation.value?.id,
   (value) => {
-  if (value) {
-    startPolling()
-  } else {
-    stopPolling()
-    closeImagePreview()
-  }
-},
+    if (value) {
+      joinConversationRoom(Number(value))
+    } else {
+      leaveConversationRoom()
+      closeImagePreview()
+    }
+  },
 )
 </script>
 

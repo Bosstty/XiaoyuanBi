@@ -29,9 +29,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { NIcon } from 'naive-ui';
+import type { Socket } from 'socket.io-client';
 import {
     HomeOutline,
     Home,
@@ -48,6 +49,7 @@ import {
 } from '@vicons/ionicons5';
 import { chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
+import { createChatSocket } from '@/utils/chatSocket';
 
 interface TabItem {
     name: string;
@@ -64,6 +66,12 @@ const route = useRoute();
 const appStore = useAppStore();
 const userStore = useUserStore();
 const unreadCount = ref(0);
+const socket = ref<Socket | null>(null);
+let handleSocketConnect: (() => void) | null = null;
+let handleSocketMessageNew: ((payload: any) => void) | null = null;
+let handleSocketConversationUpdated: (() => void) | null = null;
+let handleSocketMessageRead: (() => void) | null = null;
+let handleSocketConnectError: ((error: any) => void) | null = null;
 
 const tabs: TabItem[] = [
     {
@@ -167,18 +175,106 @@ const fetchUnreadCount = async () => {
     }
 };
 
-onMounted(fetchUnreadCount);
+const connectChatBadgeSocket = () => {
+    if (socket.value || !userStore.isAuthenticated) return;
+
+    const client = createChatSocket();
+    if (!client) return;
+
+    socket.value = client;
+
+    handleSocketConnect = () => {
+        void fetchUnreadCount();
+    };
+
+    handleSocketMessageNew = payload => {
+        const incomingMessage = payload?.message;
+        const isOwnMessage =
+            incomingMessage?.sender_id === userStore.user?.id &&
+            incomingMessage?.sender_type === 'user';
+
+        if (isOwnMessage) {
+            return;
+        }
+
+        void fetchUnreadCount();
+    };
+
+    handleSocketConversationUpdated = () => {
+        void fetchUnreadCount();
+    };
+
+    handleSocketMessageRead = () => {
+        void fetchUnreadCount();
+    };
+
+    handleSocketConnectError = error => {
+        console.error('消息徽标 Socket 连接失败:', error);
+    };
+
+    client.on('connect', handleSocketConnect);
+    client.on('chat:message:new', handleSocketMessageNew);
+    client.on('chat:conversation:updated', handleSocketConversationUpdated);
+    client.on('chat:message:read', handleSocketMessageRead);
+    client.on('connect_error', handleSocketConnectError);
+};
+
+const disconnectChatBadgeSocket = () => {
+    if (!socket.value) return;
+
+    if (handleSocketConnect) {
+        socket.value.off('connect', handleSocketConnect);
+    }
+    if (handleSocketMessageNew) {
+        socket.value.off('chat:message:new', handleSocketMessageNew);
+    }
+    if (handleSocketConversationUpdated) {
+        socket.value.off('chat:conversation:updated', handleSocketConversationUpdated);
+    }
+    if (handleSocketMessageRead) {
+        socket.value.off('chat:message:read', handleSocketMessageRead);
+    }
+    if (handleSocketConnectError) {
+        socket.value.off('connect_error', handleSocketConnectError);
+    }
+
+    socket.value = null;
+    handleSocketConnect = null;
+    handleSocketMessageNew = null;
+    handleSocketConversationUpdated = null;
+    handleSocketMessageRead = null;
+    handleSocketConnectError = null;
+};
+
+onMounted(() => {
+    connectChatBadgeSocket();
+    void fetchUnreadCount();
+});
 
 watch(
     () => route.path,
     () => {
-        if (route.path.startsWith('/chat')) {
+        void fetchUnreadCount();
+    }
+);
+
+watch(
+    () => userStore.isAuthenticated,
+    isAuthenticated => {
+        if (!isAuthenticated) {
+            disconnectChatBadgeSocket();
             unreadCount.value = 0;
             return;
         }
-        fetchUnreadCount();
+
+        connectChatBadgeSocket();
+        void fetchUnreadCount();
     }
 );
+
+onBeforeUnmount(() => {
+    disconnectChatBadgeSocket();
+});
 </script>
 
 <style scoped>

@@ -10,6 +10,16 @@
                 <button
                     v-if="isDeliverer"
                     type="button"
+                    class="order-center__hero-btn order-center__hero-btn--status touch-feedback"
+                    :class="{ 'is-online': delivererOnline }"
+                    :disabled="statusSubmitting"
+                    @click="toggleDelivererOnlineStatus"
+                >
+                    {{ statusSubmitting ? '切换中...' : delivererOnline ? '在线接单' : '开启在线' }}
+                </button>
+                <button
+                    v-if="isDeliverer"
+                    type="button"
                     class="order-center__hero-btn order-center__hero-btn--ghost touch-feedback"
                     @click="router.push('/pickup/my')"
                 >
@@ -193,13 +203,36 @@
         </section>
 
         <div class="order-center__safe-space"></div>
+
+        <NModal
+            v-model:show="onlinePromptVisible"
+            preset="card"
+            class="order-center__online-modal"
+            :bordered="false"
+            :mask-closable="!statusSubmitting"
+            :closable="!statusSubmitting"
+        >
+            <div class="order-center__online-modal-copy">
+                <span>Runner Online</span>
+                <h3>当前尚未开启在线接单</h3>
+                <p>开启后你可以在订单中心和抢单大厅查看并接收新的代取订单。</p>
+            </div>
+            <div class="order-center__online-modal-actions">
+                <NButton quaternary round :disabled="statusSubmitting" @click="onlinePromptVisible = false">
+                    暂不开启
+                </NButton>
+                <NButton type="primary" round :loading="statusSubmitting" @click="confirmEnableOnline">
+                    立即开启
+                </NButton>
+            </div>
+        </NModal>
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NIcon, NTag, NAvatar, NSpin, useMessage } from 'naive-ui';
+import { NButton, NIcon, NTag, NAvatar, NSpin, NModal, useMessage } from 'naive-ui';
 import {
     BagHandleOutline,
     CartOutline,
@@ -208,7 +241,7 @@ import {
     MedicalOutline,
     TimeOutline,
 } from '@vicons/ionicons5';
-import { DelivererOrderApi, PickupApi } from '@/api';
+import { DelivererOrderApi, DelivererStatusApi, PickupApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
 import type { PickupOrder } from '@/types';
 
@@ -219,9 +252,12 @@ const message = useMessage();
 
 const loading = ref(false);
 const loadingMyOrders = ref(false);
+const statusSubmitting = ref(false);
+const onlinePromptVisible = ref(false);
 const myOrders = ref<PickupOrder[]>([]);
 const orders = ref<PickupOrder[]>([]);
 const isDeliverer = computed(() => Boolean(userStore.user?.is_deliverer));
+const delivererOnline = ref(false);
 const heroDescription = computed(() =>
     isDeliverer.value
         ? '面向校园即时需求的代取代购大厅，这里会展示当前可接的订单。'
@@ -312,6 +348,20 @@ const formatMoney = (value: string | number | null | undefined) => {
     return amount.toFixed(2);
 };
 
+const syncDelivererOnlineStatus = async () => {
+    if (!isDeliverer.value) {
+        delivererOnline.value = false;
+        return;
+    }
+
+    try {
+        const response = await DelivererStatusApi.getStatus();
+        delivererOnline.value = Boolean(response.data?.is_online);
+    } catch (error) {
+        delivererOnline.value = false;
+    }
+};
+
 const fetchAvailableOrders = async () => {
     if (!isDeliverer.value) {
         orders.value = [];
@@ -320,6 +370,11 @@ const fetchAvailableOrders = async () => {
 
     loading.value = true;
     try {
+        if (!delivererOnline.value) {
+            orders.value = [];
+            return;
+        }
+
         const response = await DelivererOrderApi.getAvailableOrders({
             page: 1,
             limit: 20,
@@ -334,6 +389,42 @@ const fetchAvailableOrders = async () => {
         orders.value = [];
     } finally {
         loading.value = false;
+    }
+};
+
+const updateDelivererOnlineStatus = async (value: boolean) => {
+    if (!isDeliverer.value) return;
+
+    statusSubmitting.value = true;
+    try {
+        const response = await DelivererStatusApi.updateStatus(value);
+        if (!response.success) {
+            throw new Error(response.message || '更新在线状态失败');
+        }
+
+        delivererOnline.value = Boolean(response.data?.is_online);
+        message.success(value ? '已开启在线接单' : '已关闭在线接单');
+
+        if (delivererOnline.value) {
+            await fetchAvailableOrders();
+        } else {
+            orders.value = [];
+        }
+    } catch (error) {
+        message.error(error instanceof Error ? error.message : '更新在线状态失败');
+    } finally {
+        statusSubmitting.value = false;
+    }
+};
+
+const toggleDelivererOnlineStatus = async () => {
+    await updateDelivererOnlineStatus(!delivererOnline.value);
+};
+
+const confirmEnableOnline = async () => {
+    await updateDelivererOnlineStatus(true);
+    if (delivererOnline.value) {
+        onlinePromptVisible.value = false;
     }
 };
 
@@ -360,6 +451,12 @@ const fetchMyOrders = async () => {
 };
 
 onMounted(async () => {
+    await syncDelivererOnlineStatus();
+
+    if (isDeliverer.value && !delivererOnline.value) {
+        onlinePromptVisible.value = true;
+    }
+
     await fetchMyOrders();
     await fetchAvailableOrders();
 });
@@ -390,6 +487,16 @@ onMounted(async () => {
     flex-wrap: wrap;
 }
 
+.order-center__hero-btn--status {
+    background: rgba(15, 23, 42, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.order-center__hero-btn--status.is-online {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(255, 255, 255, 0.34);
+}
+
 .order-center__hero-btn--ghost {
     background: rgba(255, 255, 255, 0.14);
     border: 1px solid rgba(255, 255, 255, 0.28);
@@ -401,6 +508,33 @@ onMounted(async () => {
     color: #3b82f6;
     font-size: 14px;
     font-weight: 700;
+}
+
+.order-center__online-modal-copy span {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #3b82f6;
+}
+
+.order-center__online-modal-copy h3 {
+    margin: 10px 0 8px;
+    font-size: 22px;
+    color: #0f172a;
+}
+
+.order-center__online-modal-copy p {
+    margin: 0;
+    line-height: 1.7;
+    color: #475569;
+}
+
+.order-center__online-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
 }
 
 .order-center__action-grid {

@@ -170,6 +170,7 @@ class DelivererOrderController {
     // 获取可接单列表
     static async getAvailableOrders(req, res) {
         try {
+            const delivererId = req.user.deliverer_id;
             const {
                 page = 1,
                 limit = 10,
@@ -179,6 +180,26 @@ class DelivererOrderController {
                 urgent,
                 distance,
             } = req.query;
+
+            const deliverer = await Deliverer.findByPk(delivererId, {
+                attributes: ['id', 'is_online', 'application_status', 'verified', 'status'],
+            });
+
+            if (!deliverer) {
+                return res.status(404).json(responseUtils.error('配送员信息不存在'));
+            }
+
+            if (
+                deliverer.application_status !== 'approved' ||
+                !deliverer.verified ||
+                deliverer.status !== 'active'
+            ) {
+                return res.status(400).json(responseUtils.error('当前账号未开通接单权限'));
+            }
+
+            if (!deliverer.is_online) {
+                return res.status(400).json(responseUtils.error('请先开启在线接单状态'));
+            }
 
             const { offset, limit: queryLimit } = paginationUtils.getPagination(page, limit);
 
@@ -284,6 +305,25 @@ class DelivererOrderController {
             const { id } = req.params;
             const userId = req.user.id;
             const delivererId = req.user.deliverer_id;
+            const deliverer = await Deliverer.findByPk(delivererId, {
+                attributes: ['id', 'is_online', 'application_status', 'verified', 'status'],
+            });
+
+            if (!deliverer) {
+                return res.status(404).json(responseUtils.error('配送员信息不存在'));
+            }
+
+            if (
+                deliverer.application_status !== 'approved' ||
+                !deliverer.verified ||
+                deliverer.status !== 'active'
+            ) {
+                return res.status(400).json(responseUtils.error('当前账号未开通接单权限'));
+            }
+
+            if (!deliverer.is_online) {
+                return res.status(400).json(responseUtils.error('请先开启在线接单状态'));
+            }
 
             const order = await PickupOrder.findByPk(id);
 

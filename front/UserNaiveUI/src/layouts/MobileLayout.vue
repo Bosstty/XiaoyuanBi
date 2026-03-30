@@ -73,6 +73,7 @@ const routeLevels: Record<string, number> = {
     '/profile': 1,
     '/login': 2,
     '/register': 2,
+    '/auth/forgot-password': 2,
     '/settings': 2,
 };
 
@@ -80,8 +81,8 @@ const mainTabs = [
     { key: 'home', matchBase: '/', entryRoute: '/' },
     { key: 'pickup', matchBase: '/pickup', entryRoute: '/pickup/list' },
     { key: 'tasks', matchBase: '/tasks', entryRoute: '/tasks' },
-    { key: 'chat', matchBase: '/chat', entryRoute: '/chat' },
     { key: 'forum', matchBase: '/forum', entryRoute: '/forum' },
+    { key: 'chat', matchBase: '/chat', entryRoute: '/chat' },
     { key: 'profile', matchBase: '/profile', entryRoute: '/profile' },
 ];
 
@@ -106,12 +107,26 @@ const walletForwardTargets = new Set([
     '/tasks/my',
 ]);
 
+const authForwardTargets = new Set(['/register', '/auth/forgot-password']);
+
 const resolveWalletTransition = (newPath: string, oldPath: string) => {
     if (oldPath === '/wallet' && walletForwardTargets.has(newPath)) {
         return 'slide-left';
     }
 
     if (newPath === '/wallet' && walletForwardTargets.has(oldPath)) {
+        return 'slide-right';
+    }
+
+    return '';
+};
+
+const resolveAuthTransition = (newPath: string, oldPath: string) => {
+    if (oldPath === '/login' && authForwardTargets.has(newPath)) {
+        return 'slide-left';
+    }
+
+    if (newPath === '/login' && authForwardTargets.has(oldPath)) {
         return 'slide-right';
     }
 
@@ -129,9 +144,13 @@ watch(
         const oldTab = getMainTab(oldPath);
         const newTab = getMainTab(newPath);
         const walletTransition = resolveWalletTransition(newPath, oldPath);
+        const authTransition = resolveAuthTransition(newPath, oldPath);
 
         if (walletTransition) {
             transitionName.value = walletTransition;
+        }
+        else if (authTransition) {
+            transitionName.value = authTransition;
         }
 
         // 情况1：标签页切换（主导航栏点击）

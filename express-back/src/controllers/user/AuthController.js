@@ -1,8 +1,32 @@
 const { User, Deliverer, PickupOrder, Task } = require('../../models');
-const { jwtUtils, responseUtils, validationUtils } = require('../../utils');
+const { jwtUtils, responseUtils, validationUtils, cryptoUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 const SecurityService = require('../../services/SecurityService');
+const redis = require('../../../config/redis');
+const emailService = require('../../../services/emailService');
+
+const RESET_PASSWORD_TTL = Number(process.env.RESET_PASSWORD_TOKEN_TTL || 1800);
+
+function getResetTokenKey(token) {
+    return `password_reset:token:${token}`;
+}
+
+function buildResetPasswordUrl(token) {
+    const baseUrl =
+        process.env.RESET_PASSWORD_URL_BASE ||
+        process.env.FRONTEND_URL ||
+        'http://localhost:5173/reset-password';
+
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}token=${encodeURIComponent(token)}`;
+}
+
+function getRequestEmail(body = {}) {
+    return String(body.email || body.target || '')
+        .trim()
+        .toLowerCase();
+}
 
 async function buildUserResponse(user) {
     const deliverer = await Deliverer.findOne({
@@ -575,51 +599,64 @@ class UserAuthController {
         }
     }
 
-    // // 发送验证码
-    // static async sendVerificationCode(req, res) {
-    //     try {
-    //         const { type, target } = req.body;
-    //         // type: email/phone, target: 邮箱或手机号
+    // 发送邮箱验证码
+    static async sendVerificationCode(req, res) {
+        try {
+            const email = getRequestEmail(req.body);
 
-    //         // 生成6位数验证码
-    //         const code = Math.floor(100000 + Math.random() * 900000).toString();
+            if (!validationUtils.isEmail(email)) {
+                return res.status(400).json(responseUtils.error('邮箱格式不正确'));
+            }
 
-    //         // 这里应该实现发送验证码的逻辑（邮件或短信）
-    //         // 暂时只返回成功响应
-    //         console.log(`验证码 ${code} 已发送到 ${target}`);
+            const result = await emailService.sendVerifyCode(email);
+            res.json(responseUtils.success(result, '验证码发送成功'));
+        } catch (error) {
+            console.error('发送验证码失败:', error);
+            res.status(error.status || 500).json(responseUtils.error(error.message || '发送验证码失败'));
+        }
+    }
 
-    //         res.json(responseUtils.success(null, '验证码发送成功'));
-    //     } catch (error) {
-    //         console.error('发送验证码失败:', error);
-    //         res.status(500).json(responseUtils.error('发送验证码失败'));
-    //     }
-    // }
+    // 验证邮箱验证码
+    static async verifyCode(req, res) {
+        try {
+            const email = getRequestEmail(req.body);
+            const code = String(req.body.code || '').trim();
 
-    // // 验证验证码
-    // static async verifyCode(req, res) {
-    //     try {
-    //         const { type, target, code } = req.body;
-    //         const user = req.user;
+            if (!validationUtils.isEmail(email)) {
+                return res.status(400).json(responseUtils.error('邮箱格式不正确'));
+            }
 
-    //         // 这里应该实现验证码验证逻辑
-    //         // 暂时假设验证成功
+            await emailService.verifyCode(email, code);
 
-    //         if (type === 'email') {
-    //             await user.update({
-    //                 email_verified: true,
-    //             });
-    //         } else if (type === 'phone') {
-    //             await user.update({
-    //                 phone_verified: true,
-    //             });
-    //         }
+            const user = req.user;
+            if (user && user.email && user.email.toLowerCase() === email) {
+                await user.update({
+                    email_verified: true,
+                });
 
-    //         res.json(responseUtils.success(null, '验证成功'));
-    //     } catch (error) {
-    //         console.error('验证失败:', error);
-    //         res.status(500).json(responseUtils.error('验证失败'));
-    //     }
-    // }
+                return res.json(responseUtils.success({ email, verified: true }, '验证成功'));
+            }
+
+            const resetToken = cryptoUtils.randomString(24);
+            await redis.set(getResetTokenKey(resetToken), email, 'EX', RESET_PASSWORD_TTL);
+
+            res.json(
+                responseUtils.success(
+                    {
+                        email,
+                        verified: true,
+                        resetToken,
+                        reset_token: resetToken,
+                        expires_in: RESET_PASSWORD_TTL,
+                    },
+                    '验证成功'
+                )
+            );
+        } catch (error) {
+            console.error('验证失败:', error);
+            res.status(error.status || 500).json(responseUtils.error(error.message || '验证失败'));
+        }
+    }
 
     // // 微信登录
     // static async wechatLogin(req, res) {
@@ -683,78 +720,100 @@ class UserAuthController {
     //     }
     // }
 
-    // // 发送密码重置邮件
-    // static async sendPasswordResetEmail(req, res) {
-    //     try {
-    //         const { email } = req.body;
+    // 发送密码重置邮件
+    static async sendPasswordResetEmail(req, res) {
+        try {
+            const email = getRequestEmail(req.body);
 
-    //         // 查找用户
-    //         const user = await User.findOne({ where: { email } });
-    //         if (!user) {
-    //             return res.status(400).json(responseUtils.error('邮箱不存在'));
-    //         }
+            if (!validationUtils.isEmail(email)) {
+                return res.status(400).json(responseUtils.error('邮箱格式不正确'));
+            }
 
-    //         // 生成重置token
-    //         const resetToken =
-    //             Math.random().toString(36).substring(2, 15) +
-    //             Math.random().toString(36).substring(2, 15);
+            const user = await User.findOne({ where: { email } });
+            if (!user) {
+                return res.status(400).json(responseUtils.error('邮箱不存在'));
+            }
 
-    //         // TODO: 将token存储到Redis，设置30分钟过期
-    //         // TODO: 发送重置邮件
-    //         console.log(`密码重置链接已发送到 ${email}，token: ${resetToken}`);
+            const resetToken = cryptoUtils.randomString(24);
+            const resetUrl = buildResetPasswordUrl(resetToken);
 
-    //         res.json(responseUtils.success(null, '密码重置邮件已发送'));
-    //     } catch (error) {
-    //         console.error('发送密码重置邮件失败:', error);
-    //         res.status(500).json(responseUtils.error('发送密码重置邮件失败'));
-    //     }
-    // }
+            await redis.set(getResetTokenKey(resetToken), String(user.id), 'EX', RESET_PASSWORD_TTL);
 
-    // // 验证重置token
-    // static async verifyResetToken(req, res) {
-    //     try {
-    //         const { token } = req.params;
+            const transporter = require('../../../config/mail');
+            const from = process.env.MAIL_FROM || process.env.MAIL_USER;
 
-    //         // TODO: 从Redis验证token
-    //         const userId = 1; // 模拟验证成功
+            await transporter.sendMail({
+                from,
+                to: email,
+                subject: '找回密码',
+                text: `请在${RESET_PASSWORD_TTL / 60}分钟内打开以下链接重置密码：${resetUrl}`,
+                html: emailService.buildResetPasswordEmail(resetUrl, RESET_PASSWORD_TTL / 60),
+            });
 
-    //         if (!userId) {
-    //             return res.status(400).json(responseUtils.error('重置链接无效或已过期'));
-    //         }
+            res.json(
+                responseUtils.success(
+                    {
+                        expires_in: RESET_PASSWORD_TTL,
+                        ...(process.env.NODE_ENV !== 'production' ? { reset_token: resetToken } : {}),
+                    },
+                    '密码重置邮件已发送'
+                )
+            );
+        } catch (error) {
+            console.error('发送密码重置邮件失败:', error);
+            res.status(error.status || 500).json(responseUtils.error(error.message || '发送密码重置邮件失败'));
+        }
+    }
 
-    //         res.json(responseUtils.success({ valid: true }));
-    //     } catch (error) {
-    //         console.error('验证重置token失败:', error);
-    //         res.status(500).json(responseUtils.error('验证重置token失败'));
-    //     }
-    // }
+    // 验证重置token
+    static async verifyResetToken(req, res) {
+        try {
+            const token = String(req.params.token || '').trim();
+            const userId = token ? await redis.get(getResetTokenKey(token)) : null;
 
-    // // 重置密码
-    // static async resetPassword(req, res) {
-    //     try {
-    //         const { token, new_password } = req.body;
+            if (!userId) {
+                return res.status(400).json(responseUtils.error('重置链接无效或已过期'));
+            }
 
-    //         // TODO: 从Redis验证token并获取用户ID
-    //         const userId = 1; // 模拟获取用户ID
+            const ttl = await redis.ttl(getResetTokenKey(token));
+            res.json(responseUtils.success({ valid: true, expires_in: ttl }, '重置链接有效'));
+        } catch (error) {
+            console.error('验证重置token失败:', error);
+            res.status(500).json(responseUtils.error('验证重置token失败'));
+        }
+    }
 
-    //         if (!userId) {
-    //             return res.status(400).json(responseUtils.error('重置链接无效或已过期'));
-    //         }
+    // 重置密码
+    static async resetPassword(req, res) {
+        try {
+            const token = String(req.body.token || req.body.resetToken || req.body.reset_token || '').trim();
+            const newPassword = req.body.new_password || req.body.newPassword;
 
-    //         const user = await User.findByPk(userId);
-    //         if (!user) {
-    //             return res.status(400).json(responseUtils.error('用户不存在'));
-    //         }
+            const userId = token ? await redis.get(getResetTokenKey(token)) : null;
+            if (!userId) {
+                return res.status(400).json(responseUtils.error('重置链接无效或已过期'));
+            }
 
-    //         // 更新密码
-    //         await user.update({ password: new_password });
+            const user = /^\d+$/.test(String(userId))
+                ? await User.findByPk(userId)
+                : await User.findOne({ where: { email: String(userId).toLowerCase() } });
+            if (!user) {
+                await redis.del(getResetTokenKey(token));
+                return res.status(400).json(responseUtils.error('用户不存在'));
+            }
 
-    //         res.json(responseUtils.success(null, '密码重置成功'));
-    //     } catch (error) {
-    //         console.error('重置密码失败:', error);
-    //         res.status(500).json(responseUtils.error('重置密码失败'));
-    //     }
-    // }
+            await user.update({
+                password: newPassword,
+            });
+
+            await redis.del(getResetTokenKey(token));
+
+            res.json(responseUtils.success(null, '密码重置成功'));
+        } catch (error) {
+            console.error('重置密码失败:', error);
+            res.status(500).json(responseUtils.error('重置密码失败'));
+        }
+    }
 
     // // 获取设备列表
     // static async getDevices(req, res) {

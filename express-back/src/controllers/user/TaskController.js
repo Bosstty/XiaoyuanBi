@@ -6,14 +6,44 @@ const {
     Wallet,
     Transaction,
     ServiceTicket,
+    SystemSetting,
 } = require('../../models');
 const { responseUtils, orderUtils, cryptoUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 
 const parseAmount = value => Number(value || 0);
+const roundMoney = value => Number(parseAmount(value).toFixed(2));
 const roundRating = value => Number(Number(value || 0).toFixed(2));
 const TASK_CANCELLATION_TIMEOUT_MS = 48 * 60 * 60 * 1000;
+
+async function getPlatformCommissionRate(transaction) {
+    const setting = await SystemSetting.findOne({
+        transaction,
+        lock: transaction?.LOCK?.SHARE,
+    });
+    const rawRate = parseAmount(setting?.platform_fee_rate);
+
+    if (rawRate <= 0) {
+        return 0;
+    }
+
+    return rawRate > 1 ? rawRate / 100 : rawRate;
+}
+
+async function calculateSettlementBreakdown(grossAmount, transaction) {
+    const amount = roundMoney(grossAmount);
+    const commissionRate = await getPlatformCommissionRate(transaction);
+    const commissionAmount = roundMoney(amount * commissionRate);
+    const payoutAmount = roundMoney(Math.max(amount - commissionAmount, 0));
+
+    return {
+        amount,
+        commissionRate,
+        commissionAmount,
+        payoutAmount,
+    };
+}
 
 const buildCancellationResetPayload = () => ({
     cancellation_status: 'none',
@@ -273,7 +303,8 @@ async function releaseTaskFunds(publisherId, amount, transaction) {
 }
 
 async function settleTaskPayment(task, paymentPassword, transaction) {
-    const amount = parseAmount(task.price);
+    const { amount, commissionRate, commissionAmount, payoutAmount } =
+        await calculateSettlementBreakdown(task.price, transaction);
     const { user: publisher, wallet: publisherWallet } = await getLockedUserAndWallet(
         task.publisher_id,
         transaction
@@ -337,12 +368,12 @@ async function settleTaskPayment(task, paymentPassword, transaction) {
     );
 
     const assigneeBalanceBefore = parseAmount(assigneeWallet.balance);
-    const assigneeBalanceAfter = assigneeBalanceBefore + amount;
+    const assigneeBalanceAfter = roundMoney(assigneeBalanceBefore + payoutAmount);
 
     await assigneeWallet.update(
         {
             balance: assigneeBalanceAfter,
-            total_income: parseAmount(assigneeWallet.total_income) + amount,
+            total_income: roundMoney(parseAmount(assigneeWallet.total_income) + payoutAmount),
             last_transaction_at: new Date(),
         },
         { transaction }
@@ -361,7 +392,7 @@ async function settleTaskPayment(task, paymentPassword, transaction) {
             transaction_no: generateTransactionNo(),
             user_id: assignee.id,
             type: 'earn_task',
-            amount,
+            amount: payoutAmount,
             direction: 'in',
             balance_before: assigneeBalanceBefore,
             balance_after: assigneeBalanceAfter,
@@ -370,6 +401,16 @@ async function settleTaskPayment(task, paymentPassword, transaction) {
             related_id: task.id,
             payment_method: 'balance',
             description: `任务协作收入：${task.title}`,
+            commission_rate: commissionRate,
+            commission_amount: commissionAmount,
+            remark: commissionAmount
+                ? `任务总额${amount.toFixed(2)}元，平台抽成${commissionAmount.toFixed(2)}元，实际到账${payoutAmount.toFixed(2)}元`
+                : null,
+            extra_data: {
+                gross_amount: amount,
+                commission_amount: commissionAmount,
+                net_payout_amount: payoutAmount,
+            },
             completed_at: new Date(),
         },
         { transaction }

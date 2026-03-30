@@ -1,13 +1,26 @@
 const { Op } = require('sequelize');
-const { PickupOrder, User, Deliverer, Wallet, Transaction } = require('../models');
+const { PickupOrder, User, Deliverer, Wallet, Transaction, SystemSetting } = require('../models');
 
 const HOLD_DURATION_MS = 48 * 60 * 60 * 1000;
-const COMMISSION_RATE = 0.1;
 const ACTIVE_HOLD_STATUSES = ['holding', 'partial_refunded', 'partial_compensated'];
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
 const roundMoney = value => Number((parseAmount(value)).toFixed(2));
 const generateTransactionNo = () => `TX${Date.now()}${Math.random().toString().slice(2, 6)}`;
+
+async function getPlatformCommissionRate(transaction) {
+    const setting = await SystemSetting.findOne({
+        transaction,
+        lock: transaction?.LOCK?.SHARE,
+    });
+    const rawRate = parseAmount(setting?.platform_fee_rate);
+
+    if (rawRate <= 0) {
+        return 0;
+    }
+
+    return rawRate > 1 ? rawRate / 100 : rawRate;
+}
 
 async function getLockedUserAndWallet(userId, transaction) {
     const user = await User.findByPk(userId, {
@@ -650,7 +663,8 @@ class PickupSettlementService {
             return { payout_amount: 0, commission_amount: 0 };
         }
 
-        const commissionAmount = roundMoney(remainingFrozen * COMMISSION_RATE);
+        const commissionRate = await getPlatformCommissionRate(transaction);
+        const commissionAmount = roundMoney(remainingFrozen * commissionRate);
         const payoutAmount = roundMoney(Math.max(remainingFrozen - commissionAmount, 0));
         const { delivererProfile, delivererUser, delivererWallet } = await getLockedDelivererStake(
             order,
@@ -689,7 +703,7 @@ class PickupSettlementService {
             status: 'success',
             description: `配送收入结算：${order.title}`,
             remark: '担保期结束，收益已结算至可用余额',
-            commissionRate: COMMISSION_RATE,
+            commissionRate,
             commissionAmount,
             completedAt: settledAt,
             balanceBefore: delivererBalanceBefore,
@@ -707,7 +721,7 @@ class PickupSettlementService {
                 settlement_status: 'settled',
                 deliverer_frozen_amount: 0,
                 settled_at: settledAt,
-                platform_commission_rate: COMMISSION_RATE,
+                platform_commission_rate: commissionRate,
                 platform_commission_amount: commissionAmount,
                 platform_commission_settled_at: settledAt,
                 settlement_note: appendSettlementNote(

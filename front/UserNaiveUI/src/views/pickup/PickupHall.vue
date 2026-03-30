@@ -30,7 +30,19 @@
         </header>
 
         <main class="list-area">
-            <div v-if="loading" class="state-box">
+            <div v-if="offlineMode" class="state-box state-box--offline">
+                <strong>当前已关闭在线接单</strong>
+                <p>请先回到个人中心开启在线接单状态，再进入抢单大厅查看可接订单。</p>
+                <button
+                    type="button"
+                    class="offline-action touch-feedback"
+                    @click="router.push('/profile')"
+                >
+                    去开启在线状态
+                </button>
+            </div>
+
+            <div v-else-if="loading" class="state-box">
                 <NSpin size="large" />
             </div>
 
@@ -169,7 +181,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NSpin, useMessage } from 'naive-ui';
-import { DelivererOrderApi, chatApi } from '@/api';
+import { DelivererOrderApi, DelivererStatusApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
 import type { PickupOrder } from '@/types';
 
@@ -182,6 +194,7 @@ const message = useMessage();
 
 const loading = ref(false);
 const acceptingId = ref<number | null>(null);
+const offlineMode = ref(false);
 const currentTab = ref<CategoryKey>('all');
 const orders = ref<PickupOrder[]>([]);
 
@@ -290,6 +303,7 @@ const formatRelativeTime = (value?: string | null) => {
 const fetchAvailableOrders = async () => {
     loading.value = true;
     try {
+        offlineMode.value = false;
         const response = await DelivererOrderApi.getAvailableOrders({
             page: 1,
             limit: 20,
@@ -301,7 +315,12 @@ const fetchAvailableOrders = async () => {
         orders.value = Array.isArray(response.data) ? response.data : [];
     } catch (error) {
         orders.value = [];
-        message.error(error instanceof Error ? error.message : '获取可接订单失败');
+        const errorMessage = error instanceof Error ? error.message : '获取可接订单失败';
+        if (errorMessage.includes('在线接单')) {
+            offlineMode.value = true;
+            return;
+        }
+        message.error(errorMessage);
     } finally {
         loading.value = false;
     }
@@ -364,6 +383,18 @@ onMounted(async () => {
         router.replace('/pickup/list');
         return;
     }
+
+    try {
+        const statusResponse = await DelivererStatusApi.getStatus();
+        offlineMode.value = !Boolean(statusResponse.data?.is_online);
+    } catch (error) {
+        offlineMode.value = false;
+    }
+
+    if (offlineMode.value) {
+        return;
+    }
+
     await fetchAvailableOrders();
 });
 </script>
@@ -381,6 +412,36 @@ onMounted(async () => {
     min-height: 100vh;
     background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
     color: var(--text);
+}
+
+.state-box--offline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #475569;
+}
+
+.state-box--offline strong {
+    font-size: 18px;
+    color: #0f172a;
+}
+
+.state-box--offline p {
+    max-width: 280px;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.offline-action {
+    border: none;
+    border-radius: 999px;
+    padding: 12px 18px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: #fff;
+    font-weight: 600;
 }
 
 .pickup-hall.is-dark {

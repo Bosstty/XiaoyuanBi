@@ -22,7 +22,6 @@
             <div>
                 <span class="auth-eyebrow">Campus Access</span>
                 <h1>登录校园生活服务平台</h1>
-                <p>继续查看订单、任务、论坛动态和钱包记录，让你的校园服务进度保持同步。</p>
             </div>
         </section>
 
@@ -242,11 +241,7 @@ const validatePassword = () => {
 };
 
 const goBack = () => {
-    if (window.history.length > 1) {
-        router.back();
-        return;
-    }
-    router.push('/');
+    router.push('/profile');
 };
 
 const handleLogin = async () => {

@@ -9,15 +9,21 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    allowedHosts: ['www.cqtlly.top', 'cqtlly.top'],
+    allowedHosts: ['hradmin.cqtlly.top', 'cqtlly.top'],
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        ws: true,
       },
       '/uploads': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        ws: true,
       },
     },
   },

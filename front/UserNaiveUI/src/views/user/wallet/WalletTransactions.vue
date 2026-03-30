@@ -42,6 +42,12 @@
                             <div class="wallet-transactions-page__bill-copy">
                                 <strong>{{ bill.title }}</strong>
                                 <p>{{ getBillDescription(bill) }}</p>
+                                <div
+                                    v-if="getBillMetaText(bill)"
+                                    class="wallet-transactions-page__bill-meta"
+                                >
+                                    {{ getBillMetaText(bill) }}
+                                </div>
                                 <span>{{ formatTime(bill.time) }}</span>
                             </div>
                         </div>
@@ -153,12 +159,7 @@ const getBillDescription = (bill: WalletActivity) => {
     const accountText = formatThirdPartyAccount(bill.payment_method, bill.third_party_no);
 
     if (bill.type === 'withdraw') {
-        const feeText =
-            Number(bill.commission_amount || 0) > 0
-                ? `手续费 ¥${Number(bill.commission_amount || 0).toFixed(2)}`
-                : '';
-
-        return [accountText, feeText].filter(Boolean).join(' · ') || bill.description;
+        return accountText || bill.description;
     }
 
     if (accountText && bill.type === 'recharge') {
@@ -166,6 +167,23 @@ const getBillDescription = (bill: WalletActivity) => {
     }
 
     return bill.description;
+};
+
+const getBillMetaText = (bill: WalletActivity) => {
+    const commissionAmount = Number(bill.commission_amount || 0);
+    if (commissionAmount <= 0) {
+        return '';
+    }
+
+    if (bill.type === 'withdraw') {
+        return `提现手续费 ¥${commissionAmount.toFixed(2)}`;
+    }
+
+    if (bill.type === 'earn_pickup' || bill.type === 'earn_task') {
+        return `平台抽成 ¥${commissionAmount.toFixed(2)}`;
+    }
+
+    return '';
 };
 
 const formatTime = (value?: string) => {
@@ -377,6 +395,19 @@ watch(
 .wallet-transactions-page__bill-copy span {
     font-size: 12px;
     color: #8c96a8;
+}
+
+.wallet-transactions-page__bill-meta {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(47, 107, 255, 0.08);
+    color: #2f6bff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
 }
 
 .wallet-transactions-page__bill-amount {

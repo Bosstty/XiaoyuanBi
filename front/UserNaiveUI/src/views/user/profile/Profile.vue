@@ -53,12 +53,9 @@
                     </template>
                     <template v-else>
                         <div class="account-center__identity-row">
-                            <h2>校园服务账户</h2>
+                            <h2>未知账户</h2>
                             <span class="account-center__role-badge">访客模式</span>
                         </div>
-                        <p class="account-center__intro">
-                            登录后统一查看订单、任务、论坛互动和钱包记录。
-                        </p>
                     </template>
                 </div>
             </div>
@@ -110,7 +107,6 @@
             <template v-else>
                 <div class="account-center__guest-copy">
                     <strong>登录后开启完整校园生活服务</strong>
-                    <p>订单进度、任务协作、论坛记录和钱包流水都会自动归档到这里。</p>
                 </div>
                 <div class="account-center__guest-actions account-center__guest-actions--wide">
                     <NButton type="primary" round @click="router.push('/login')">立即登录</NButton>
@@ -438,7 +434,11 @@ import {
     StorefrontOutline,
     WalletOutline,
 } from '@vicons/ionicons5';
-import { DelivererApplicationApi, WalletApi, type DelivererApplicationPayload } from '@/api';
+import {
+    DelivererApplicationApi,
+    WalletApi,
+    type DelivererApplicationPayload,
+} from '@/api';
 import type { DelivererApplication, WalletOverview } from '@/types';
 import { useUserStore, useAppStore } from '@/stores';
 
@@ -615,12 +615,17 @@ const profileStats = computed(() => {
         return [];
     }
 
-    return [
-        { label: '完成订单', value: userStore.user.completed_orders || 0 },
+    const items = [
         { label: '完成任务', value: userStore.user.completed_tasks || 0 },
         { label: '账户评分', value: Number(userStore.user.rating || 5).toFixed(1) },
         { label: '当前等级', value: `Lv.${userStore.user.level || 1}` },
     ];
+
+    if (courierEnabled.value) {
+        items.unshift({ label: '完成订单', value: userStore.user.completed_orders || 0 });
+    }
+
+    return items;
 });
 
 const overviewCards = computed(() => {
@@ -631,28 +636,24 @@ const overviewCards = computed(() => {
         {
             title: '订单履约',
             value: stats?.orders.completed ?? user?.completed_orders ?? '--',
-            note: '已完成的代取与代购服务',
             icon: markRaw(ReceiptOutline),
             tint: 'linear-gradient(135deg, rgba(47,107,255,0.16), rgba(75,184,255,0.18))',
         },
         {
             title: '任务协作',
             value: stats?.tasks.completed ?? user?.completed_tasks ?? '--',
-            note: '参与完成的校园协作任务',
             icon: markRaw(DocumentTextOutline),
             tint: 'linear-gradient(135deg, rgba(25,179,107,0.16), rgba(120,224,171,0.18))',
         },
         {
             title: '论坛互动',
             value: stats?.forum.posts ?? user?.level ?? '--',
-            note: '帖子发布与内容参与表现',
             icon: markRaw(ChatbubblesOutline),
             tint: 'linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))',
         },
         {
             title: '钱包与积分',
             value: userStore.isAuthenticated ? `¥${Number(user?.balance || 0).toFixed(0)}` : '--',
-            note: `${user?.points || 0} 积分可用于活跃度展示`,
             icon: markRaw(WalletOutline),
             tint: 'linear-gradient(135deg, rgba(23,48,79,0.16), rgba(47,107,255,0.14))',
         },
@@ -897,6 +898,10 @@ const handleCourierAction = () => {
     }
 
     if (courierEnabled.value) {
+        if (!delivererApplication.value?.is_online) {
+            message.warning('请先开启在线接单状态');
+            return;
+        }
         router.push('/pickup/hall');
         return;
     }

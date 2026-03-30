@@ -204,6 +204,8 @@ import {
   Check,
 } from '@element-plus/icons-vue'
 import { useAdminStore } from '@/stores/admin'
+import { serviceChatApi } from '@/api'
+import { createChatSocket } from '@/utils/chatSocket'
 
 const route = useRoute()
 const router = useRouter()
@@ -212,6 +214,13 @@ const adminStore = useAdminStore()
 const sidebarCollapsed = ref(false)
 const globalRefreshing = ref(false)
 const pageReady = ref(true)
+const chatUnreadCount = ref(0)
+const chatSocket = ref(null)
+let handleChatSocketConnect = null
+let handleChatSocketMessageNew = null
+let handleChatSocketConversationUpdated = null
+let handleChatSocketMessageRead = null
+let handleChatSocketConnectError = null
 
 const notifications = ref([
   {
@@ -304,7 +313,8 @@ const breadcrumbs = computed(() => {
 })
 
 const unreadCount = computed(() => {
-  return notifications.value.filter((n) => !n.read).length
+  const notificationCount = notifications.value.filter((n) => !n.read).length
+  return notificationCount + chatUnreadCount.value
 })
 
 const visibleMenus = computed(() =>
@@ -398,6 +408,84 @@ function formatTime(time) {
   return `${Math.floor(hours / 24)}天前`
 }
 
+async function fetchChatUnreadCount() {
+  if (!adminStore.isLoggedIn) {
+    chatUnreadCount.value = 0
+    return
+  }
+
+  try {
+    const response = await serviceChatApi.getConversations({ page: 1, limit: 100 })
+    const list = Array.isArray(response?.data) ? response.data : []
+    chatUnreadCount.value = list.reduce(
+      (sum, item) => sum + Number(item?.unread_count || 0),
+      0,
+    )
+  } catch (error) {
+    chatUnreadCount.value = 0
+  }
+}
+
+function connectChatUnreadSocket() {
+  if (chatSocket.value || !adminStore.isLoggedIn) return
+
+  const client = createChatSocket()
+  if (!client) return
+
+  chatSocket.value = client
+
+  handleChatSocketConnect = () => {
+    void fetchChatUnreadCount()
+  }
+
+  handleChatSocketMessageNew = () => {
+    void fetchChatUnreadCount()
+  }
+
+  handleChatSocketConversationUpdated = () => {
+    void fetchChatUnreadCount()
+  }
+
+  handleChatSocketMessageRead = () => {
+    void fetchChatUnreadCount()
+  }
+
+  handleChatSocketConnectError = (error) => {
+    console.error('管理端消息徽标 Socket 连接失败:', error)
+  }
+
+  client.on('connect', handleChatSocketConnect)
+  client.on('chat:message:new', handleChatSocketMessageNew)
+  client.on('chat:conversation:updated', handleChatSocketConversationUpdated)
+  client.on('chat:message:read', handleChatSocketMessageRead)
+  client.on('connect_error', handleChatSocketConnectError)
+}
+
+function disconnectChatUnreadSocket() {
+  if (!chatSocket.value) return
+  if (handleChatSocketConnect) {
+    chatSocket.value.off('connect', handleChatSocketConnect)
+  }
+  if (handleChatSocketMessageNew) {
+    chatSocket.value.off('chat:message:new', handleChatSocketMessageNew)
+  }
+  if (handleChatSocketConversationUpdated) {
+    chatSocket.value.off('chat:conversation:updated', handleChatSocketConversationUpdated)
+  }
+  if (handleChatSocketMessageRead) {
+    chatSocket.value.off('chat:message:read', handleChatSocketMessageRead)
+  }
+  if (handleChatSocketConnectError) {
+    chatSocket.value.off('connect_error', handleChatSocketConnectError)
+  }
+  chatSocket.value = null
+  handleChatSocketConnect = null
+  handleChatSocketMessageNew = null
+  handleChatSocketConversationUpdated = null
+  handleChatSocketMessageRead = null
+  handleChatSocketConnectError = null
+}
+
 onMounted(() => {
   if (sessionStorage.getItem('admin:hard-refreshing') === '1') {
     globalRefreshing.value = true
@@ -411,10 +499,13 @@ onMounted(() => {
     }, 650)
   }
   window.addEventListener('keydown', handleGlobalRefreshShortcut)
+  connectChatUnreadSocket()
+  void fetchChatUnreadCount()
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalRefreshShortcut)
+  disconnectChatUnreadSocket()
 })
 </script>
 

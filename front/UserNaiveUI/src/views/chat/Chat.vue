@@ -2,8 +2,10 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMessage } from 'naive-ui';
+import type { Socket } from 'socket.io-client';
 import { chatApi } from '@/api';
 import { useUserStore } from '@/stores';
+import { createChatSocket } from '@/utils/chatSocket';
 
 const router = useRouter();
 const route = useRoute();
@@ -20,11 +22,17 @@ const bootstrapping = ref(false);
 const uploading = ref(false);
 const showActionPanel = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const pollingTimer = ref<number | null>(null);
 const previewImage = ref('');
 const previewScale = ref(1);
 const pinchStartDistance = ref(0);
 const pinchStartScale = ref(1);
+const socket = ref<Socket | null>(null);
+const joinedConversationId = ref<number | null>(null);
+let handleSocketConnect: (() => void) | null = null;
+let handleSocketMessageNew: ((payload: any) => void) | null = null;
+let handleSocketConversationUpdated: ((payload: any) => void) | null = null;
+let handleSocketMessageRead: ((payload: any) => void) | null = null;
+let handleSocketConnectError: ((error: any) => void) | null = null;
 
 const hasConversation = computed(() => conversations.value.length > 0);
 
@@ -93,6 +101,73 @@ const formatMessageTime = (time?: string) => {
     const date = new Date(time);
     if (Number.isNaN(date.getTime())) return '';
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatConversationPreview = (value?: string) => {
+    const content = String(value || '').trim();
+    if (!content) return '暂无消息';
+
+    const lowerContent = content.toLowerCase();
+    const isUploadPath =
+        content.startsWith('/uploads/') ||
+        content.startsWith('uploads/') ||
+        /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(content);
+
+    if (content === '[图片]' || isUploadPath || lowerContent.startsWith('data:image/')) {
+        return '[图片]';
+    }
+
+    return content;
+};
+
+const sortConversations = (list: any[]) =>
+    [...list].sort((left, right) => {
+        const leftTime = new Date(left?.last_message_at || 0).getTime();
+        const rightTime = new Date(right?.last_message_at || 0).getTime();
+        return rightTime - leftTime;
+    });
+
+const upsertConversation = (incoming?: any | null) => {
+    if (!incoming?.id) return null;
+
+    const currentId = Number(currentConversation.value?.id || 0);
+    const existing = conversations.value.find(item => Number(item.id) === Number(incoming.id));
+    const mergedPartner = existing?.partner || incoming?.partner || null;
+    const merged = {
+        ...(existing || {}),
+        ...incoming,
+        ...(mergedPartner ? { partner: mergedPartner } : {}),
+    };
+
+    conversations.value = sortConversations([
+        merged,
+        ...conversations.value.filter(item => Number(item.id) !== Number(incoming.id)),
+    ]);
+
+    if (currentId && currentId === Number(incoming.id)) {
+        currentConversation.value = {
+            ...(currentConversation.value || {}),
+            ...merged,
+        };
+    }
+
+    return merged;
+};
+
+const replaceConversations = (incoming: any[]) => {
+    const nextList = Array.isArray(incoming) ? sortConversations(incoming) : [];
+    conversations.value = nextList;
+
+    const activeId = Number(currentConversation.value?.id || 0);
+    if (!activeId) return;
+
+    const matched = nextList.find(item => Number(item.id) === activeId);
+    if (matched) {
+        currentConversation.value = {
+            ...(currentConversation.value || {}),
+            ...matched,
+        };
+    }
 };
 
 const isMyMessage = (msg: any) => {
@@ -170,7 +245,7 @@ const fetchConversations = async () => {
         loading.value = true;
         const res = await chatApi.getConversations();
         if (res.success) {
-            conversations.value = Array.isArray(res.data) ? res.data : [];
+            replaceConversations(Array.isArray(res.data) ? res.data : []);
         }
     } catch (error) {
         console.error('获取会话列表失败:', error);
@@ -202,6 +277,37 @@ const applyIncomingMessages = async (incoming: any[]) => {
     if (previousLastId !== nextLastId) {
         await scrollToBottom();
     }
+};
+
+const appendMessage = async (incoming?: any | null) => {
+    if (!incoming?.id) return;
+
+    const exists = messages.value.some(item => Number(item.id) === Number(incoming.id));
+    if (exists) return;
+
+    messages.value.push(incoming);
+    await scrollToBottom();
+};
+
+const updateConversationFromMessage = (conversationId: number, incomingMessage: any) => {
+    const existing = conversations.value.find(item => Number(item.id) === Number(conversationId));
+    if (!existing) return;
+
+    const isActiveConversation =
+        Number(currentConversation.value?.id || 0) === Number(conversationId);
+    const isMine = isMyMessage(incomingMessage);
+
+    upsertConversation({
+        ...existing,
+        last_message: incomingMessage.type === 'image' ? '[图片]' : incomingMessage.content,
+        last_message_at:
+            incomingMessage.created_at || incomingMessage.createdAt || new Date().toISOString(),
+        unread_count: isActiveConversation
+            ? 0
+            : isMine
+              ? Number(existing.unread_count || 0)
+              : Number(existing.unread_count || 0) + 1,
+    });
 };
 
 const openConversationById = async (conversationId?: number | null) => {
@@ -268,12 +374,16 @@ const sendMessage = async () => {
         });
 
         if (res.success && res.data) {
-            messages.value.push(res.data);
-            currentConversation.value.last_message = content;
-            currentConversation.value.last_message_at = new Date().toISOString();
+            await appendMessage(res.data);
+            upsertConversation({
+                ...(currentConversation.value || {}),
+                id: currentConversation.value.id,
+                last_message: content,
+                last_message_at: new Date().toISOString(),
+                unread_count: 0,
+            });
             messageInput.value = '';
             showActionPanel.value = false;
-            await scrollToBottom();
         }
     } catch (error) {
         console.error('发送消息失败:', error);
@@ -306,12 +416,16 @@ const handleImageSelected = async (event: Event) => {
         });
 
         if (sendRes.success && sendRes.data) {
-            messages.value.push(sendRes.data);
-            currentConversation.value.last_message = '[图片]';
-            currentConversation.value.last_message_at = new Date().toISOString();
+            await appendMessage(sendRes.data);
+            upsertConversation({
+                ...(currentConversation.value || {}),
+                id: currentConversation.value.id,
+                last_message: '[图片]',
+                last_message_at: new Date().toISOString(),
+                unread_count: 0,
+            });
             showActionPanel.value = false;
             message.success('图片已发送');
-            await scrollToBottom();
         }
     } catch (error: any) {
         console.error('发送图片失败:', error);
@@ -345,58 +459,131 @@ const startServiceConversation = async () => {
     }
 };
 
-const stopPolling = () => {
-    if (pollingTimer.value) {
-        window.clearInterval(pollingTimer.value);
-        pollingTimer.value = null;
-    }
+const leaveConversationRoom = () => {
+    if (!socket.value || !joinedConversationId.value) return;
+
+    socket.value.emit('chat:leave', {
+        conversation_id: joinedConversationId.value,
+    });
+    joinedConversationId.value = null;
 };
 
-const pollCurrentConversation = async () => {
-    if (!currentConversation.value?.id || sending.value || uploading.value) return;
+const joinConversationRoom = (conversationId?: number | null) => {
+    if (!socket.value || !conversationId) return;
+    if (joinedConversationId.value === Number(conversationId)) return;
 
-    try {
-        const [messageRes, conversationRes] = await Promise.all([
-            chatApi.getMessages({
-                conversation_id: currentConversation.value.id,
-                limit: 100,
-            }),
-            chatApi.getConversations(),
-        ]);
+    leaveConversationRoom();
+    socket.value.emit('chat:join', {
+        conversation_id: Number(conversationId),
+    });
+    joinedConversationId.value = Number(conversationId);
+};
 
-        if (messageRes.success) {
-            await applyIncomingMessages(Array.isArray(messageRes.data) ? messageRes.data : []);
-            await chatApi.markAsRead(currentConversation.value.id);
+const connectChatSocket = () => {
+    if (socket.value) return;
+
+    const client = createChatSocket();
+    if (!client) return;
+
+    socket.value = client;
+
+    handleSocketConnect = () => {
+        if (currentConversation.value?.id) {
+            joinConversationRoom(currentConversation.value.id);
         }
+        void fetchConversations();
+    };
 
-        if (conversationRes.success) {
-            const latestConversations = Array.isArray(conversationRes.data)
-                ? conversationRes.data
-                : [];
-            conversations.value = latestConversations;
-            const matchedConversation = latestConversations.find(
-                item => Number(item.id) === Number(currentConversation.value?.id)
-            );
-            if (matchedConversation) {
-                matchedConversation.unread_count = 0;
-                currentConversation.value = matchedConversation;
+    handleSocketMessageNew = async payload => {
+        const conversationId = Number(payload?.conversation_id || 0);
+        const incomingMessage = payload?.message;
+        if (!conversationId || !incomingMessage) return;
+
+        updateConversationFromMessage(conversationId, incomingMessage);
+
+        if (Number(currentConversation.value?.id || 0) === conversationId) {
+            await appendMessage(incomingMessage);
+
+            if (!isMyMessage(incomingMessage)) {
+                void chatApi.markAsRead(conversationId);
+                upsertConversation({
+                    ...(currentConversation.value || {}),
+                    id: conversationId,
+                    unread_count: 0,
+                });
             }
         }
-    } catch (error) {
-        console.error('轮询消息失败:', error);
-    }
+    };
+
+    handleSocketConversationUpdated = payload => {
+        const incomingConversation = payload?.conversation;
+        if (!incomingConversation?.id) return;
+
+        const exists = conversations.value.some(
+            item => Number(item.id) === Number(incomingConversation.id)
+        );
+        if (!exists) {
+            void fetchConversations();
+            return;
+        }
+
+        upsertConversation(incomingConversation);
+    };
+
+    handleSocketMessageRead = payload => {
+        const conversationId = Number(payload?.conversation_id || 0);
+        if (!conversationId || Number(currentConversation.value?.id || 0) !== conversationId) {
+            return;
+        }
+
+        messages.value = messages.value.map(item =>
+            item.sender_id === userStore.user?.id && item.sender_type === 'user'
+                ? { ...item, is_read: true }
+                : item
+        );
+    };
+
+    handleSocketConnectError = error => {
+        console.error('聊天 Socket 连接失败:', error);
+    };
+
+    client.on('connect', handleSocketConnect);
+    client.on('chat:message:new', handleSocketMessageNew);
+    client.on('chat:conversation:updated', handleSocketConversationUpdated);
+    client.on('chat:message:read', handleSocketMessageRead);
+    client.on('connect_error', handleSocketConnectError);
 };
 
-const startPolling = () => {
-    stopPolling();
-    if (!currentConversation.value?.id) return;
+const disconnectChatSocket = () => {
+    leaveConversationRoom();
+    if (!socket.value) return;
 
-    pollingTimer.value = window.setInterval(() => {
-        void pollCurrentConversation();
-    }, 3000);
+    if (handleSocketConnect) {
+        socket.value.off('connect', handleSocketConnect);
+    }
+    if (handleSocketMessageNew) {
+        socket.value.off('chat:message:new', handleSocketMessageNew);
+    }
+    if (handleSocketConversationUpdated) {
+        socket.value.off('chat:conversation:updated', handleSocketConversationUpdated);
+    }
+    if (handleSocketMessageRead) {
+        socket.value.off('chat:message:read', handleSocketMessageRead);
+    }
+    if (handleSocketConnectError) {
+        socket.value.off('connect_error', handleSocketConnectError);
+    }
+
+    socket.value = null;
+    handleSocketConnect = null;
+    handleSocketMessageNew = null;
+    handleSocketConversationUpdated = null;
+    handleSocketMessageRead = null;
+    handleSocketConnectError = null;
 };
 
 onMounted(async () => {
+    connectChatSocket();
     await fetchConversations();
     const conversationId = Number(route.query.conversationId || 0);
     if (conversationId) {
@@ -413,6 +600,23 @@ watch(
     }
 );
 
+watch(
+    () => currentConversation.value?.id,
+    value => {
+        if (!value && route.query.conversationId) {
+            router.replace({ path: '/chat' });
+        }
+
+        if (!value) {
+            leaveConversationRoom();
+            closeImagePreview();
+            return;
+        }
+
+        joinConversationRoom(Number(value));
+    }
+);
+
 watch(currentConversation, value => {
     if (!value && route.query.conversationId) {
         router.replace({ path: '/chat' });
@@ -421,16 +625,10 @@ watch(currentConversation, value => {
     if (!value) {
         closeImagePreview();
     }
-
-    if (value?.id) {
-        startPolling();
-    } else {
-        stopPolling();
-    }
 });
 
 onBeforeUnmount(() => {
-    stopPolling();
+    disconnectChatSocket();
 });
 </script>
 
@@ -474,7 +672,9 @@ onBeforeUnmount(() => {
                             <span class="time">{{ formatListTime(conv.last_message_at) }}</span>
                         </div>
                         <div class="bottom">
-                            <span class="preview">{{ conv.last_message || '暂无消息' }}</span>
+                            <span class="preview">
+                                {{ formatConversationPreview(conv.last_message) }}
+                            </span>
                             <span v-if="conv.unread_count > 0" class="badge">
                                 {{ conv.unread_count }}
                             </span>
@@ -534,7 +734,11 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="avatar" v-if="isMyMessage(msg)">
-                            <img v-if="userStore.userAvatar" :src="userStore.userAvatar" alt="avatar" />
+                            <img
+                                v-if="userStore.userAvatar"
+                                :src="userStore.userAvatar"
+                                alt="avatar"
+                            />
                             <span v-else>{{ userStore.user?.username?.charAt(0) || '我' }}</span>
                         </div>
                     </div>

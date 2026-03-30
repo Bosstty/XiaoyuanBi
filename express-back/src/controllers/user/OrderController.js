@@ -7,6 +7,7 @@ const {
     Deliverer,
     Wallet,
     Transaction,
+    SystemSetting,
 } = require('../../models');
 const { orderUtils, responseUtils, paginationUtils, cryptoUtils } = require('../../utils');
 const { Op } = require('sequelize');
@@ -15,7 +16,36 @@ const SecurityService = require('../../services/SecurityService');
 const PickupSettlementService = require('../../services/PickupSettlementService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
+const roundMoney = value => Number(parseAmount(value).toFixed(2));
 const roundRating = value => Number(Number(value || 0).toFixed(2));
+
+async function getPlatformCommissionRate(transaction) {
+    const setting = await SystemSetting.findOne({
+        transaction,
+        lock: transaction?.LOCK?.SHARE,
+    });
+    const rawRate = parseAmount(setting?.platform_fee_rate);
+
+    if (rawRate <= 0) {
+        return 0;
+    }
+
+    return rawRate > 1 ? rawRate / 100 : rawRate;
+}
+
+async function calculateSettlementBreakdown(grossAmount, transaction) {
+    const amount = roundMoney(grossAmount);
+    const commissionRate = await getPlatformCommissionRate(transaction);
+    const commissionAmount = roundMoney(amount * commissionRate);
+    const payoutAmount = roundMoney(Math.max(amount - commissionAmount, 0));
+
+    return {
+        amount,
+        commissionRate,
+        commissionAmount,
+        payoutAmount,
+    };
+}
 const normalizeImageList = value => {
     if (!value) return null;
 
@@ -327,7 +357,11 @@ async function releasePickupFunds(order, transaction, remark = '订单取消，�
 }
 
 async function settlePickupPayment(order, transaction) {
-    const amount = parseAmount(order.price) + parseAmount(order.tip);
+    const { amount, commissionRate, commissionAmount, payoutAmount } =
+        await calculateSettlementBreakdown(
+            parseAmount(order.price) + parseAmount(order.tip),
+            transaction
+        );
     const { user: publisher, wallet: publisherWallet } = await getLockedUserAndWallet(
         order.user_id,
         transaction
@@ -387,12 +421,12 @@ async function settlePickupPayment(order, transaction) {
     );
 
     const delivererBalanceBefore = parseAmount(delivererWallet.balance);
-    const delivererBalanceAfter = delivererBalanceBefore + amount;
+    const delivererBalanceAfter = roundMoney(delivererBalanceBefore + payoutAmount);
 
     await delivererWallet.update(
         {
             balance: delivererBalanceAfter,
-            total_income: parseAmount(delivererWallet.total_income) + amount,
+            total_income: roundMoney(parseAmount(delivererWallet.total_income) + payoutAmount),
             last_transaction_at: new Date(),
         },
         { transaction }
@@ -409,7 +443,16 @@ async function settlePickupPayment(order, transaction) {
     await delivererProfile.update(
         {
             completed_orders: Number(delivererProfile.completed_orders || 0) + 1,
-            total_earnings: parseAmount(delivererProfile.total_earnings) + amount,
+            total_earnings: roundMoney(parseAmount(delivererProfile.total_earnings) + payoutAmount),
+        },
+        { transaction }
+    );
+
+    await order.update(
+        {
+            platform_commission_rate: commissionRate,
+            platform_commission_amount: commissionAmount,
+            platform_commission_settled_at: new Date(),
         },
         { transaction }
     );
@@ -419,7 +462,7 @@ async function settlePickupPayment(order, transaction) {
             transaction_no: `TX${Date.now()}${Math.random().toString().slice(2, 6)}`,
             user_id: delivererUser.id,
             type: 'earn_pickup',
-            amount,
+            amount: payoutAmount,
             direction: 'in',
             balance_before: delivererBalanceBefore,
             balance_after: delivererBalanceAfter,
@@ -428,6 +471,16 @@ async function settlePickupPayment(order, transaction) {
             related_id: order.id,
             payment_method: 'balance',
             description: `配送收入：${order.title}`,
+            commission_rate: commissionRate,
+            commission_amount: commissionAmount,
+            remark: commissionAmount
+                ? `订单总额${amount.toFixed(2)}元，平台抽成${commissionAmount.toFixed(2)}元，实际到账${payoutAmount.toFixed(2)}元`
+                : null,
+            extra_data: {
+                gross_amount: amount,
+                commission_amount: commissionAmount,
+                net_payout_amount: payoutAmount,
+            },
             completed_at: new Date(),
         },
         { transaction }

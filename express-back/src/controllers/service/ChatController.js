@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { ChatConversation, ChatMessage, User, Deliverer, PickupOrder } = require('../../models');
+const { emitConversationEvent } = require('../../../config/socket');
 
 const DEFAULT_SERVICE_ID = 1;
 const DIRECT_CHAT_TYPE = 'user_deliverer';
@@ -348,7 +349,7 @@ class ServiceChatController {
             }
 
             if (trimmedMessage) {
-                await ChatMessage.create({
+                const createdMessage = await ChatMessage.create({
                     conversation_id: conversation.id,
                     sender_id: currentUserId,
                     sender_type: getSenderType(req),
@@ -362,9 +363,19 @@ class ServiceChatController {
                     last_message: trimmedMessage,
                     last_message_at: new Date(),
                 });
+
+                emitConversationEvent(conversation, 'chat:message:new', {
+                    conversation_id: conversation.id,
+                    message: createdMessage.toJSON(),
+                });
             }
 
             const data = await decorateConversation(conversation, currentUserId, getCurrentRole(req));
+
+            emitConversationEvent(conversation, 'chat:conversation:updated', {
+                conversation_id: conversation.id,
+                conversation: data,
+            });
 
             res.status(201).json({
                 success: true,
@@ -574,6 +585,21 @@ class ServiceChatController {
                 last_message: String(content).trim(),
             });
 
+            const decoratedConversation = await decorateConversation(
+                conversation,
+                currentUserId,
+                currentRole
+            );
+
+            emitConversationEvent(conversation, 'chat:message:new', {
+                conversation_id: Number(conversation_id),
+                message: message.toJSON(),
+            });
+            emitConversationEvent(conversation, 'chat:conversation:updated', {
+                conversation_id: Number(conversation_id),
+                conversation: decoratedConversation,
+            });
+
             res.status(201).json({
                 success: true,
                 message: '消息发送成功',
@@ -628,6 +654,13 @@ class ServiceChatController {
                     },
                 }
             );
+
+            emitConversationEvent(conversation, 'chat:message:read', {
+                conversation_id: Number(conversation_id),
+                reader_id: currentUserId,
+                reader_role: currentRole,
+                read_at: new Date().toISOString(),
+            });
 
             res.json({
                 success: true,

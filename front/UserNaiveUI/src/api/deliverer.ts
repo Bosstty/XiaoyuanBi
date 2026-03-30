@@ -66,6 +66,18 @@ export class DelivererApplicationApi {
     }
 }
 
+export class DelivererStatusApi {
+    static async getStatus() {
+        return delivererApiClient.get('/status') as Promise<ApiResponse<any>>;
+    }
+
+    static async updateStatus(is_online: boolean) {
+        return delivererApiClient.post('/status/update', {
+            is_online,
+        }) as Promise<ApiResponse<{ is_online: boolean; last_online_at?: string | null }>>;
+    }
+}
+
 export interface DelivererOrderFilters {
     page?: number;
     limit?: number;

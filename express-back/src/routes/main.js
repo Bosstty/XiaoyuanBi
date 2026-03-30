@@ -170,9 +170,10 @@ router.use('/api/admin', adminRoutes);
 // 客服端 API (Service Client)
 // ==============================
 const serviceRoutes = express.Router();
+const defaultServiceScopeId = Number(process.env.DEFAULT_SERVICE_SCOPE_ID || 1);
 const attachServiceContext = (req, res, next) => {
     req.userRole = 'service';
-    req.serviceScopeId = 1;
+    req.serviceScopeId = defaultServiceScopeId;
     next();
 };
 
@@ -201,6 +202,9 @@ router.use('/api/service', serviceRoutes);
 // 公共 API (无需认证或特殊权限)
 // ==============================
 const publicRoutes = express.Router();
+
+// 邮箱验证码认证接口 - /api/auth/*
+router.use('/api/auth', require('../../routes/auth'));
 
 // 文件上传 - /api/public/upload/*
 publicRoutes.use('/upload', require('./public/upload'));
