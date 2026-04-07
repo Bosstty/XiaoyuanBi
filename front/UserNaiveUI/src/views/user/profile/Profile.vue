@@ -53,9 +53,12 @@
                     </template>
                     <template v-else>
                         <div class="account-center__identity-row">
-                            <h2>未知账户</h2>
+                            <h2>校园服务账户</h2>
                             <span class="account-center__role-badge">访客模式</span>
                         </div>
+                        <p class="account-center__intro">
+                            登录后统一查看订单、任务、论坛互动和钱包记录。
+                        </p>
                     </template>
                 </div>
             </div>
@@ -107,6 +110,7 @@
             <template v-else>
                 <div class="account-center__guest-copy">
                     <strong>登录后开启完整校园生活服务</strong>
+                    <p>订单进度、任务协作、论坛记录和钱包流水都会自动归档到这里。</p>
                 </div>
                 <div class="account-center__guest-actions account-center__guest-actions--wide">
                     <NButton type="primary" round @click="router.push('/login')">立即登录</NButton>
@@ -180,7 +184,7 @@
                     </div>
                     <strong>{{ card.value }}</strong>
                     <h4>{{ card.title }}</h4>
-                    <p>{{ card.note || '' }}</p>
+                    <p>{{ card.note }}</p>
                 </article>
             </div>
         </section>
@@ -281,43 +285,47 @@
                 <p>提交基础身份信息与身份证照片后，管理员会尽快完成审核。</p>
             </div>
 
-            <div class="courier-application-modal__grid">
-                <label class="courier-application-modal__field">
-                    <span>真实姓名</span>
+            <NForm
+                :model="courierApplicationForm"
+                label-placement="top"
+                class="courier-application-modal__grid"
+            >
+                <NFormItem label="真实姓名" class="courier-application-modal__field">
                     <NInput
                         v-model:value="courierApplicationForm.real_name"
+                        class="courier-application-modal__input"
                         placeholder="请输入真实姓名"
                     />
-                </label>
-                <label class="courier-application-modal__field">
-                    <span>手机号</span>
+                </NFormItem>
+                <NFormItem label="手机号" class="courier-application-modal__field">
                     <NInput
                         v-model:value="courierApplicationForm.phone"
+                        class="courier-application-modal__input"
                         placeholder="请输入手机号"
                     />
-                </label>
-                <label class="courier-application-modal__field">
-                    <span>身份证号</span>
+                </NFormItem>
+                <NFormItem label="身份证号" class="courier-application-modal__field">
                     <NInput
                         v-model:value="courierApplicationForm.id_card"
+                        class="courier-application-modal__input"
                         placeholder="请输入身份证号"
                     />
-                </label>
-                <label class="courier-application-modal__field">
-                    <span>紧急联系人姓名</span>
+                </NFormItem>
+                <NFormItem label="紧急联系人姓名" class="courier-application-modal__field">
                     <NInput
                         v-model:value="courierApplicationForm.emergency_contact_name"
+                        class="courier-application-modal__input"
                         placeholder="请输入紧急联系人姓名"
                     />
-                </label>
-                <label class="courier-application-modal__field">
-                    <span>紧急联系人电话</span>
+                </NFormItem>
+                <NFormItem label="紧急联系人电话" class="courier-application-modal__field">
                     <NInput
                         v-model:value="courierApplicationForm.emergency_contact_phone"
+                        class="courier-application-modal__input"
                         placeholder="请输入紧急联系人电话"
                     />
-                </label>
-            </div>
+                </NFormItem>
+            </NForm>
 
             <div class="courier-application-modal__uploads">
                 <button
@@ -416,7 +424,17 @@
 <script setup lang="ts">
 import { computed, markRaw, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NIcon, NModal, NSwitch, useDialog, useMessage } from 'naive-ui';
+import {
+    NButton,
+    NForm,
+    NFormItem,
+    NIcon,
+    NInput,
+    NModal,
+    NSwitch,
+    useDialog,
+    useMessage,
+} from 'naive-ui';
 import {
     BagHandleOutline,
     CameraOutline,
@@ -433,13 +451,10 @@ import {
     StarOutline,
     WalletOutline,
 } from '@vicons/ionicons5';
-import {
-    DelivererApplicationApi,
-    WalletApi,
-    type DelivererApplicationPayload,
-} from '@/api';
+import { DelivererApplicationApi, WalletApi, type DelivererApplicationPayload } from '@/api';
 import type { DelivererApplication, WalletOverview } from '@/types';
 import { useUserStore, useAppStore } from '@/stores';
+import { resolveAssetUrl } from '@/utils/apiBase';
 
 const router = useRouter();
 const dialog = useDialog();
@@ -463,13 +478,6 @@ const courierApplicationForm = reactive<DelivererApplicationPayload>({
     id_card_front: null,
     id_card_back: null,
 });
-
-const resolveAssetUrl = (value?: string | null) => {
-    if (!value) return '';
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
-    if (value.startsWith('/')) return `${window.location.origin}${value}`;
-    return value;
-};
 
 const frontIdPreview = computed(() => {
     const value = courierApplicationForm.id_card_front;
@@ -614,17 +622,12 @@ const profileStats = computed(() => {
         return [];
     }
 
-    const items = [
+    return [
+        { label: '完成订单', value: userStore.user.completed_orders || 0 },
         { label: '完成任务', value: userStore.user.completed_tasks || 0 },
         { label: '账户评分', value: Number(userStore.user.rating || 5).toFixed(1) },
         { label: '当前等级', value: `Lv.${userStore.user.level || 1}` },
     ];
-
-    if (courierEnabled.value) {
-        items.unshift({ label: '完成订单', value: userStore.user.completed_orders || 0 });
-    }
-
-    return items;
 });
 
 const overviewCards = computed(() => {
@@ -635,30 +638,30 @@ const overviewCards = computed(() => {
         {
             title: '订单履约',
             value: stats?.orders.completed ?? user?.completed_orders ?? '--',
+            note: '已完成的代取与代购服务',
             icon: markRaw(ReceiptOutline),
             tint: 'linear-gradient(135deg, rgba(47,107,255,0.16), rgba(75,184,255,0.18))',
-            note: '订单与代取履约总览',
         },
         {
             title: '任务协作',
             value: stats?.tasks.completed ?? user?.completed_tasks ?? '--',
+            note: '参与完成的校园协作任务',
             icon: markRaw(DocumentTextOutline),
             tint: 'linear-gradient(135deg, rgba(25,179,107,0.16), rgba(120,224,171,0.18))',
-            note: '任务协作完成情况',
         },
         {
             title: '论坛互动',
             value: stats?.forum.posts ?? user?.level ?? '--',
+            note: '帖子发布与内容参与表现',
             icon: markRaw(ChatbubblesOutline),
             tint: 'linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))',
-            note: '内容发布与互动表现',
         },
         {
             title: '钱包与积分',
             value: userStore.isAuthenticated ? `¥${Number(user?.balance || 0).toFixed(0)}` : '--',
+            note: `${user?.points || 0} 积分可用于活跃度展示`,
             icon: markRaw(WalletOutline),
             tint: 'linear-gradient(135deg, rgba(23,48,79,0.16), rgba(47,107,255,0.14))',
-            note: '余额与积分概览',
         },
     ];
 });
@@ -858,10 +861,6 @@ const handleCourierAction = () => {
     }
 
     if (courierEnabled.value) {
-        if (!delivererApplication.value?.is_online) {
-            message.warning('请先开启在线接单状态');
-            return;
-        }
         router.push('/pickup/hall');
         return;
     }
@@ -913,3 +912,30 @@ onMounted(async () => {
     }
 });
 </script>
+
+<style scoped>
+.courier-application-modal__grid :deep(.n-form-item) {
+    margin-bottom: 0;
+}
+
+.courier-application-modal__grid :deep(.n-form-item-label) {
+    padding-bottom: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #4c648e;
+}
+
+.courier-application-modal__input {
+    width: 100%;
+}
+
+.courier-application-modal__input :deep(.n-input) {
+    width: 100%;
+}
+
+.courier-application-modal__input :deep(.n-input-wrapper) {
+    min-height: 46px;
+    border-radius: 14px;
+    box-shadow: none;
+}
+</style>

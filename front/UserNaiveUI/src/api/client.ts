@@ -1,10 +1,11 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import type { ApiResponse } from '@/types';
+import { getApiBaseUrl } from '@/utils/apiBase';
 
 class ApiClient {
     private instance: AxiosInstance;
 
-    constructor(baseURL: string = '/api/user') {
+    constructor(baseURL: string = getApiBaseUrl('user')) {
         this.instance = axios.create({
             baseURL,
             timeout: 10000,
@@ -144,7 +145,7 @@ class ApiClient {
 
 // 创建默认实例
 export const apiClient = new ApiClient();
-export const publicApiClient = new ApiClient('/api/public');
+export const publicApiClient = new ApiClient(getApiBaseUrl('public'));
 
 // 导出类型
 export type { AxiosRequestConfig, AxiosResponse };

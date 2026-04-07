@@ -1,17 +1,9 @@
 import { io, type Socket } from 'socket.io-client';
+import { getSocketBaseUrl } from './apiBase';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/user';
 const SOCKET_PATH = '/socket.io';
 let socketInstance: Socket | null = null;
 let socketToken = '';
-
-const resolveSocketBaseUrl = () => {
-    if (/^https?:\/\//i.test(API_BASE_URL)) {
-        return API_BASE_URL.replace(/\/api(?:\/.*)?$/i, '');
-    }
-
-    return window.location.origin;
-};
 
 export const createChatSocket = (): Socket | null => {
     const token = localStorage.getItem('token');
@@ -36,7 +28,7 @@ export const createChatSocket = (): Socket | null => {
     }
 
     socketToken = token;
-    socketInstance = io(resolveSocketBaseUrl(), {
+    socketInstance = io(getSocketBaseUrl(), {
         path: SOCKET_PATH,
         withCredentials: true,
         autoConnect: true,
@@ -46,7 +38,7 @@ export const createChatSocket = (): Socket | null => {
         },
     });
 
-    socketInstance.on('disconnect', reason => {
+    socketInstance.on('disconnect', (reason: string) => {
         if (reason === 'io client disconnect') {
             return;
         }

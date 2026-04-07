@@ -1,8 +1,9 @@
 import ApiClient from './client';
 import type { ApiResponse } from '@/types';
 import type { PickupOrder, PaginationMeta } from '@/types';
+import { getApiBaseUrl } from '@/utils/apiBase';
 
-const delivererApiClient = new ApiClient('/api/deliverer');
+const delivererApiClient = new ApiClient(getApiBaseUrl('deliverer'));
 
 export interface DelivererApplicationPayload {
     real_name: string;

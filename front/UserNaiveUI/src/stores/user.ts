@@ -2,24 +2,9 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { AuthApi, UserApi } from '@/api';
 import type { User, UserLoginData, UserRegisterData, UserStats } from '@/types';
+import { resolveAssetUrl } from '@/utils/apiBase';
 
 export const useUserStore = defineStore('user', () => {
-    const resolveAssetUrl = (value?: string | null) => {
-        if (!value) {
-            return '';
-        }
-
-        if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
-            return value;
-        }
-
-        if (value.startsWith('/uploads/')) {
-            return `${window.location.origin}${value}`;
-        }
-
-        return value;
-    };
-
     // 状态
     const user = ref<User | null>(null);
     const token = ref<string | null>(localStorage.getItem('token'));

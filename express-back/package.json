@@ -6,7 +6,7 @@
     "scripts": {
         "start": "node app.js",
         "dev": "nodemon --delay 2 app.js",
-        "migrate": "node src/database/migrate.js",
+        "migrate": "node src/database/migrations/migrate.js",
         "seed": "node src/database/seed.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
