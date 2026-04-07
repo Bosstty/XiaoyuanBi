@@ -511,19 +511,6 @@ const featureForm = reactive({
     },
 });
 
-const selectedFlags = computed({
-    get: () => {
-        const values: string[] = [];
-        if (form.urgent) values.push('urgent');
-        if (form.fragile) values.push('fragile');
-        return values;
-    },
-    set: values => {
-        form.urgent = values.includes('urgent');
-        form.fragile = values.includes('fragile');
-    },
-});
-
 const optionSurcharge = computed(() => {
     let total = 0;
     if (form.urgent) total += 3;

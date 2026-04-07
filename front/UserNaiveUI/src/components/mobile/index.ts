@@ -10,5 +10,4 @@ export { default as MobileEmpty } from './MobileEmpty.vue';
 export { default as MobileLoading } from './MobileLoading.vue';
 
 // 类型导出
-export type { ListItem, ListAction } from './MobileList.vue';
-export type { FormField } from './MobileForm.vue';
+export type { ListItem, ListAction, FormField } from './types';

@@ -59,7 +59,7 @@ const resolvedShowTabBar = computed(() => {
 
 // 路由动画状态
 const transitionName = ref('slide-left');
-const transitionMode = ref(''); // 空字符串让动画同时进行
+const transitionMode = ref<'default' | 'in-out' | 'out-in'>('default');
 
 // 路由层级映射 - 用于判断动画方向
 const routeLevels: Record<string, number> = {
@@ -241,7 +241,7 @@ const onEnter = (el: Element, done: () => void) => {
     }
 };
 
-const onLeave = (el: Element, done: () => void) => {
+const onLeave = (_el: Element, done: () => void) => {
     if (appStore.userPreferences.enableTransitions) {
         setTimeout(done, 150);
     } else {

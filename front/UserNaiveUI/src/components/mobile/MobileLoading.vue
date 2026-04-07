@@ -106,7 +106,7 @@ interface Props {
     duration?: number;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
     type: 'default',
     size: 'medium',
     text: '加载中...',

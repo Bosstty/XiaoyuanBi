@@ -126,7 +126,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NInput, NSelect, NSwitch, useMessage } from 'naive-ui';
+import { NButton, NInput, NSwitch, useMessage } from 'naive-ui';
 import { forumApi } from '@/api';
 import { useAppStore } from '@/stores';
 

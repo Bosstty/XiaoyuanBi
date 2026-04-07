@@ -226,13 +226,13 @@
             </div>
 
             <!-- 标题 -->
-            <h3 v-if="title || $slots.title" class="empty-title">
-                <slot name="title">{{ title }}</slot>
+            <h3 v-if="finalTitle || $slots.title" class="empty-title">
+                <slot name="title">{{ finalTitle }}</slot>
             </h3>
 
             <!-- 描述 -->
-            <p v-if="description || $slots.description" class="empty-description">
-                <slot name="description">{{ description }}</slot>
+            <p v-if="finalDescription || $slots.description" class="empty-description">
+                <slot name="description">{{ finalDescription }}</slot>
             </p>
 
             <!-- 操作按钮 -->

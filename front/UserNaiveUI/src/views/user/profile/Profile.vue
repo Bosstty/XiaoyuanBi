@@ -180,7 +180,7 @@
                     </div>
                     <strong>{{ card.value }}</strong>
                     <h4>{{ card.title }}</h4>
-                    <p>{{ card.note }}</p>
+                    <p>{{ card.note || '' }}</p>
                 </article>
             </div>
         </section>
@@ -431,7 +431,6 @@ import {
     RibbonOutline,
     ShieldCheckmarkOutline,
     StarOutline,
-    StorefrontOutline,
     WalletOutline,
 } from '@vicons/ionicons5';
 import {
@@ -638,24 +637,28 @@ const overviewCards = computed(() => {
             value: stats?.orders.completed ?? user?.completed_orders ?? '--',
             icon: markRaw(ReceiptOutline),
             tint: 'linear-gradient(135deg, rgba(47,107,255,0.16), rgba(75,184,255,0.18))',
+            note: '订单与代取履约总览',
         },
         {
             title: '任务协作',
             value: stats?.tasks.completed ?? user?.completed_tasks ?? '--',
             icon: markRaw(DocumentTextOutline),
             tint: 'linear-gradient(135deg, rgba(25,179,107,0.16), rgba(120,224,171,0.18))',
+            note: '任务协作完成情况',
         },
         {
             title: '论坛互动',
             value: stats?.forum.posts ?? user?.level ?? '--',
             icon: markRaw(ChatbubblesOutline),
             tint: 'linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))',
+            note: '内容发布与互动表现',
         },
         {
             title: '钱包与积分',
             value: userStore.isAuthenticated ? `¥${Number(user?.balance || 0).toFixed(0)}` : '--',
             icon: markRaw(WalletOutline),
             tint: 'linear-gradient(135deg, rgba(23,48,79,0.16), rgba(47,107,255,0.14))',
+            note: '余额与积分概览',
         },
     ];
 });
@@ -704,44 +707,6 @@ const serviceShortcuts = computed(() => [
         tint: 'linear-gradient(135deg, rgba(12,116,176,0.13), rgba(75,184,255,0.16))',
     },
 ]);
-
-const recentProgress = computed(() => {
-    if (!userStore.isAuthenticated) {
-        return [
-            {
-                title: '登录后同步服务动态',
-                description: '订单状态、任务协作和论坛互动会集中展示在这里。',
-                extra: '实时更新',
-                icon: markRaw(StorefrontOutline),
-                tint: 'linear-gradient(135deg, rgba(47,107,255,0.12), rgba(75,184,255,0.16))',
-            },
-        ];
-    }
-
-    return [
-        {
-            title: '订单中心已同步最近履约记录',
-            description: '你可以继续查看进行中的代取订单和历史凭证。',
-            extra: `${userStore.user?.completed_orders || 0} 个已完成订单`,
-            icon: markRaw(ReceiptOutline),
-            tint: 'linear-gradient(135deg, rgba(47,107,255,0.12), rgba(75,184,255,0.16))',
-        },
-        {
-            title: '任务协作中心正在追踪申请进度',
-            description: '已发布任务和已接任务的状态会在这里归档。',
-            extra: `${userStore.user?.completed_tasks || 0} 个已完成任务`,
-            icon: markRaw(DocumentTextOutline),
-            tint: 'linear-gradient(135deg, rgba(25,179,107,0.12), rgba(120,224,171,0.16))',
-        },
-        {
-            title: '论坛内容互动将继续沉淀个人影响力',
-            description: '文章发布、回复和收藏会成为你的校园内容履历。',
-            extra: `${userStore.user?.points || 0} 积分`,
-            icon: markRaw(ChatbubblesOutline),
-            tint: 'linear-gradient(135deg, rgba(255,155,61,0.12), rgba(247,199,95,0.18))',
-        },
-    ];
-});
 
 const courierMetrics = computed(() => [
     {
@@ -874,11 +839,6 @@ const submitCourierApplication = async () => {
 const handleMenuClick = (path: string) => {
     appStore.hapticFeedback('light');
     router.push(path);
-};
-
-const handleWalletAction = (mode: 'recharge' | 'withdraw') => {
-    appStore.hapticFeedback('light');
-    router.push(mode === 'recharge' ? '/wallet/recharge' : '/wallet/withdraw');
 };
 
 const handleThemeChange = (value: boolean) => {

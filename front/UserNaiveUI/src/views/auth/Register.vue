@@ -424,7 +424,7 @@ const rules: FormRules = {
             trigger: ['input', 'blur'],
         },
         {
-            validator: (rule: any, value: string) => {
+            validator: (_rule: any, value: string) => {
                 return value === formData.password;
             },
             message: '两次输入的密码不一致',
@@ -436,7 +436,7 @@ const rules: FormRules = {
             required: true,
             message: '请阅读并同意用户协议和隐私政策',
             trigger: ['change'],
-            validator: (rule: any, value: boolean) => {
+            validator: (_rule: any, value: boolean) => {
                 return value === true;
             },
         },

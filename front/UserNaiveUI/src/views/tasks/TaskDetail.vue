@@ -1426,7 +1426,7 @@ const processApplication = (application: TaskApplication, action: 'accept' | 're
     });
 };
 
-const chatWithUser = async (peerUserId: number, initialMessage: string, navigate = true) => {
+const chatWithUser = async (peerUserId: number, initialMessage = '', navigate = true) => {
     if (!peerUserId || peerUserId === currentUserId.value) return;
     try {
         const response = await chatApi.createConversation({

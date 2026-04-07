@@ -192,32 +192,6 @@ const taskCategoryCards = computed(() =>
 
 const hotTasks = computed(() => tasks.value.slice(0, 3));
 
-const myStats = computed(() => {
-    const publishedCount = tasks.value.filter(task => task.status === 'published').length;
-    const averagePrice =
-        tasks.value.length > 0
-            ? tasks.value.reduce((sum, task) => sum + Number(task.price || 0), 0) /
-              tasks.value.length
-            : 0;
-
-    return [
-        {
-            key: 'published',
-            label: '招募中',
-            value: `${publishedCount}`,
-            color: '#2F6BFF',
-            note: '当前开放申请的任务数量',
-        },
-        {
-            key: 'price',
-            label: '平均报酬',
-            value: `¥${averagePrice.toFixed(2)}`,
-            color: '#17304F',
-            note: '当前任务池的平均预算',
-        },
-    ];
-});
-
 const fetchTasks = async () => {
     loading.value = true;
     try {

@@ -240,12 +240,6 @@ const getOrderSummary = (order: PickupOrder) => {
     return order.description || '';
 };
 
-const getMaskedContactLabel = (order: PickupOrder) => {
-    if (order.type === 'express') return '接单后可见';
-    if (order.type === 'food') return '接单后可见';
-    return order.contact_name || '接单后可见';
-};
-
 const normalizeLocationList = (value?: string[] | string | null) => {
     if (Array.isArray(value)) {
         return Array.from(

@@ -96,36 +96,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import { NIcon, NButton } from 'naive-ui';
 import { ChevronForward, DocumentTextOutline } from '@vicons/ionicons5';
 import { useAppStore } from '@/stores';
-
-interface ListAction {
-    key: string;
-    label: string;
-    type?: 'primary' | 'success' | 'warning' | 'error' | 'default';
-    size?: 'tiny' | 'small' | 'medium' | 'large';
-    disabled?: boolean;
-    handler?: (action: ListAction, item: ListItem, index: number) => void;
-}
-
-interface ListItem {
-    id?: string | number;
-    title: string;
-    description?: string;
-    titleLarge?: boolean;
-    icon?: any;
-    iconSize?: number;
-    iconColor?: string;
-    iconClass?: string;
-    extra?: string;
-    showArrow?: boolean;
-    clickable?: boolean;
-    disabled?: boolean;
-    actions?: ListAction[];
-    [key: string]: any;
-}
+import type { ListAction, ListItem } from './types';
 
 interface Props {
     items: ListItem[];
@@ -150,8 +124,16 @@ const emit = defineEmits<{
 
 const appStore = useAppStore();
 
-const getItemKey = (item: ListItem, index: number) => {
-    return item[props.keyField] || index;
+const getItemKey = (item: ListItem, index: number): PropertyKey => {
+    const candidate = item[props.keyField];
+    if (
+        typeof candidate === 'string' ||
+        typeof candidate === 'number' ||
+        typeof candidate === 'symbol'
+    ) {
+        return candidate;
+    }
+    return index;
 };
 
 const handleItemClick = (item: ListItem, index: number) => {

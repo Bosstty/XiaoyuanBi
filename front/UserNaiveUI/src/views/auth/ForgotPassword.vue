@@ -143,7 +143,7 @@ const submitting = ref(false);
 const countdown = ref(0);
 const successMessage = ref('');
 const resetToken = ref('');
-let countdownTimer: NodeJS.Timeout | null = null;
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
 const formData = reactive({
     account: '',

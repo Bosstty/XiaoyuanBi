@@ -137,7 +137,7 @@ const rules: FormRules = {
             trigger: ['input', 'blur'],
         },
         {
-            validator: (rule: any, value: string) => {
+            validator: (_rule: any, value: string) => {
                 if (!value) return false;
 
                 // 邮箱格式验证

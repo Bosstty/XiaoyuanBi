@@ -116,7 +116,7 @@ export const useUserStore = defineStore('user', () => {
         } catch (error) {
             console.error('  获取用户信息失败:', error);
             // 如果是认证错误，清理状态
-            if (error.response?.status === 401) {
+            if ((error as { response?: { status?: number } }).response?.status === 401) {
                 await logout();
             }
         } finally {
@@ -214,7 +214,7 @@ export const useUserStore = defineStore('user', () => {
             try {
                 token.value = storedToken;
                 user.value = JSON.parse(storedUser);
-                console.log('  从本地存储恢复用户状态:', user.value.username);
+                console.log('  从本地存储恢复用户状态:', user.value?.username);
             } catch (error) {
                 console.error('  本地存储数据解析失败:', error);
                 localStorage.removeItem('user');

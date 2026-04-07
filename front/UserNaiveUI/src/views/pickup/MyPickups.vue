@@ -394,17 +394,6 @@ const getStatusTagType = (status: PickupOrder['status']) => {
 
 const formatAmount = (price?: number, tip?: number) => Number(price || 0) + Number(tip || 0);
 
-const formatDateTime = (value?: string) => {
-    if (!value) return '--';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '--';
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-        date.getDate()
-    ).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(
-        date.getMinutes()
-    ).padStart(2, '0')}`;
-};
-
 const resolveAssetUrl = (value?: string | null) => {
     if (!value) return '';
     if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;

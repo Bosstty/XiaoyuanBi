@@ -11,7 +11,7 @@
             @submit="handleSubmit"
         >
             <div
-                v-for="(field, index) in fields"
+                v-for="field in fields"
                 :key="field.key"
                 class="form-field"
                 :class="{
@@ -35,16 +35,16 @@
                     class="field-group-card"
                 >
                     <div
-                        v-for="(groupField, groupIndex) in field.fields"
+                        v-for="(groupField, groupIndex) in field.fields || []"
                         :key="groupField.key"
                         class="group-field"
-                        :class="{ 'has-divider': groupIndex < field.fields.length - 1 }"
+                        :class="{ 'has-divider': groupIndex < (field.fields?.length ?? 0) - 1 }"
                     >
                         <component
                             :is="getFieldComponent(groupField)"
                             v-bind="getFieldProps(groupField)"
-                            v-model:value="formModel[groupField.key]"
-                            @update:value="handleFieldChange(groupField, $event)"
+                            :value="getModelValue(groupField.key)"
+                            @update:value="handleFieldChange(groupField, $event as FormFieldValue)"
                         />
                     </div>
                 </MobileCard>
@@ -61,8 +61,8 @@
                     <component
                         :is="getFieldComponent(field)"
                         v-bind="getFieldProps(field)"
-                        v-model:value="formModel[field.key]"
-                        @update:value="handleFieldChange(field, $event)"
+                        :value="getModelValue(field.key)"
+                        @update:value="handleFieldChange(field, $event as FormFieldValue)"
                     />
                 </NFormItem>
             </div>
@@ -94,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue';
+import { h, ref, reactive, computed, watch } from 'vue';
 import {
     NForm,
     NFormItem,
@@ -111,45 +111,15 @@ import {
     NSlider,
     NRate,
     NButton,
-    FormInst,
-    FormValidationError,
 } from 'naive-ui';
+import type { FormInst, FormValidationError, FormItemRule, FormRules } from 'naive-ui';
 import MobileCard from './MobileCard.vue';
 import { useAppStore } from '@/stores';
-
-interface FormField {
-    key: string;
-    type:
-        | 'input'
-        | 'number'
-        | 'select'
-        | 'switch'
-        | 'date'
-        | 'time'
-        | 'radio'
-        | 'checkbox'
-        | 'slider'
-        | 'rate'
-        | 'textarea'
-        | 'section'
-        | 'group';
-    label?: string;
-    placeholder?: string;
-    required?: boolean;
-    disabled?: boolean;
-    rule?: any;
-    options?: Array<{ label: string; value: any; disabled?: boolean }>;
-    fields?: FormField[]; // for group type
-    title?: string; // for section type
-    description?: string; // for section type
-    defaultValue?: any;
-    props?: Record<string, any>;
-    validator?: (value: any) => boolean | string;
-}
+import type { FormField, FormFieldValue } from './types';
 
 interface Props {
     fields: FormField[];
-    modelValue?: Record<string, any>;
+    modelValue?: Record<string, FormFieldValue>;
     labelPlacement?: 'left' | 'top';
     labelWidth?: string | number;
     showRequireMark?: boolean;
@@ -180,10 +150,10 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    'update:modelValue': [value: Record<string, any>];
-    submit: [value: Record<string, any>];
+    'update:modelValue': [value: Record<string, FormFieldValue>];
+    submit: [value: Record<string, FormFieldValue>];
     reset: [];
-    fieldChange: [field: FormField, value: any];
+    fieldChange: [field: FormField, value: FormFieldValue];
     validate: [errors: Array<FormValidationError> | undefined];
 }>();
 
@@ -191,18 +161,18 @@ const appStore = useAppStore();
 const formRef = ref<FormInst>();
 
 // 表单数据模型
-const formModel = reactive<Record<string, any>>({});
+const formModel = reactive<Record<string, FormFieldValue>>({});
 
 // 表单验证规则
-const formRules = computed(() => {
-    const rules: Record<string, any> = {};
+const formRules = computed<FormRules>(() => {
+    const rules: FormRules = {};
 
     const processFields = (fields: FormField[]) => {
         fields.forEach(field => {
             if (field.type === 'group' && field.fields) {
                 processFields(field.fields);
             } else if (field.type !== 'section') {
-                const fieldRules = [];
+                const fieldRules: FormItemRule[] = [];
 
                 if (field.required) {
                     fieldRules.push({
@@ -213,12 +183,16 @@ const formRules = computed(() => {
                 }
 
                 if (field.rule) {
-                    fieldRules.push(field.rule);
+                    if (Array.isArray(field.rule)) {
+                        fieldRules.push(...field.rule);
+                    } else {
+                        fieldRules.push(field.rule);
+                    }
                 }
 
                 if (field.validator) {
                     fieldRules.push({
-                        validator: (rule: any, value: any) => {
+                        validator: (_rule: FormItemRule, value: FormFieldValue) => {
                             const result = field.validator!(value);
                             if (typeof result === 'string') {
                                 return new Error(result);
@@ -286,26 +260,37 @@ const initFormModel = () => {
 
 // 获取字段组件
 const getFieldComponent = (field: FormField) => {
-    const componentMap = {
-        input: NInput,
-        textarea: NInput,
-        number: NInputNumber,
-        select: NSelect,
-        switch: NSwitch,
-        date: NDatePicker,
-        time: NTimePicker,
-        radio: NRadioGroup,
-        checkbox: NCheckboxGroup,
-        slider: NSlider,
-        rate: NRate,
-    };
-
-    return componentMap[field.type] || NInput;
+    switch (field.type) {
+        case 'number':
+            return NInputNumber;
+        case 'select':
+            return NSelect;
+        case 'switch':
+            return NSwitch;
+        case 'date':
+            return NDatePicker;
+        case 'time':
+            return NTimePicker;
+        case 'radio':
+            return NRadioGroup;
+        case 'checkbox':
+            return NCheckboxGroup;
+        case 'slider':
+            return NSlider;
+        case 'rate':
+            return NRate;
+        case 'input':
+        case 'textarea':
+        case 'section':
+        case 'group':
+        default:
+            return NInput;
+    }
 };
 
 // 获取字段属性
-const getFieldProps = (field: FormField) => {
-    const baseProps = {
+const getFieldProps = (field: FormField): Record<string, any> => {
+    const baseProps: Record<string, any> = {
         placeholder:
             field.placeholder || `请${field.type === 'select' ? '选择' : '输入'}${field.label}`,
         disabled: field.disabled || props.disabled,
@@ -382,8 +367,12 @@ const getFieldProps = (field: FormField) => {
     }
 };
 
+const getModelValue = (key: string) => {
+    return formModel[key] as any;
+};
+
 // 字段值变化处理
-const handleFieldChange = (field: FormField, value: any) => {
+const handleFieldChange = (field: FormField, value: FormFieldValue) => {
     formModel[field.key] = value;
     emit('update:modelValue', { ...formModel });
     emit('fieldChange', field, value);

@@ -89,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { NModal, NButton, NIcon } from 'naive-ui';
 import { Close } from '@vicons/ionicons5';
 import { useAppStore } from '@/stores';

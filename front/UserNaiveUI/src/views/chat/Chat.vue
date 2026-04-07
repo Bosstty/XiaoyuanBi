@@ -212,6 +212,7 @@ const resetPreviewZoom = () => {
 const getTouchDistance = (touches: TouchList) => {
     if (touches.length < 2) return 0;
     const [first, second] = [touches[0], touches[1]];
+    if (!first || !second) return 0;
     const deltaX = first.clientX - second.clientX;
     const deltaY = first.clientY - second.clientY;
     return Math.hypot(deltaX, deltaY);

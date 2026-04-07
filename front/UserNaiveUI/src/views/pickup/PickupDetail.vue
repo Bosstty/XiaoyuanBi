@@ -390,7 +390,7 @@
 
             <div v-else class="error-wrap">
                 <MobileEmpty
-                    type="error"
+                    type="data"
                     title="订单不存在"
                     description="该订单可能已被删除或您没有权限查看"
                     :show-action="true"
@@ -1035,15 +1035,6 @@ const getStatusTagType = (orderOrStatus: PickupOrder | PickupOrder['status']) =>
     }
 
     return map[status] || 'default';
-};
-
-const getPaymentLabel = (status: PickupOrder['payment_status']) => {
-    const map = {
-        unpaid: '未支付',
-        paid: '已支付',
-        refunded: '已退款',
-    };
-    return map[status] || status;
 };
 
 const resolveAssetUrl = (value?: string | null) => {

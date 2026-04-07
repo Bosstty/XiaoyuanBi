@@ -48,10 +48,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NIcon } from 'naive-ui';
-import { ChevronBackOutline, EllipsisHorizontal, SearchOutline } from '@vicons/ionicons5';
+import { ChevronBackOutline, EllipsisHorizontal } from '@vicons/ionicons5';
 import { useAppStore } from '@/stores';
 
 interface Props {
