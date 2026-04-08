@@ -205,7 +205,7 @@
     <el-drawer v-model="userDrawer.visible" title="用户信息" size="500px">
       <template v-if="userDrawer.data">
         <div class="detail-header">
-          <el-avatar :size="78" :src="userDrawer.data.avatar || undefined">
+          <el-avatar :size="78" :src="resolveAssetUrl(userDrawer.data.avatar) || undefined">
             <el-icon :size="34"><User /></el-icon>
           </el-avatar>
           <div class="detail-info">
@@ -310,12 +310,23 @@ const quickReplies = [
   '如果还有其他问题，可以继续告诉我。',
 ]
 
+const resolveAssetUrl = (value) => {
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value
+  }
+  if (value.startsWith('/')) {
+    return `${FILE_BASE_URL}${value}`
+  }
+  return `${FILE_BASE_URL}/${String(value).replace(/^\/+/, '')}`
+}
+
 const getPartner = (conversation) => {
   if (conversation?.partner) {
     return {
       id: conversation.partner.id,
       name: conversation.partner.name || '联系人',
-      avatar: conversation.partner.avatar || '',
+      avatar: resolveAssetUrl(conversation.partner.avatar),
       role: conversation.partner.role || '用户',
     }
   }
@@ -427,20 +438,7 @@ const upsertConversation = (incoming) => {
 }
 
 const resolveImage = (content) => {
-  if (!content) return ''
-  if (/^https?:\/\//i.test(content) || content.startsWith('data:')) {
-    return content
-  }
-  if (content.startsWith('/uploads/')) {
-    return `${FILE_BASE_URL}${content}`
-  }
-  if (content.startsWith('uploads/')) {
-    return `${FILE_BASE_URL}/${content}`
-  }
-  if (content.startsWith('/')) {
-    return `${FILE_BASE_URL}${content}`
-  }
-  return `${FILE_BASE_URL}/${String(content).replace(/^\/+/, '')}`
+  return resolveAssetUrl(content)
 }
 
 const openImagePreview = (src) => {
