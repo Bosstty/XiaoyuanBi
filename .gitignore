@@ -10,6 +10,8 @@ build/
 .env.local
 .env.*.local
 *.local
+settings.local.json
+front/UserNaiveUI/.env.production
 
 # IDE
 .vscode/
@@ -38,6 +40,7 @@ temp/
 tmp/
 ClAUDE*
 *.txt
+express-back/uploads/
 
 #废弃的用户端
-delete/UserClient
+delete/UserClient/
