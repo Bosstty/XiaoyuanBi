@@ -38,3 +38,6 @@ temp/
 tmp/
 ClAUDE*
 *.txt
+
+#废弃的用户端
+delete/UserClient
