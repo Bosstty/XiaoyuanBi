@@ -246,6 +246,7 @@ import { useRouter } from 'vue-router';
 import { NButton, NInput, NModal, NSpin, NTag, useDialog, useMessage } from 'naive-ui';
 import { DelivererOrderApi, PickupApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
+import { resolveAssetUrl as resolvePublicAssetUrl } from '@/utils/apiBase';
 import type { PaginationMeta, PickupOrder } from '@/types';
 
 type OrderTypeFilter = 'all' | 'published' | 'accepted';
@@ -395,10 +396,7 @@ const getStatusTagType = (status: PickupOrder['status']) => {
 const formatAmount = (price?: number, tip?: number) => Number(price || 0) + Number(tip || 0);
 
 const resolveAssetUrl = (value?: string | null) => {
-    if (!value) return '';
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
-    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
-    return value;
+    return resolvePublicAssetUrl(value);
 };
 
 const partnerLabel = (order: PickupOrder) => (isPublisher(order) ? '配送员' : '发布人');

@@ -164,6 +164,7 @@ import { useRouter } from 'vue-router';
 import { NButton, NSpin, useDialog, useMessage } from 'naive-ui';
 import { TaskApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
+import { resolveAssetUrl } from '@/utils/apiBase';
 import type { Task } from '@/types';
 
 type TaskTypeFilter = 'all' | 'published' | 'assigned';
@@ -313,9 +314,7 @@ const partnerName = (task: Task) => {
 };
 const resolveAvatarUrl = (value?: string | null) => {
     if (!value) return '';
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
-    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
-    return value;
+    return resolveAssetUrl(value);
 };
 
 const canDelete = (_task: Task) => false;

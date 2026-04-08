@@ -653,6 +653,7 @@ import {
 import { PersonOutline, TimeOutline } from '@vicons/ionicons5';
 import { TaskApi, WalletApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
+import { resolveAssetUrl } from '@/utils/apiBase';
 import type { Task, TaskApplication } from '@/types';
 
 const route = useRoute();
@@ -958,13 +959,7 @@ const getApplicationStatusLabel = (status: string) =>
 
 const resolveAvatarUrl = (value?: string | null) => {
     if (!value) return undefined;
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
-        return value;
-    }
-    if (value.startsWith('/uploads/')) {
-        return `${window.location.origin}${value}`;
-    }
-    return value;
+    return resolveAssetUrl(value) || undefined;
 };
 
 const formatAmount = (value?: string | number | null) => Number(value || 0).toFixed(2);

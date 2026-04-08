@@ -80,9 +80,9 @@
                             :key="idx"
                             type="button"
                             class="gallery-item"
-                            @click="previewingImage = img"
+                            @click="previewingImage = resolveAssetUrl(img)"
                         >
-                            <img :src="img" :alt="`帖子图片 ${idx + 1}`" />
+                            <img :src="resolveAssetUrl(img)" :alt="`帖子图片 ${idx + 1}`" />
                         </button>
                     </div>
 
@@ -288,6 +288,7 @@ import { NButton, NInput, NSpin, useDialog, useMessage } from 'naive-ui';
 import type { ForumComment, ForumPost } from '@/types';
 import { forumApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
+import { resolveAssetUrl } from '@/utils/apiBase';
 
 type ThreadComment = ForumComment & { replies: ForumComment[] };
 
@@ -347,9 +348,7 @@ const threadedComments = computed<ThreadComment[]>(() => {
 
 const resolveAvatarUrl = (value?: string | null) => {
     if (!value) return '';
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
-    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
-    return value;
+    return resolveAssetUrl(value);
 };
 
 const getCategoryLabel = (category?: string) =>

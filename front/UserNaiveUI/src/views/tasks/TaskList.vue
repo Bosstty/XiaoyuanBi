@@ -198,6 +198,7 @@ import { NButton, NIcon, NSpin, useMessage } from 'naive-ui';
 import { AddOutline } from '@vicons/ionicons5';
 import { TaskApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
+import { resolveAssetUrl } from '@/utils/apiBase';
 import type { Task } from '@/types';
 
 type ViewKey = 'all' | 'mine' | 'accepted';
@@ -287,9 +288,7 @@ const formatRelativeTime = (v?: string | null) => {
 };
 const resolveAvatarUrl = (value?: string | null) => {
     if (!value) return '';
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
-    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
-    return value;
+    return resolveAssetUrl(value);
 };
 
 const fetchTasks = async (page = 1, append = false) => {

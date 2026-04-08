@@ -185,6 +185,7 @@ import { useRouter } from 'vue-router';
 import { NButton, NSpin, useMessage } from 'naive-ui';
 import { DelivererOrderApi, DelivererStatusApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
+import { resolveAssetUrl } from '@/utils/apiBase';
 import type { PickupOrder } from '@/types';
 
 type CategoryKey = 'all' | PickupOrder['type'];
@@ -283,9 +284,7 @@ const formatAmount = (price?: number | string, tip?: number | string) =>
 
 const resolveAvatarUrl = (value?: string | null) => {
     if (!value) return '';
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
-    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
-    return value;
+    return resolveAssetUrl(value);
 };
 
 const formatRelativeTime = (value?: string | null) => {

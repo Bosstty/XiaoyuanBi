@@ -5,6 +5,7 @@ import { useMessage } from 'naive-ui';
 import type { Socket } from 'socket.io-client';
 import { chatApi } from '@/api';
 import { useUserStore } from '@/stores';
+import { resolveAssetUrl } from '@/utils/apiBase';
 import { createChatSocket } from '@/utils/chatSocket';
 
 const router = useRouter();
@@ -38,13 +39,7 @@ const hasConversation = computed(() => conversations.value.length > 0);
 
 const resolveAvatarUrl = (value?: string | null) => {
     if (!value) return '';
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
-        return value;
-    }
-    if (value.startsWith('/uploads/')) {
-        return `${window.location.origin}${value}`;
-    }
-    return value;
+    return resolveAssetUrl(value);
 };
 
 const getOtherParty = (conversation: any) => {
@@ -177,16 +172,7 @@ const isMyMessage = (msg: any) => {
 const isImageMessage = (msg: any) => msg.type === 'image';
 const resolveChatImageSrc = (content?: string) => {
     if (!content) return '';
-    if (/^https?:\/\//i.test(content) || content.startsWith('data:')) {
-        return content;
-    }
-    if (content.startsWith('/uploads/')) {
-        return content;
-    }
-    if (content.startsWith('uploads/')) {
-        return `/${content}`;
-    }
-    return content;
+    return resolveAssetUrl(content);
 };
 const openImagePreview = (src?: string) => {
     if (!src) return;

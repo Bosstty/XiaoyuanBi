@@ -703,6 +703,7 @@ import { StarOutline } from '@vicons/ionicons5';
 import { DelivererOrderApi, PickupApi, chatApi } from '@/api';
 import { MobileEmpty, MobileLoading, MobileModal } from '@/components/mobile';
 import { useAppStore, useUserStore } from '@/stores';
+import { resolveAssetUrl as resolvePublicAssetUrl } from '@/utils/apiBase';
 import type { PickupOrder, PickupOrderItem } from '@/types';
 
 const router = useRouter();
@@ -1038,14 +1039,7 @@ const getStatusTagType = (orderOrStatus: PickupOrder | PickupOrder['status']) =>
 };
 
 const resolveAssetUrl = (value?: string | null) => {
-    if (!value) return '';
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
-        return value;
-    }
-    if (value.startsWith('/uploads/')) {
-        return `${window.location.origin}${value}`;
-    }
-    return value;
+    return resolvePublicAssetUrl(value);
 };
 
 const getVisibleItemPickupCode = (value?: string | null) => {

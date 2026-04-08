@@ -190,6 +190,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { NButton, NSpin, useMessage } from 'naive-ui';
 import { UserApi } from '@/api';
 import { useAppStore } from '@/stores';
+import { resolveAssetUrl } from '@/utils/apiBase';
 import type { UserPublicProfile } from '@/types';
 
 const route = useRoute();
@@ -208,9 +209,7 @@ const displayName = computed(
 
 const resolveAvatarUrl = (value?: string | null) => {
     if (!value) return undefined;
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) return value;
-    if (value.startsWith('/uploads/')) return `${window.location.origin}${value}`;
-    return value;
+    return resolveAssetUrl(value) || undefined;
 };
 
 const openImagePreview = (images: string[], index: number) => {

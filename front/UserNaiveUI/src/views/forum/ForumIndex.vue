@@ -133,6 +133,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { NButton, NEmpty, NInput, NSpin, useMessage } from 'naive-ui';
 import type { ForumPost } from '@/types';
 import { forumApi } from '@/api';
+import { resolveAssetUrl } from '@/utils/apiBase';
 
 const route = useRoute();
 const router = useRouter();
@@ -170,13 +171,7 @@ const getAuthorName = (post: ForumPost) =>
 
 const resolveAvatarUrl = (value?: string | null) => {
     if (!value) return '';
-    if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
-        return value;
-    }
-    if (value.startsWith('/uploads/')) {
-        return `${window.location.origin}${value}`;
-    }
-    return value;
+    return resolveAssetUrl(value);
 };
 
 const formatTime = (value?: string) => {
