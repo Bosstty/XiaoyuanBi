@@ -1,0 +1,76 @@
+name: Deploy
+
+on:
+    push:
+        branches: [main]
+
+jobs:
+    deploy-admin:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: '20'
+
+            - name: Build Admin
+              working-directory: ./front/AdminClient
+              run: |
+                  npm install
+                  npm run build
+
+            - name: Deploy Admin
+              uses: appleboy/scp-action@v0.1.7
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: root
+                  key: ${{ secrets.SSH_PRIVATE_KEY }}
+                  source: front/AdminClient/dist/*
+                  target: /var/www/admin
+                  strip_components: 3
+
+    deploy-user:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: '20'
+
+            - name: Build User
+              working-directory: ./front/UserNaiveUI
+              run: |
+                  npm install
+                  npm run build
+
+            - name: Deploy User
+              uses: appleboy/scp-action@v0.1.7
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: root
+                  key: ${{ secrets.SSH_PRIVATE_KEY }}
+                  source: front/UserNaiveUI/dist/*
+                  target: /var/www/user
+                  strip_components: 3
+
+    deploy-backend:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Deploy Backend
+              uses: appleboy/ssh-action@v1.0.0
+              with:
+                  host: ${{ secrets.SERVER_IP }}
+                  username: root
+                  key: ${{ secrets.SSH_PRIVATE_KEY }}
+                  script: |
+                      cd /var/www/repo
+                      git pull origin main
+                      cd express-back
+                      npm install
+                      pm2 restart backend
