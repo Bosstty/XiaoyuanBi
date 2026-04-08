@@ -1,48 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const { optimizeUploads } = require('../../middleware/optimizeUploads');
+const {
+    buildPublicUploadPath,
+    createUpload,
+    resolveUploadDir,
+    resolveUploadSegments,
+} = require('../../utils/uploads');
 
-const uploadRoot = path.join(process.cwd(), 'uploads');
-const uploadCategoryMap = {
-    chat: ['chat'],
-    'order-pickup': ['orders', 'pickup'],
-    'order-delivery': ['orders', 'delivery'],
-    'order-review': ['orders', 'reviews'],
-    avatar: ['avatars'],
-    misc: ['misc'],
-};
-
-const resolveUploadSegments = category => {
-    const normalized = String(category || 'misc')
-        .trim()
-        .toLowerCase();
-    return uploadCategoryMap[normalized] || uploadCategoryMap.misc;
-};
-
-const buildPublicUploadPath = (segments, filename) =>
-    `/uploads/${segments.join('/')}/${filename}`.replace(/\\/g, '/');
-
-// 配置文件上传
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
+const upload = createUpload({
+    destination: req => {
         const segments = resolveUploadSegments(req.body?.category || req.query?.category);
-        const targetDir = path.join(uploadRoot, ...segments);
-        fs.mkdirSync(targetDir, { recursive: true });
-        cb(null, targetDir);
+        return resolveUploadDir(...segments);
     },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    },
-});
-
-const upload = multer({
-    storage: storage,
-    limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB
-    },
+    filename: (_req, file) => `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`,
+    fileSize: 10 * 1024 * 1024,
     fileFilter: (req, file, cb) => {
         const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx/;
         const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -57,7 +30,7 @@ const upload = multer({
 });
 
 // 单文件上传
-router.post('/single', upload.single('file'), (req, res) => {
+router.post('/single', upload.single('file'), optimizeUploads({ maxWidth: 1920, maxHeight: 1920, quality: 80 }), (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({
@@ -90,7 +63,7 @@ router.post('/single', upload.single('file'), (req, res) => {
 });
 
 // 多文件上传
-router.post('/multiple', upload.array('files', 5), (req, res) => {
+router.post('/multiple', upload.array('files', 5), optimizeUploads({ maxWidth: 1920, maxHeight: 1920, quality: 80 }), (req, res) => {
     try {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({

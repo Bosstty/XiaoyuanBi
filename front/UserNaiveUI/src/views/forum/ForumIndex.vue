@@ -85,6 +85,8 @@
                                         v-if="resolveAvatarUrl(post.author?.avatar)"
                                         :src="resolveAvatarUrl(post.author?.avatar)"
                                         :alt="getAuthorName(post)"
+                                        loading="lazy"
+                                        decoding="async"
                                     />
                                     <span v-else>{{ getAuthorName(post).slice(0, 1) }}</span>
                                 </div>

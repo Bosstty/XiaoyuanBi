@@ -2,29 +2,14 @@ const express = require('express');
 const router = express.Router();
 const DelivererApplicationController = require('../../controllers/deliverer/ApplicationController');
 const { authMiddleware } = require('../../middleware');
-const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const { optimizeUploads } = require('../../middleware/optimizeUploads');
+const { createUpload, resolveUploadDir } = require('../../utils/uploads');
 
-const uploadDir = path.join(process.cwd(), 'uploads', 'deliverer-applications');
-fs.mkdirSync(uploadDir, { recursive: true });
-
-// 配置multer用于文件上传
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-        cb(
-            null,
-            Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname)
-        );
-    },
-});
-
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+const upload = createUpload({
+    destination: () => resolveUploadDir('deliverer-applications'),
+    filename: (_req, file) => `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`,
+    fileSize: 5 * 1024 * 1024,
 });
 
 // 提交配送员申请
@@ -36,6 +21,7 @@ router.post(
         { name: 'id_card_back', maxCount: 1 },
         { name: 'vehicle_photo', maxCount: 1 },
     ]),
+    optimizeUploads({ maxWidth: 1800, maxHeight: 1800, quality: 78 }),
     DelivererApplicationController.submitApplication
 );
 
@@ -50,6 +36,7 @@ router.put(
         { name: 'id_card_front', maxCount: 1 },
         { name: 'id_card_back', maxCount: 1 },
     ]),
+    optimizeUploads({ maxWidth: 1800, maxHeight: 1800, quality: 78 }),
     DelivererApplicationController.updateApplication
 );
 

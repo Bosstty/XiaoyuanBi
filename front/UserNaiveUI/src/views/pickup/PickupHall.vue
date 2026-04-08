@@ -75,6 +75,8 @@
                                         order.user?.username || order.user?.real_name || '用户头像'
                                     "
                                     class="pub-avatar__image"
+                                    loading="lazy"
+                                    decoding="async"
                                 />
                                 <svg
                                     v-else

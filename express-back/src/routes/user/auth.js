@@ -4,25 +4,14 @@ const UserAuthController = require('../../controllers/user/AuthController');
 const { authMiddleware } = require('../../middleware');
 const { body } = require('express-validator');
 const { handleValidation } = require('../../middleware/validation');
-const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const { optimizeUploads } = require('../../middleware/optimizeUploads');
+const { createUpload, resolveUploadDir } = require('../../utils/uploads');
 
-const avatarUploadDir = path.join(process.cwd(), 'uploads', 'avatars');
-fs.mkdirSync(avatarUploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-    destination: function (_req, _file, cb) {
-        cb(null, avatarUploadDir);
-    },
-    filename: function (req, file, cb) {
-        cb(null, `${req.user.id}_${Date.now()}${path.extname(file.originalname)}`);
-    },
-});
-
-const upload = multer({
-    storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
+const upload = createUpload({
+    destination: () => resolveUploadDir('avatars'),
+    filename: (req, file) => `${req.user.id}_${Date.now()}${path.extname(file.originalname)}`,
+    fileSize: 5 * 1024 * 1024,
 });
 
 // 用户注册
@@ -136,7 +125,13 @@ router.post(
 router.get('/profile', authMiddleware, UserAuthController.getProfile);
 router.put('/profile', authMiddleware, UserAuthController.updateProfile);
 router.post('/change-password', authMiddleware, UserAuthController.changePassword);
-router.post('/upload-avatar', authMiddleware, upload.single('avatar'), UserAuthController.uploadAvatar);
+router.post(
+    '/upload-avatar',
+    authMiddleware,
+    upload.single('avatar'),
+    optimizeUploads({ maxWidth: 512, maxHeight: 512, quality: 76 }),
+    UserAuthController.uploadAvatar
+);
 router.post('/logout', authMiddleware, UserAuthController.logout);
 router.delete('/account', authMiddleware, UserAuthController.deleteAccount);
 router.get('/stats', authMiddleware, UserAuthController.getUserStats);

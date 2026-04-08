@@ -1,12 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
-const multer = require('multer');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
-const uploadsDir = path.join(process.cwd(), 'uploads');
+const { getUploadRoot } = require('./src/utils/uploads');
 const { createHttpServer, initSocket } = require('./config/socket');
 
 // 导入主路由
@@ -15,19 +14,7 @@ const mainRouter = require('./src/routes/main');
 // 导入数据库配置
 const { testConnection } = require('./src/config/database');
 
-// 配置multer用于文件上传
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-        cb(
-            null,
-            Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname)
-        );
-    },
-});
-const upload = multer({ storage: storage });
+const uploadsDir = getUploadRoot();
 
 // 全局中间件3
 app.use(cors());
@@ -35,7 +22,20 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(uploadsDir));
+app.use(
+    '/uploads',
+    express.static(uploadsDir, {
+        maxAge: '7d',
+        etag: true,
+        immutable: true,
+        setHeaders(res, filePath) {
+            const ext = path.extname(filePath).toLowerCase();
+            if (['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext)) {
+                res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+            }
+        },
+    })
+);
 
 // 请求日志中间件
 app.use((req, res, next) => {

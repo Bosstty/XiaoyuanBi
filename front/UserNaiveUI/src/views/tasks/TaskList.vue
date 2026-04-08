@@ -74,6 +74,8 @@
                                     v-if="resolveAvatarUrl(task.publisher?.avatar)"
                                     :src="resolveAvatarUrl(task.publisher?.avatar)"
                                     :alt="task.publisher?.real_name || task.publisher?.username || '匿名'"
+                                    loading="lazy"
+                                    decoding="async"
                                 />
                                 <span v-else>{{
                                     (task.publisher?.real_name || task.publisher?.username || '匿').charAt(0)

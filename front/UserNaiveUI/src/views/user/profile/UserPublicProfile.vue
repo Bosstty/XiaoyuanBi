@@ -21,6 +21,8 @@
                                 v-if="resolveAvatarUrl(profileData.user.avatar)"
                                 :src="resolveAvatarUrl(profileData.user.avatar)"
                                 :alt="displayName"
+                                loading="lazy"
+                                decoding="async"
                             />
                             <span v-else>{{ displayName.charAt(0) }}</span>
                         </div>
@@ -152,7 +154,12 @@
                                     class="review-images__item"
                                     @click="openImagePreview(review.images || [], index)"
                                 >
-                                    <img :src="resolveAvatarUrl(image)" alt="评价图片" />
+                                    <img
+                                        :src="resolveAvatarUrl(image)"
+                                        alt="评价图片"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
                                 </button>
                             </div>
                         </article>
@@ -172,7 +179,7 @@
             class="image-preview"
             @click="closeImagePreview"
         >
-            <img :src="previewImage" alt="预览图片" class="image-preview__image" />
+            <img :src="previewImage" alt="预览图片" class="image-preview__image" decoding="async" />
         </div>
     </div>
 </template>
