@@ -273,7 +273,7 @@ const buildPayload = (): CreateTaskData => ({
     skills_required: splitLines(skillsText.value).length ? splitLines(skillsText.value) : undefined,
     price: Number(form.price || 0),
     location: form.location?.trim() || undefined,
-    deadline: new Date(deadlineValue.value || 0).toISOString(),
+    deadline: toISOStringOrUndefined(deadlineValue.value) as string,
     estimated_duration: form.estimated_duration || undefined,
     max_applicants: Number(form.max_applicants || 1),
     urgent: Boolean(form.urgent),
