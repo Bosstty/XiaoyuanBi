@@ -837,6 +837,7 @@ const handleRefund = async () => {
 
     const response = await serviceOrderApi.processRefund(detailDrawer.data.order_id, {
       reason: value.trim(),
+      ticket_id: detailDrawer.data.id,
     })
 
     if (response.success) {
@@ -858,14 +859,9 @@ const handleCompensate = async () => {
     return
   }
 
-  if (detailDrawer.data.order?.status !== 'completed') {
-    ElMessage.warning('订单尚未完成，请先结束订单，随后再处理补偿工单')
-    return
-  }
-
   try {
     const { value } = await ElMessageBox.prompt(
-      '请输入赔付追偿金额和原因（格式：金额|原因）。系统会先全额退款给用户，再从配送员冻结收益或余额中扣减；若不足则由平台垫付并生成欠款。',
+      '请输入额外赔付金额和原因（格式：金额|原因）。订单金额会全额退款给用户；这里填写的金额是退款之外的额外赔付，会再打给用户，并按配送员承担优先、平台不足垫付的方式结算。若订单尚未由用户确认完成，系统会先自动结束订单并进入担保结算。',
       '损坏赔付处理',
       {
         confirmButtonText: '确定',
@@ -887,10 +883,12 @@ const handleCompensate = async () => {
       const result = response.data?.result || {}
       if (Number(result.platform_advance_amount || 0) > 0) {
         ElMessage.success(
-          `赔付已处理，平台垫付 ¥${Number(result.platform_advance_amount).toFixed(2)}，并已生成欠款记录`,
+          `赔付已处理，退款 ¥${Number(result.refund_amount || 0).toFixed(2)}，额外赔付 ¥${Number(result.claim_amount || 0).toFixed(2)}，平台垫付 ¥${Number(result.platform_advance_amount).toFixed(2)}，并已生成欠款记录`,
         )
       } else {
-        ElMessage.success('损坏赔付处理成功')
+        ElMessage.success(
+          `赔付已处理，退款 ¥${Number(result.refund_amount || 0).toFixed(2)}，额外赔付 ¥${Number(result.claim_amount || 0).toFixed(2)}`,
+        )
       }
       await refreshPageData()
       await refreshDetailDrawer(detailDrawer.data.id)

@@ -495,6 +495,8 @@ export interface WalletOverview {
     wallet: WalletData;
     summary: {
         available_balance: number;
+        display_balance: number;
+        debt_amount: number;
         frozen_balance: number;
         total_income: number;
         total_expense: number;

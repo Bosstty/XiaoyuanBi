@@ -4,6 +4,54 @@ const { sequelize } = require('../../config/database');
 const PickupSettlementService = require('../../services/PickupSettlementService');
 const DamageCompensationService = require('../../services/DamageCompensationService');
 
+async function ensureOrderReadyForCompensation(order, transaction) {
+    if (order.status === 'completed') {
+        return order;
+    }
+
+    if (!['accepted', 'picking', 'delivering'].includes(order.status)) {
+        throw new Error('当前订单状态不支持直接处理赔付');
+    }
+
+    if (!order.deliverer_id) {
+        throw new Error('订单缺少配送员信息，无法处理赔付');
+    }
+
+    await PickupSettlementService.holdOrderSettlement(order, transaction, new Date());
+    return order;
+}
+
+async function resolveTicketAfterOrderAction(ticketId, orderId, solution, operatorId, transaction) {
+    if (ticketId === undefined || ticketId === null) {
+        return null;
+    }
+
+    const ticket = await ServiceTicket.findByPk(ticketId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!ticket) {
+        throw new Error('关联工单不存在');
+    }
+
+    if (Number(ticket.order_id) !== Number(orderId)) {
+        throw new Error('工单与订单不匹配，无法自动完成工单');
+    }
+
+    await ticket.update(
+        {
+            status: 'resolved',
+            solution,
+            service_id: operatorId || ticket.service_id || null,
+            resolved_at: new Date(),
+        },
+        { transaction }
+    );
+
+    return ticket;
+}
+
 class ServiceTicketController {
     // 获取工单列表
     async getTickets(req, res) {
@@ -253,7 +301,7 @@ class ServiceTicketController {
     // 处理退款
     async processRefund(req, res) {
         try {
-            const { reason } = req.body;
+            const { reason, ticket_id: ticketId } = req.body;
             const dbTransaction = await PickupOrder.sequelize.transaction();
             let order;
 
@@ -285,6 +333,14 @@ class ServiceTicketController {
                               dbTransaction
                           );
 
+                await resolveTicketAfterOrderAction(
+                    ticketId,
+                    order.id,
+                    `退款处理完成：${reason || '客服确认退款'}`,
+                    req.user?.id || null,
+                    dbTransaction
+                );
+
                 await dbTransaction.commit();
 
                 return res.json({
@@ -303,6 +359,7 @@ class ServiceTicketController {
                 throw error;
             }
         } catch (error) {
+            console.error('处理退款失败详情:', error);
             res.status(400).json({
                 success: false,
                 message: error.message || '退款处理失败',
@@ -331,13 +388,7 @@ class ServiceTicketController {
                     });
                 }
 
-                if (order.status !== 'completed') {
-                    await dbTransaction.rollback();
-                    return res.status(400).json({
-                        success: false,
-                        message: '订单尚未完成，请先结束订单，随后再处理补偿工单',
-                    });
-                }
+                await ensureOrderReadyForCompensation(order, dbTransaction);
 
                 const result = await DamageCompensationService.processOrderDamageClaim(
                     order,
@@ -350,6 +401,16 @@ class ServiceTicketController {
                                 : Number(req.body.ticket_id),
                         processedBy: req.user?.id || null,
                     },
+                    dbTransaction
+                );
+
+                await resolveTicketAfterOrderAction(
+                    req.body.ticket_id,
+                    order.id,
+                    `损坏赔付处理完成：退款${Number(result.refund_amount || 0).toFixed(2)}元，额外赔付${Number(
+                        result.claim_amount || 0
+                    ).toFixed(2)}元。${reason || '客服确认损坏赔付'}`,
+                    req.user?.id || null,
                     dbTransaction
                 );
 
@@ -371,6 +432,7 @@ class ServiceTicketController {
                 throw error;
             }
         } catch (error) {
+            console.error('处理损坏赔付失败详情:', error);
             res.status(400).json({
                 success: false,
                 message: error.message || '补偿处理失败',

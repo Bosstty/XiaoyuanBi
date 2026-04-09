@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Wallet, Transaction, Deliverer, PickupOrder, Task, User } = require('../../models');
+const { Wallet, Transaction, Deliverer, PickupOrder, Task, User, DelivererDebt } = require('../../models');
 const { responseUtils, paginationUtils, timeUtils, cryptoUtils } = require('../../utils');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
@@ -767,13 +767,28 @@ class WalletController {
                 (sum, task) => sum + parseAmount(task.price),
                 0
             );
+            const debtRows = await DelivererDebt.findAll({
+                where: {
+                    user_id: userId,
+                    status: {
+                        [Op.in]: ['active', 'partial'],
+                    },
+                },
+                attributes: ['remaining_amount'],
+            });
+            const debtAmount = debtRows.reduce(
+                (sum, debt) => sum + parseAmount(debt.remaining_amount),
+                0
+            );
+            const availableBalance = parseAmount(wallet.balance || req.user.balance);
+            const displayBalance = availableBalance - debtAmount;
 
             res.json(
                 responseUtils.success(
                     {
                         wallet: {
                             id: wallet.id,
-                            balance: parseAmount(wallet.balance || req.user.balance),
+                            balance: availableBalance,
                             frozen_balance: parseAmount(wallet.frozen_balance),
                             total_income: parseAmount(wallet.total_income) || totalIncome,
                             total_expense: parseAmount(wallet.total_expense) || totalExpense,
@@ -783,7 +798,9 @@ class WalletController {
                             last_transaction_at: wallet.last_transaction_at,
                         },
                         summary: {
-                            available_balance: parseAmount(wallet.balance || req.user.balance),
+                            available_balance: availableBalance,
+                            display_balance: displayBalance,
+                            debt_amount: debtAmount,
                             frozen_balance: parseAmount(wallet.frozen_balance),
                             total_income: totalIncome,
                             total_expense: totalExpense,

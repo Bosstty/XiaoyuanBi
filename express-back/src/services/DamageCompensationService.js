@@ -79,14 +79,14 @@ class DamageCompensationService {
         }
 
         const refundAmount = roundMoney(parseAmount(order.price) + parseAmount(order.tip));
-        const claimAmount = roundMoney(amount || refundAmount);
+        const claimAmount = roundMoney(amount);
 
         if (refundAmount <= 0) {
             throw new Error('订单金额异常，无法处理赔付');
         }
 
-        if (claimAmount <= 0) {
-            throw new Error('赔付追偿金额必须大于0');
+        if (claimAmount < 0) {
+            throw new Error('额外赔付金额不能小于0');
         }
 
         const { user: publisher, wallet: publisherWallet } = await getLockedUserAndWallet(
@@ -112,7 +112,7 @@ class DamageCompensationService {
 
         const now = new Date();
         const publisherBalanceBefore = parseAmount(publisherWallet.balance);
-        const publisherBalanceAfter = roundMoney(publisherBalanceBefore + refundAmount);
+        const publisherBalanceAfter = roundMoney(publisherBalanceBefore + refundAmount + claimAmount);
 
         await publisherWallet.update(
             {
@@ -137,7 +137,7 @@ class DamageCompensationService {
                 amount: refundAmount,
                 direction: 'in',
                 balance_before: publisherBalanceBefore,
-                balance_after: publisherBalanceAfter,
+                balance_after: roundMoney(publisherBalanceBefore + refundAmount),
                 status: 'success',
                 related_type: 'pickup_order',
                 related_id: order.id,
@@ -148,6 +148,28 @@ class DamageCompensationService {
             },
             { transaction }
         );
+
+        if (claimAmount > 0) {
+            await Transaction.create(
+                {
+                    transaction_no: generateTransactionNo(),
+                    user_id: publisher.id,
+                    type: 'transfer_in',
+                    amount: claimAmount,
+                    direction: 'in',
+                    balance_before: roundMoney(publisherBalanceBefore + refundAmount),
+                    balance_after: publisherBalanceAfter,
+                    status: 'success',
+                    related_type: 'damage_claim',
+                    related_id: order.id,
+                    payment_method: 'balance',
+                    description: `订单额外赔付到账：${order.title}`,
+                    remark: reason || '客服确认订单损坏，追加赔付金额',
+                    completed_at: now,
+                },
+                { transaction }
+            );
+        }
 
         const delivererFrozenBefore = parseAmount(delivererWallet.frozen_balance);
         const frozenDeductAmount = roundMoney(
@@ -202,8 +224,8 @@ class DamageCompensationService {
                     related_type: 'pickup_order',
                     related_id: order.id,
                     payment_method: 'balance',
-                    description: `损坏赔付扣减冻结收益：${order.title}`,
-                    remark: reason || '从配送员冻结收益中扣减损坏赔付',
+                    description: `额外赔付扣减冻结收益：${order.title}`,
+                    remark: reason || '从配送员冻结收益中扣减额外赔付',
                     completed_at: now,
                     extra_data: {
                         deduction_source: 'frozen_income',
@@ -227,8 +249,8 @@ class DamageCompensationService {
                     related_type: 'pickup_order',
                     related_id: order.id,
                     payment_method: 'balance',
-                    description: `损坏赔付扣减可用余额：${order.title}`,
-                    remark: reason || '从配送员可用余额中扣减损坏赔付',
+                    description: `额外赔付扣减可用余额：${order.title}`,
+                    remark: reason || '从配送员可用余额中扣减额外赔付',
                     completed_at: now,
                     extra_data: {
                         deduction_source: 'available_balance',
@@ -253,8 +275,8 @@ class DamageCompensationService {
                     related_type: 'pickup_order',
                     related_id: order.id,
                     payment_method: 'balance',
-                    description: '平台回收配送员赔付款',
-                    remark: `订单损坏赔付回收，订单ID：${order.id}`,
+                    description: '平台回收配送员额外赔付款',
+                    remark: `订单额外赔付回收，订单ID：${order.id}`,
                     completed_at: now,
                 },
                 { transaction }
@@ -277,8 +299,8 @@ class DamageCompensationService {
                     related_type: 'pickup_order',
                     related_id: order.id,
                     payment_method: 'balance',
-                    description: '平台垫付配送员赔付款',
-                    remark: `订单损坏赔付垫付，订单ID：${order.id}`,
+                    description: '平台垫付订单额外赔付',
+                    remark: `订单额外赔付垫付，订单ID：${order.id}`,
                     completed_at: now,
                 },
                 { transaction }
@@ -328,6 +350,7 @@ class DamageCompensationService {
                 extra_data: {
                     order_settlement_status_before: order.settlement_status,
                     order_frozen_amount_before: parseAmount(order.deliverer_frozen_amount),
+                    total_user_credit_amount: roundMoney(refundAmount + claimAmount),
                 },
             },
             { transaction }
@@ -342,7 +365,7 @@ class DamageCompensationService {
                     principal_amount: platformAdvanceAmount,
                     remaining_amount: platformAdvanceAmount,
                     status: 'active',
-                    remark: reason || '订单损坏赔付，平台先行垫付',
+                    remark: reason || '订单额外赔付，平台先行垫付',
                 },
                 { transaction }
             );
@@ -360,7 +383,7 @@ class DamageCompensationService {
                 settled_at: now,
                 settlement_note: [
                     order.settlement_note,
-                    `损坏赔付已处理：退款${refundAmount.toFixed(2)}元，配送员承担${delivererDeductAmount.toFixed(
+                    `损坏赔付已处理：退款${refundAmount.toFixed(2)}元，额外赔付${claimAmount.toFixed(2)}元，配送员承担${delivererDeductAmount.toFixed(
                         2
                     )}元，平台垫付${platformAdvanceAmount.toFixed(2)}元`,
                 ]
@@ -375,6 +398,7 @@ class DamageCompensationService {
             debt_id: debt?.id || null,
             refund_amount: refundAmount,
             claim_amount: claimAmount,
+            total_user_credit_amount: roundMoney(refundAmount + claimAmount),
             deliverer_deduct_amount: delivererDeductAmount,
             frozen_deduct_amount: frozenDeductAmount,
             balance_deduct_amount: balanceDeductAmount,

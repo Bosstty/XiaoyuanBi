@@ -21,6 +21,19 @@
                 <div>
                     <span>可用余额</span>
                     <strong>¥{{ balanceText }}</strong>
+                    <p
+                        v-if="Number(walletOverview?.summary.debt_amount || 0) > 0"
+                        class="wallet-center__debt-text"
+                    >
+                        平台欠款：-¥{{
+                            Number(walletOverview?.summary.debt_amount || 0).toFixed(2)
+                        }}
+                    </p>
+                    <p class="wallet-center__frozen-text">
+                        钱包可用：¥{{
+                            Number(walletOverview?.summary.available_balance || 0).toFixed(2)
+                        }}
+                    </p>
                     <p class="wallet-center__frozen-text">
                         冻结金额：¥{{
                             Number(walletOverview?.summary.frozen_balance || 0).toFixed(2)
@@ -127,7 +140,7 @@ const userStore = useUserStore();
 const walletOverview = ref<WalletOverview | null>(null);
 const isLoadingOverview = ref(false);
 const balanceText = computed(() =>
-    Number(walletOverview.value?.summary.available_balance ?? userStore.user?.balance ?? 0).toFixed(
+    Number(walletOverview.value?.summary.display_balance ?? userStore.user?.balance ?? 0).toFixed(
         2
     )
 );
@@ -361,6 +374,11 @@ onMounted(async () => {
     font-size: 12px;
     line-height: 1.6;
     opacity: 0.9;
+}
+
+.wallet-center__debt-text {
+    color: rgba(255, 235, 235, 0.98);
+    font-weight: 600;
 }
 
 .wallet-center__container {
