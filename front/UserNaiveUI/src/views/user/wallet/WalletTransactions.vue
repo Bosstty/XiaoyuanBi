@@ -88,6 +88,7 @@ import {
     ArrowUpOutline,
     BagHandleOutline,
     ChevronBackOutline,
+    ConstructOutline,
     DocumentTextOutline,
     WalletOutline,
 } from '@vicons/ionicons5';
@@ -132,6 +133,10 @@ const getBillIcon = (bill: WalletActivity) => {
         return ArrowDownOutline;
     }
 
+    if (bill.type === 'debt_deduct') {
+        return ConstructOutline;
+    }
+
     if (bill.related_type === 'pickup_order') {
         return BagHandleOutline;
     }
@@ -146,6 +151,10 @@ const getBillIcon = (bill: WalletActivity) => {
 const getBillTint = (bill: WalletActivity) => {
     if (bill.direction === 'in') {
         return 'linear-gradient(135deg, rgba(25,179,107,0.16), rgba(120,224,171,0.18))';
+    }
+
+    if (bill.type === 'debt_deduct') {
+        return 'linear-gradient(135deg, rgba(239,68,68,0.14), rgba(248,113,113,0.18))';
     }
 
     if (bill.related_type === 'pickup_order') {
@@ -166,6 +175,10 @@ const getBillDescription = (bill: WalletActivity) => {
         return accountText;
     }
 
+    if (bill.type === 'debt_deduct') {
+        return bill.description || '配送收益到账后系统自动抵扣历史欠款';
+    }
+
     return bill.description;
 };
 
@@ -180,7 +193,20 @@ const getBillMetaText = (bill: WalletActivity) => {
     }
 
     if (bill.type === 'earn_pickup' || bill.type === 'earn_task') {
+        const grossAmount = Number(bill.gross_amount || 0);
+        const netAmount = Number(bill.net_payout_amount || bill.amount || 0);
+        if (grossAmount > 0) {
+            return `总额 ¥${grossAmount.toFixed(2)} / 抽成 ¥${commissionAmount.toFixed(2)} / 实际到账 ¥${netAmount.toFixed(2)}`;
+        }
+
         return `平台抽成 ¥${commissionAmount.toFixed(2)}`;
+    }
+
+    if (bill.type === 'debt_deduct') {
+        const remainingAmount = Number(bill.debt_remaining_amount || 0);
+        return remainingAmount > 0
+            ? `自动抵扣后剩余欠款 ¥${remainingAmount.toFixed(2)}`
+            : '历史欠款已完成抵扣';
     }
 
     return '';

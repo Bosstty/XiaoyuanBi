@@ -213,7 +213,7 @@
             :closable="!statusSubmitting"
         >
             <div class="order-center__online-modal-copy">
-                <span>Runner Online</span>
+                <span>配送员在线</span>
                 <h3>当前尚未开启在线接单</h3>
                 <p>开启后你可以在订单中心和抢单大厅查看并接收新的代取订单。</p>
             </div>

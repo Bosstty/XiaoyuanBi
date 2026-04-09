@@ -856,7 +856,7 @@ const openDailyOrderNoticeDialog = () => {
         positiveText: '我已知晓',
         negativeText: '取消',
         content:
-            '请确认：若在订单进行途中已由代取员完成购买，但用户恶意拒绝支付货款，系统将封禁该用户，并计入该用户的评价系统。',
+            '请确认：若在订单进行途中已由配送员完成购买，但用户恶意拒绝支付货款，系统将封禁该用户，并计入该用户的评价系统。',
         onPositiveClick() {
             openPaymentPasswordDialog();
         },

@@ -2,8 +2,22 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 
-const DEFAULT_UPLOAD_ROOT = path.resolve(process.cwd(), 'uploads');
-const uploadRoot = path.resolve(process.env.UPLOAD_ROOT || process.env.UPLOAD_PATH || DEFAULT_UPLOAD_ROOT);
+const APP_ROOT = path.resolve(__dirname, '..', '..');
+const DEFAULT_UPLOAD_ROOT = path.join(APP_ROOT, 'uploads');
+
+function resolveUploadRootFromEnv(value) {
+    if (!value) {
+        return DEFAULT_UPLOAD_ROOT;
+    }
+
+    if (path.isAbsolute(value)) {
+        return value;
+    }
+
+    return path.resolve(APP_ROOT, value);
+}
+
+const uploadRoot = resolveUploadRootFromEnv(process.env.UPLOAD_ROOT || process.env.UPLOAD_PATH);
 
 const uploadCategoryMap = {
     avatar: ['avatars'],
@@ -97,6 +111,7 @@ function collectUploadedFiles(req) {
 }
 
 module.exports = {
+    APP_ROOT,
     buildPublicUploadPath,
     collectUploadedFiles,
     createFilename,

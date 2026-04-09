@@ -2,6 +2,7 @@ const { ServiceTicket, User, PickupOrder, PickupOrderItem, Deliverer } = require
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 const PickupSettlementService = require('../../services/PickupSettlementService');
+const DamageCompensationService = require('../../services/DamageCompensationService');
 
 class ServiceTicketController {
     // 获取工单列表
@@ -338,10 +339,17 @@ class ServiceTicketController {
                     });
                 }
 
-                const result = await PickupSettlementService.processCompensation(
+                const result = await DamageCompensationService.processOrderDamageClaim(
                     order,
-                    amount,
-                    reason,
+                    {
+                        amount,
+                        reason,
+                        ticketId:
+                            req.body.ticket_id === undefined || req.body.ticket_id === null
+                                ? null
+                                : Number(req.body.ticket_id),
+                        processedBy: req.user?.id || null,
+                    },
                     dbTransaction
                 );
 
@@ -350,9 +358,9 @@ class ServiceTicketController {
                 return res.json({
                     success: true,
                     message:
-                        result.offline_amount > 0
-                            ? '补偿已部分处理，超出部分需配送员线下赔付'
-                            : '补偿处理成功',
+                        result.platform_advance_amount > 0
+                            ? '损坏赔付已处理，平台已为不足部分垫付并生成欠款'
+                            : '损坏赔付处理成功',
                     data: {
                         order,
                         result,

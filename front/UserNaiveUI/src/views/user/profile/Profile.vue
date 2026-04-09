@@ -43,7 +43,7 @@
                                 class="account-center__role-badge"
                                 :class="{ 'is-courier': courierEnabled }"
                             >
-                                {{ courierEnabled ? '代取员' : '普通用户' }}
+                                {{ activeIdentityLabel }}
                             </span>
                         </div>
                         <p class="account-center__intro">
@@ -121,7 +121,7 @@
 
         <section v-if="courierEnabled" class="account-center__section">
             <div class="account-center__section-head">
-                <h3>代取员扩展位</h3>
+                <h3>配送员服务</h3>
                 <button type="button" @click="handleCourierAction">
                     {{ courierActionLabel }}
                 </button>
@@ -130,8 +130,8 @@
             <div v-if="courierEnabled" class="account-center__courier-card is-active">
                 <div class="account-center__courier-top">
                     <div>
-                        <span>Runner Mode</span>
-                        <h4>代取员中心</h4>
+                        <span>配送员已开通</span>
+                        <h4>配送员中心</h4>
                     </div>
                     <div class="account-center__courier-status">
                         <span class="account-center__status-dot"></span>
@@ -218,7 +218,7 @@
 
         <section v-if="!courierEnabled" class="account-center__section">
             <div class="account-center__section-head">
-                <h3>代取员扩展位</h3>
+                <h3>配送员服务</h3>
                 <button type="button" @click="handleCourierAction">
                     {{ courierActionLabel }}
                 </button>
@@ -226,7 +226,7 @@
             <div class="account-center__courier-card">
                 <div class="account-center__courier-top">
                     <div>
-                        <span>Future Upgrade</span>
+                        <span>配送员入口</span>
                         <h4>{{ courierCardTitle }}</h4>
                     </div>
                     <div class="account-center__courier-pending">{{ courierPendingText }}</div>
@@ -277,7 +277,7 @@
         >
             <div class="courier-application-modal__head">
                 <div>
-                    <span class="courier-application-modal__eyebrow">Runner Upgrade</span>
+                    <span class="courier-application-modal__eyebrow">配送员入口</span>
                     <h3>
                         {{ courierApplicationMode === 'submit' ? '申请配送员' : '修改配送员申请' }}
                     </h3>
@@ -503,6 +503,18 @@ const courierEnabled = computed(() => {
     );
 });
 
+const activeIdentityLabel = computed(() => {
+    if (courierEnabled.value) {
+        return '配送员';
+    }
+
+    if (userStore.user?.student_verified) {
+        return '学生';
+    }
+
+    return '普通用户';
+});
+
 const courierStatusText = computed(() => {
     if (delivererApplication.value?.is_online) {
         return '在线接单';
@@ -544,7 +556,7 @@ const courierCardTitle = computed(() => {
         return '配送员认证信息已被封禁';
     }
 
-    return '代取员身份暂未开通';
+    return '配送员身份暂未开通';
 });
 
 const courierPendingText = computed(() => {
@@ -623,7 +635,6 @@ const profileStats = computed(() => {
     }
 
     return [
-        { label: '完成订单', value: userStore.user.completed_orders || 0 },
         { label: '完成任务', value: userStore.user.completed_tasks || 0 },
         { label: '账户评分', value: Number(userStore.user.rating || 5).toFixed(1) },
         { label: '当前等级', value: `Lv.${userStore.user.level || 1}` },
@@ -636,9 +647,9 @@ const overviewCards = computed(() => {
 
     return [
         {
-            title: '订单履约',
-            value: stats?.orders.completed ?? user?.completed_orders ?? '--',
-            note: '已完成的代取与代购服务',
+            title: '订单发布',
+            value: stats?.orders.published ?? '--',
+            note: '查看你发起的校园服务订单',
             icon: markRaw(ReceiptOutline),
             tint: 'linear-gradient(135deg, rgba(47,107,255,0.16), rgba(75,184,255,0.18))',
         },
@@ -704,7 +715,7 @@ const serviceShortcuts = computed(() => [
     },
     {
         title: '钱包记录',
-        description: '查看余额、收益和后续代取员结算入口',
+        description: '查看余额、收益和后续配送员结算入口',
         path: '/wallet',
         icon: markRaw(CashOutline),
         tint: 'linear-gradient(135deg, rgba(12,116,176,0.13), rgba(75,184,255,0.16))',

@@ -116,6 +116,25 @@ export interface PickupOrder {
     fragile: boolean;
     status: 'pending' | 'accepted' | 'picking' | 'delivering' | 'completed' | 'cancelled';
     payment_status: 'unpaid' | 'paid' | 'refunded';
+    settlement_status?:
+        | 'none'
+        | 'holding'
+        | 'settled'
+        | 'partial_refunded'
+        | 'refunded'
+        | 'partial_compensated'
+        | 'compensated';
+    settlement_amount?: number;
+    deliverer_frozen_amount?: number;
+    refund_amount?: number;
+    compensation_amount?: number;
+    offline_compensation_amount?: number;
+    damage_claim_status?: 'none' | 'processing' | 'resolved' | 'rejected';
+    latest_damage_claim_id?: number | null;
+    settlement_started_at?: string | null;
+    settlement_hold_until?: string | null;
+    settled_at?: string | null;
+    settlement_note?: string | null;
     images?: string[];
     notes?: string;
     rating?: number;
@@ -453,6 +472,10 @@ export interface WalletActivity {
     commission_rate?: number | null;
     commission_amount?: number | null;
     actual_amount?: number | null;
+    gross_amount?: number | null;
+    net_payout_amount?: number | null;
+    debt_remaining_amount?: number | null;
+    deduction_source?: string | null;
 }
 
 export interface WalletDelivererStats {

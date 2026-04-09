@@ -473,7 +473,7 @@ const getUserTypeTagType = (role) => {
 const getUserTypeText = (role) => {
   const texts = {
     student: '学生',
-    delivery: '代取员',
+    delivery: '配送员',
     admin: '管理员',
   }
   return texts[role] || '未知'

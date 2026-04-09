@@ -10,6 +10,8 @@ const ForumPost = require('./user/ForumPost');
 const ForumComment = require('./user/ForumComment');
 const Wallet = require('./user/Wallet');
 const Transaction = require('./user/Transaction');
+const DelivererDebt = require('./user/DelivererDebt');
+const DebtRepaymentRecord = require('./user/DebtRepaymentRecord');
 const Message = require('./user/Message');
 const NotificationSetting = require('./user/NotificationSetting');
 
@@ -28,6 +30,7 @@ const SystemSetting = require('./admin/SystemSetting');
 // 客服相关模型
 const Service = require('./service/Service');
 const ServiceTicket = require('./service/ServiceTicket');
+const DamageClaim = require('./service/DamageClaim');
 const ChatConversation = require('./service/ChatConversation');
 const ChatMessage = require('./service/ChatMessage');
 
@@ -201,6 +204,114 @@ Wallet.hasMany(Transaction, {
     as: 'transactions',
 });
 
+User.hasMany(DelivererDebt, {
+    foreignKey: 'user_id',
+    as: 'delivererDebts',
+});
+DelivererDebt.belongsTo(User, {
+    foreignKey: 'user_id',
+    as: 'user',
+});
+
+PickupOrder.hasMany(DamageClaim, {
+    foreignKey: 'order_id',
+    as: 'damageClaims',
+});
+DamageClaim.belongsTo(PickupOrder, {
+    foreignKey: 'order_id',
+    as: 'order',
+});
+
+ServiceTicket.hasMany(DamageClaim, {
+    foreignKey: 'ticket_id',
+    as: 'damageClaims',
+});
+DamageClaim.belongsTo(ServiceTicket, {
+    foreignKey: 'ticket_id',
+    as: 'ticket',
+});
+
+User.hasMany(DamageClaim, {
+    foreignKey: 'user_id',
+    as: 'submittedDamageClaims',
+});
+DamageClaim.belongsTo(User, {
+    foreignKey: 'user_id',
+    as: 'claimUser',
+});
+
+Deliverer.hasMany(DamageClaim, {
+    foreignKey: 'deliverer_id',
+    as: 'damageClaims',
+});
+DamageClaim.belongsTo(Deliverer, {
+    foreignKey: 'deliverer_id',
+    as: 'delivererProfile',
+});
+
+User.hasMany(DamageClaim, {
+    foreignKey: 'deliverer_user_id',
+    as: 'delivererDamageClaims',
+});
+DamageClaim.belongsTo(User, {
+    foreignKey: 'deliverer_user_id',
+    as: 'delivererUser',
+});
+
+DamageClaim.hasMany(DelivererDebt, {
+    foreignKey: 'claim_id',
+    as: 'debts',
+});
+DelivererDebt.belongsTo(DamageClaim, {
+    foreignKey: 'claim_id',
+    as: 'claim',
+});
+
+PickupOrder.hasMany(DelivererDebt, {
+    foreignKey: 'order_id',
+    as: 'delivererDebts',
+});
+DelivererDebt.belongsTo(PickupOrder, {
+    foreignKey: 'order_id',
+    as: 'order',
+});
+
+DelivererDebt.hasMany(DebtRepaymentRecord, {
+    foreignKey: 'debt_id',
+    as: 'repaymentRecords',
+});
+DebtRepaymentRecord.belongsTo(DelivererDebt, {
+    foreignKey: 'debt_id',
+    as: 'debt',
+});
+
+User.hasMany(DebtRepaymentRecord, {
+    foreignKey: 'user_id',
+    as: 'debtRepaymentRecords',
+});
+DebtRepaymentRecord.belongsTo(User, {
+    foreignKey: 'user_id',
+    as: 'user',
+});
+
+Transaction.hasMany(DebtRepaymentRecord, {
+    foreignKey: 'source_transaction_id',
+    as: 'sourceDebtRepaymentRecords',
+});
+DebtRepaymentRecord.belongsTo(Transaction, {
+    foreignKey: 'source_transaction_id',
+    as: 'sourceTransaction',
+});
+
+Transaction.hasMany(DebtRepaymentRecord, {
+    foreignKey: 'deduction_transaction_id',
+    as: 'deductionDebtRepaymentRecords',
+});
+DebtRepaymentRecord.belongsTo(Transaction, {
+    foreignKey: 'deduction_transaction_id',
+    as: 'deductionTransaction',
+});
+
 // 用户与消息的关系
 User.hasMany(Message, {
     foreignKey: 'sender_id',
@@ -289,6 +400,8 @@ module.exports = {
     ForumComment,
     Wallet,
     Transaction,
+    DelivererDebt,
+    DebtRepaymentRecord,
     Message,
     NotificationSetting,
     // 配送员相关
@@ -305,6 +418,7 @@ module.exports = {
     // 客服相关
     Service,
     ServiceTicket,
+    DamageClaim,
     ChatConversation,
     ChatMessage,
 };

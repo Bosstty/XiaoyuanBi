@@ -5,7 +5,7 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
-const { getUploadRoot } = require('./src/utils/uploads');
+const { APP_ROOT, getUploadRoot } = require('./src/utils/uploads');
 const { createHttpServer, initSocket } = require('./config/socket');
 
 // 导入主路由
@@ -15,6 +15,7 @@ const mainRouter = require('./src/routes/main');
 const { testConnection } = require('./src/config/database');
 
 const uploadsDir = getUploadRoot();
+const legacyUploadsDir = path.join(APP_ROOT, 'uploads');
 
 // 全局中间件3
 app.use(cors());
@@ -36,6 +37,22 @@ app.use(
         },
     })
 );
+if (path.resolve(legacyUploadsDir) !== path.resolve(uploadsDir)) {
+    app.use(
+        '/uploads',
+        express.static(legacyUploadsDir, {
+            maxAge: '7d',
+            etag: true,
+            immutable: true,
+            setHeaders(res, filePath) {
+                const ext = path.extname(filePath).toLowerCase();
+                if (['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext)) {
+                    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+                }
+            },
+        })
+    );
+}
 
 // 请求日志中间件
 app.use((req, res, next) => {

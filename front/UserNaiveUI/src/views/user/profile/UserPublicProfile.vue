@@ -29,11 +29,14 @@
                         <div class="hero-copy">
                             <div class="name-row">
                                 <strong>{{ displayName }}</strong>
+                                <span class="verified-badge">
+                                    {{ publicIdentityLabel }}
+                                </span>
                                 <span
                                     v-if="profileData.user.student_verified"
                                     class="verified-badge"
                                 >
-                                    已认证
+                                    已认证学生
                                 </span>
                             </div>
                             <p>
@@ -68,10 +71,6 @@
                     <article class="stat-card">
                         <span>接过任务</span>
                         <strong>{{ profileData.stats.completed_tasks }}</strong>
-                    </article>
-                    <article class="stat-card">
-                        <span>接过订单</span>
-                        <strong>{{ profileData.stats.completed_orders }}</strong>
                     </article>
                 </section>
 
@@ -205,6 +204,9 @@ const previewImage = ref('');
 const userId = computed(() => Number(route.params.id || 0));
 const displayName = computed(
     () => profileData.value?.user.real_name || profileData.value?.user.username || '匿名用户'
+);
+const publicIdentityLabel = computed(() =>
+    profileData.value?.user.student_verified ? '学生' : '普通用户'
 );
 
 const resolveAvatarUrl = (value?: string | null) => {

@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { PickupOrder, User, Deliverer, Wallet, Transaction, SystemSetting } = require('../models');
+const DebtSettlementService = require('./DebtSettlementService');
 
 const HOLD_DURATION_MS = 48 * 60 * 60 * 1000;
 const ACTIVE_HOLD_STATUSES = ['holding', 'partial_refunded', 'partial_compensated'];
@@ -714,6 +715,23 @@ class PickupSettlementService {
                 net_payout_amount: payoutAmount,
                 commission_amount: commissionAmount,
             },
+        });
+
+        const settledEarnTx = await Transaction.findOne({
+            where: {
+                user_id: delivererUser.id,
+                type: 'earn_pickup',
+                related_type: 'pickup_order',
+                related_id: order.id,
+                status: 'success',
+            },
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+        });
+
+        await DebtSettlementService.settleDelivererDebts(delivererUser.id, transaction, {
+            sourceTransactionId: settledEarnTx?.id || null,
+            remark: `订单收益结算后自动抵扣欠款，订单ID：${order.id}`,
         });
 
         await order.update(

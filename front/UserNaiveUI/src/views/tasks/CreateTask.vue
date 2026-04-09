@@ -104,14 +104,6 @@
                                 style="width: 100%"
                             />
                         </div>
-                        <div class="field-node">
-                            <label class="field-label">开始时间（可选）</label>
-                            <NDatePicker
-                                v-model:value="startTimeValue"
-                                type="datetime"
-                                style="width: 100%"
-                            />
-                        </div>
                     </div>
 
                     <div class="field-grid mt-16">
@@ -235,7 +227,6 @@ const dialog = useDialog();
 const submitting = ref(false);
 const showAdvanced = ref(false);
 const deadlineValue = ref<number | null>(null);
-const startTimeValue = ref<number | null>(null);
 const tagsText = ref('');
 const skillsText = ref('');
 const attachmentsText = ref('');
@@ -282,7 +273,6 @@ const buildPayload = (): CreateTaskData => ({
     skills_required: splitLines(skillsText.value).length ? splitLines(skillsText.value) : undefined,
     price: Number(form.price || 0),
     location: form.location?.trim() || undefined,
-    start_time: toISOStringOrUndefined(startTimeValue.value),
     deadline: new Date(deadlineValue.value || 0).toISOString(),
     estimated_duration: form.estimated_duration || undefined,
     max_applicants: Number(form.max_applicants || 1),
@@ -300,9 +290,6 @@ const validateForm = () => {
     if (!form.description?.trim()) return '请填写任务描述';
     if (!Number(form.price)) return '请填写任务报酬';
     if (!deadlineValue.value) return '请选择截止时间';
-    if (startTimeValue.value && deadlineValue.value && startTimeValue.value > deadlineValue.value) {
-        return '截止时间不能早于开始时间';
-    }
     return '';
 };
 

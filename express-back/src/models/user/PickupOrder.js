@@ -161,6 +161,16 @@ const PickupOrder = sequelize.define(
             defaultValue: 0,
             comment: '需线下赔付的补偿金额',
         },
+        damage_claim_status: {
+            type: DataTypes.ENUM('none', 'processing', 'resolved', 'rejected'),
+            defaultValue: 'none',
+            comment: '损坏赔付状态',
+        },
+        latest_damage_claim_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            comment: '最近一次损坏赔付记录ID',
+        },
         settlement_started_at: {
             type: DataTypes.DATE,
             allowNull: true,

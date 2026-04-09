@@ -36,7 +36,8 @@ const Transaction = sequelize.define(
                 'penalty', // 违约金
                 'bonus', // 奖励
                 'transfer_in', // 转入
-                'transfer_out' // 转出
+                'transfer_out', // 转出
+                'debt_deduct' // 欠款抵扣
             ),
             allowNull: false,
             comment: '交易类型',
@@ -67,7 +68,15 @@ const Transaction = sequelize.define(
             comment: '交易状态',
         },
         related_type: {
-            type: DataTypes.ENUM('pickup_order', 'task', 'recharge', 'withdraw', 'transfer'),
+            type: DataTypes.ENUM(
+                'pickup_order',
+                'task',
+                'recharge',
+                'withdraw',
+                'transfer',
+                'damage_claim',
+                'deliverer_debt'
+            ),
             allowNull: true,
             comment: '关联业务类型',
         },

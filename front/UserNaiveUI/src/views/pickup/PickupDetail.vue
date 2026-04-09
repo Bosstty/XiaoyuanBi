@@ -216,6 +216,61 @@
                                     </div>
                                 </div>
                             </article>
+
+                            <article
+                                v-if="
+                                    order.settlement_status ||
+                                    order.damage_claim_status ||
+                                    Number(order.refund_amount || 0) > 0 ||
+                                    Number(order.compensation_amount || 0) > 0
+                                "
+                                class="detail-panel"
+                            >
+                                <div class="detail-panel__head">
+                                    <span>售后与结算</span>
+                                </div>
+                                <div v-if="order.payment_status" class="detail-kv">
+                                    <label>支付状态</label>
+                                    <strong>{{ getPaymentStatusLabel(order.payment_status) }}</strong>
+                                </div>
+                                <div v-if="order.settlement_status" class="detail-kv">
+                                    <label>结算状态</label>
+                                    <strong>{{ getSettlementStatusLabel(order.settlement_status) }}</strong>
+                                </div>
+                                <div
+                                    v-if="order.damage_claim_status && order.damage_claim_status !== 'none'"
+                                    class="detail-kv"
+                                >
+                                    <label>赔付状态</label>
+                                    <strong>{{ getDamageClaimStatusLabel(order.damage_claim_status) }}</strong>
+                                </div>
+                                <div v-if="Number(order.refund_amount || 0) > 0" class="detail-kv">
+                                    <label>已退款</label>
+                                    <strong>¥{{ Number(order.refund_amount || 0).toFixed(2) }}</strong>
+                                </div>
+                                <div
+                                    v-if="Number(order.compensation_amount || 0) > 0"
+                                    class="detail-kv"
+                                >
+                                    <label>赔付金额</label>
+                                    <strong>¥{{ Number(order.compensation_amount || 0).toFixed(2) }}</strong>
+                                </div>
+                                <div
+                                    v-if="Number(order.deliverer_frozen_amount || 0) > 0"
+                                    class="detail-kv"
+                                >
+                                    <label>待结算冻结</label>
+                                    <strong>¥{{ Number(order.deliverer_frozen_amount || 0).toFixed(2) }}</strong>
+                                </div>
+                                <div v-if="order.settlement_hold_until" class="detail-kv">
+                                    <label>担保截止</label>
+                                    <strong>{{ formatDateTime(order.settlement_hold_until) }}</strong>
+                                </div>
+                                <div v-if="order.settlement_note" class="detail-kv detail-kv--stack">
+                                    <label>处理备注</label>
+                                    <strong class="detail-review-text">{{ order.settlement_note }}</strong>
+                                </div>
+                            </article>
                         </div>
                     </section>
 
@@ -362,7 +417,7 @@
                                 quaternary
                                 @click="openServiceTicketModal('dispute')"
                             >
-                                申请补偿
+                                申请损坏赔付
                             </NButton>
                             <NButton
                                 v-if="canChatNow"
@@ -520,7 +575,7 @@
         >
             <div class="review-modal">
                 <div class="review-modal__head">
-                    <strong>{{ serviceTicketMode === 'refund' ? '申请退款' : '申请补偿' }}</strong>
+                    <strong>{{ serviceTicketMode === 'refund' ? '申请退款' : '申请损坏赔付' }}</strong>
                     <button
                         type="button"
                         class="review-modal__close"
@@ -533,7 +588,7 @@
                     {{
                         serviceTicketMode === 'refund'
                             ? '如果订单未正常履约、配送异常或需要退回款项，可以提交退款申请，由客服介入处理。'
-                            : '如果出现超时、态度问题、物品损坏或其他损失情况，可以提交补偿申请，由客服介入处理。'
+                            : '如果出现物品损坏、丢失或需要平台先行赔付的情况，可以提交损坏赔付申请，由客服介入处理。'
                     }}
                 </p>
                 <NInput
@@ -542,7 +597,7 @@
                     :placeholder="
                         serviceTicketMode === 'refund'
                             ? '请说明退款原因，尽量写清订单经过、当前状态和退款诉求'
-                            : '请说明补偿原因，尽量写清问题经过、造成的影响和你的补偿诉求'
+                            : '请说明损坏情况、订单经过、物品影响和你的赔付诉求，便于客服核定处理'
                     "
                     :rows="5"
                     maxlength="500"
@@ -1036,6 +1091,41 @@ const getStatusTagType = (orderOrStatus: PickupOrder | PickupOrder['status']) =>
     }
 
     return map[status] || 'default';
+};
+
+const getPaymentStatusLabel = (status?: PickupOrder['payment_status']) => {
+    const map = {
+        unpaid: '待支付',
+        paid: '已支付',
+        refunded: '已退款',
+    };
+
+    return status ? map[status] || status : '--';
+};
+
+const getSettlementStatusLabel = (status?: PickupOrder['settlement_status']) => {
+    const map = {
+        none: '未进入结算',
+        holding: '担保期中',
+        settled: '已结算',
+        partial_refunded: '部分退款',
+        refunded: '已退款',
+        partial_compensated: '部分赔付',
+        compensated: '已赔付',
+    };
+
+    return status ? map[status] || status : '--';
+};
+
+const getDamageClaimStatusLabel = (status?: PickupOrder['damage_claim_status']) => {
+    const map = {
+        none: '未发起',
+        processing: '处理中',
+        resolved: '已处理',
+        rejected: '已驳回',
+    };
+
+    return status ? map[status] || status : '--';
 };
 
 const resolveAssetUrl = (value?: string | null) => {

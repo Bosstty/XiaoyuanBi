@@ -11,6 +11,7 @@ const {
 const { responseUtils, orderUtils, cryptoUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
+const DebtSettlementService = require('../../services/DebtSettlementService');
 
 const parseAmount = value => Number(value || 0);
 const roundMoney = value => Number(parseAmount(value).toFixed(2));
@@ -387,7 +388,7 @@ async function settleTaskPayment(task, paymentPassword, transaction) {
         { transaction }
     );
 
-    await Transaction.create(
+    const earnTx = await Transaction.create(
         {
             transaction_no: generateTransactionNo(),
             user_id: assignee.id,
@@ -415,6 +416,11 @@ async function settleTaskPayment(task, paymentPassword, transaction) {
         },
         { transaction }
     );
+
+    await DebtSettlementService.settleDelivererDebts(assignee.id, transaction, {
+        sourceTransactionId: earnTx.id,
+        remark: `任务收益到账后自动抵扣欠款，任务ID：${task.id}`,
+    });
 }
 
 async function expireTaskCancellationIfNeeded(task, transaction) {
@@ -743,7 +749,6 @@ class TaskController {
                 skills_required,
                 price,
                 location,
-                start_time,
                 deadline,
                 estimated_duration,
                 max_applicants,
@@ -784,18 +789,6 @@ class TaskController {
                 return res.status(400).json(responseUtils.error('截止时间必须晚于当前时间'));
             }
 
-            let startTimeDate = null;
-            if (start_time) {
-                startTimeDate = new Date(start_time);
-                if (Number.isNaN(startTimeDate.getTime())) {
-                    return res.status(400).json(responseUtils.error('开始时间格式不正确'));
-                }
-
-                if (startTimeDate > deadlineDate) {
-                    return res.status(400).json(responseUtils.error('开始时间不能晚于截止时间'));
-                }
-            }
-
             if (max_applicants !== undefined && Number(max_applicants) < 1) {
                 return res.status(400).json(responseUtils.error('最大申请人数不能小于1'));
             }
@@ -826,7 +819,6 @@ class TaskController {
                         skills_required: Array.isArray(skills_required) ? skills_required : null,
                         price: taskAmount,
                         location: location ? String(location).trim() : null,
-                        start_time: startTimeDate || null,
                         deadline: deadlineDate,
                         estimated_duration: estimated_duration ? Number(estimated_duration) : null,
                         max_applicants: max_applicants ? Number(max_applicants) : 1,
@@ -870,8 +862,6 @@ class TaskController {
                 '截止时间不能为空',
                 '截止时间格式不正确',
                 '截止时间必须晚于当前时间',
-                '开始时间格式不正确',
-                '开始时间不能晚于截止时间',
                 '最大申请人数不能小于1',
                 '预计时长不能小于1小时',
             ].some(message => errorMessage.includes(message));

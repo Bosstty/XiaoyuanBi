@@ -271,6 +271,18 @@
             <el-descriptions-item label="订单状态" v-if="detailDrawer.data.order?.status">
               {{ getOrderStatusText(detailDrawer.data.order.status) }}
             </el-descriptions-item>
+            <el-descriptions-item label="支付状态" v-if="detailDrawer.data.order?.payment_status">
+              {{ getPaymentStatusText(detailDrawer.data.order.payment_status) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="结算状态" v-if="detailDrawer.data.order?.settlement_status">
+              {{ getSettlementStatusText(detailDrawer.data.order.settlement_status) }}
+            </el-descriptions-item>
+            <el-descriptions-item
+              label="赔付状态"
+              v-if="detailDrawer.data.order?.damage_claim_status && detailDrawer.data.order?.damage_claim_status !== 'none'"
+            >
+              {{ getDamageClaimStatusText(detailDrawer.data.order.damage_claim_status) }}
+            </el-descriptions-item>
             <el-descriptions-item label="订单金额" v-if="detailDrawer.data.order">
               ¥{{ formatMoney(detailDrawer.data.order.price) }}
             </el-descriptions-item>
@@ -279,6 +291,30 @@
             </el-descriptions-item>
             <el-descriptions-item label="应付合计" v-if="detailDrawer.data.order">
               ¥{{ formatMoney(getOrderTotalAmount(detailDrawer.data.order)) }}
+            </el-descriptions-item>
+            <el-descriptions-item
+              label="已退款金额"
+              v-if="Number(detailDrawer.data.order?.refund_amount || 0) > 0"
+            >
+              ¥{{ formatMoney(detailDrawer.data.order.refund_amount) }}
+            </el-descriptions-item>
+            <el-descriptions-item
+              label="赔付金额"
+              v-if="Number(detailDrawer.data.order?.compensation_amount || 0) > 0"
+            >
+              ¥{{ formatMoney(detailDrawer.data.order.compensation_amount) }}
+            </el-descriptions-item>
+            <el-descriptions-item
+              label="待结算冻结"
+              v-if="Number(detailDrawer.data.order?.deliverer_frozen_amount || 0) > 0"
+            >
+              ¥{{ formatMoney(detailDrawer.data.order.deliverer_frozen_amount) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="担保截止" v-if="detailDrawer.data.order?.settlement_hold_until">
+              {{ formatDateTime(detailDrawer.data.order.settlement_hold_until) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="结算备注" v-if="detailDrawer.data.order?.settlement_note">
+              {{ detailDrawer.data.order.settlement_note }}
             </el-descriptions-item>
             <el-descriptions-item label="取件地址" v-if="detailDrawer.data.order?.pickup_location">
               {{ detailDrawer.data.order.pickup_location }}
@@ -407,7 +443,7 @@
             <!-- 退款和补偿按钮 -->
             <el-form-item v-if="detailDrawer.data.order_id">
               <el-button type="warning" @click="handleRefund"> 退款 </el-button>
-              <el-button type="info" @click="handleCompensate"> 补偿 </el-button>
+              <el-button type="danger" @click="handleCompensate"> 损坏赔付 </el-button>
             </el-form-item>
           </el-form>
         </div>
@@ -815,7 +851,7 @@ const handleRefund = async () => {
   }
 }
 
-// 补偿处理
+// 损坏赔付处理
 const handleCompensate = async () => {
   if (!detailDrawer.data.order_id) {
     ElMessage.warning('该工单没有关联订单')
@@ -829,8 +865,8 @@ const handleCompensate = async () => {
 
   try {
     const { value } = await ElMessageBox.prompt(
-      '请输入补偿金额和原因（格式：金额|原因）',
-      '补偿处理',
+      '请输入赔付追偿金额和原因（格式：金额|原因）。系统会先全额退款给用户，再从配送员冻结收益或余额中扣减；若不足则由平台垫付并生成欠款。',
+      '损坏赔付处理',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -844,16 +880,24 @@ const handleCompensate = async () => {
     const response = await serviceOrderApi.processCompensate(detailDrawer.data.order_id, {
       amount: parseFloat(amount),
       reason: reason.trim(),
+      ticket_id: detailDrawer.data.id,
     })
 
     if (response.success) {
-      ElMessage.success('补偿处理成功')
+      const result = response.data?.result || {}
+      if (Number(result.platform_advance_amount || 0) > 0) {
+        ElMessage.success(
+          `赔付已处理，平台垫付 ¥${Number(result.platform_advance_amount).toFixed(2)}，并已生成欠款记录`,
+        )
+      } else {
+        ElMessage.success('损坏赔付处理成功')
+      }
       await refreshPageData()
       await refreshDetailDrawer(detailDrawer.data.id)
     }
   } catch (error) {
     if (!isDialogCancel(error)) {
-      ElMessage.error(error.message || '补偿处理失败')
+      ElMessage.error(error.message || '损坏赔付处理失败')
     }
   }
 }
@@ -875,7 +919,7 @@ const getTypeText = (type) => {
   const texts = {
     complaint: '投诉',
     refund: '退款',
-    dispute: '争议',
+    dispute: '损坏赔付',
     suggestion: '建议',
     other: '其他',
   }
@@ -941,6 +985,38 @@ const getOrderStatusText = (status) => {
     delivering: '配送中',
     completed: '已完成',
     cancelled: '已取消',
+  }
+  return texts[status] || status || '-'
+}
+
+const getPaymentStatusText = (status) => {
+  const texts = {
+    unpaid: '待支付',
+    paid: '已支付',
+    refunded: '已退款',
+  }
+  return texts[status] || status || '-'
+}
+
+const getSettlementStatusText = (status) => {
+  const texts = {
+    none: '未进入结算',
+    holding: '担保期中',
+    settled: '已结算',
+    partial_refunded: '部分退款',
+    refunded: '已退款',
+    partial_compensated: '部分赔付',
+    compensated: '已赔付',
+  }
+  return texts[status] || status || '-'
+}
+
+const getDamageClaimStatusText = (status) => {
+  const texts = {
+    none: '未发起',
+    processing: '处理中',
+    resolved: '已处理',
+    rejected: '已驳回',
   }
   return texts[status] || status || '-'
 }

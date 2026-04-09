@@ -28,6 +28,7 @@ const transactionTitleMap = {
     bonus: '奖励到账',
     transfer_in: '转入',
     transfer_out: '转出',
+    debt_deduct: '欠款抵扣',
 };
 
 const paymentMethodLabelMap = {
@@ -122,6 +123,10 @@ function normalizeTransaction(transaction) {
         commission_rate: parseAmount(transaction.commission_rate),
         commission_amount: parseAmount(transaction.commission_amount),
         actual_amount: parseAmount(extraData.actual_amount),
+        gross_amount: parseAmount(extraData.gross_amount),
+        net_payout_amount: parseAmount(extraData.net_payout_amount),
+        debt_remaining_amount: parseAmount(extraData.debt_remaining_amount),
+        deduction_source: extraData.deduction_source || null,
     };
 }
 
