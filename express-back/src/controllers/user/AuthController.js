@@ -28,6 +28,10 @@ function getRequestEmail(body = {}) {
         .toLowerCase();
 }
 
+function formatSecurityTime(date = new Date()) {
+    return new Date(date).toLocaleString('zh-CN', { hour12: false });
+}
+
 async function buildUserResponse(user) {
     const deliverer = await Deliverer.findOne({
         where: {
@@ -302,6 +306,10 @@ class UserAuthController {
             const user = req.user;
             const { old_password, new_password } = req.body;
 
+            if (!user.email || !user.email_verified) {
+                return res.status(400).json(responseUtils.error('请先完成邮箱验证后再修改密码'));
+            }
+
             // 验证旧密码
             const isOldPasswordValid = await user.comparePassword(old_password);
             if (!isOldPasswordValid) {
@@ -312,6 +320,23 @@ class UserAuthController {
             await user.update({
                 password: new_password,
             });
+
+            try {
+                await emailService.sendSecurityNotice(user.email, {
+                    subject: '登录密码已修改',
+                    title: '登录密码已修改',
+                    intro: '你的账号登录密码刚刚发生变更，请确认这次操作由你本人发起。',
+                    details: [
+                        { label: '账号', value: user.username || user.email || `用户 ${user.id}` },
+                        { label: '操作时间', value: formatSecurityTime() },
+                        { label: 'IP 地址', value: req.ip || '未知' },
+                        { label: '设备信息', value: req.get('User-Agent') || '未知设备' },
+                    ],
+                    footerNote: '如果不是你本人修改，请尽快使用找回密码功能重置密码，并检查账号登录状态。',
+                });
+            } catch (mailError) {
+                console.error('发送登录密码修改通知邮件失败:', mailError);
+            }
 
             res.json(responseUtils.success(null, '密码修改成功'));
         } catch (error) {

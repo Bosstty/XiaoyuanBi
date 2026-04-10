@@ -5,8 +5,26 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api
 function redirectToLogin() {
   localStorage.removeItem('auth_token')
   localStorage.removeItem('admin_token')
+  localStorage.removeItem('service_token')
   localStorage.removeItem('auth_user_type')
   window.location.href = '/login'
+}
+
+function getTokenByEndpoint(endpoint = '') {
+  const userType = localStorage.getItem('auth_user_type') || 'admin'
+  const adminToken = localStorage.getItem('admin_token')
+  const serviceToken = localStorage.getItem('service_token')
+  const sharedToken = localStorage.getItem('auth_token')
+
+  if (endpoint.startsWith('/service/')) {
+    return userType === 'service' ? serviceToken || sharedToken : adminToken || sharedToken
+  }
+
+  if (endpoint.startsWith('/admin/')) {
+    return adminToken || sharedToken
+  }
+
+  return sharedToken || (userType === 'service' ? serviceToken : adminToken)
 }
 
 class ApiClient {
@@ -16,7 +34,7 @@ class ApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('admin_token')
+    const token = getTokenByEndpoint(endpoint)
 
     const config = {
       headers: {
@@ -87,7 +105,7 @@ class ApiClient {
   }
 
   delete(endpoint, data = {}) {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('admin_token')
+    const token = getTokenByEndpoint(endpoint)
 
     // 如果有数据，发送 JSON body；否则直接发送
     const options = {
@@ -116,7 +134,7 @@ class ApiClient {
   }
 
   upload(endpoint, formData) {
-    const token = localStorage.getItem('admin_token')
+    const token = getTokenByEndpoint(endpoint)
 
     return fetch(`${this.baseURL}${endpoint}`, {
       method: 'POST',

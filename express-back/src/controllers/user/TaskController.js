@@ -364,6 +364,121 @@ async function releaseTaskFunds(publisherId, amount, transaction) {
     return { user, wallet };
 }
 
+function calculateTaskPriceUpdateBreakdown(task, nextPrice) {
+    const currentPrice = roundMoney(task.price);
+    const currentCashPaidAmount = roundMoney(task.cash_paid_amount || currentPrice);
+    const currentPointsUsed = Math.max(0, Math.floor(Number(task.points_used || 0)));
+    const currentPointsRequest = currentPointsUsed - (currentPointsUsed % 100);
+    const nextPricePointsCap = Math.max(0, Math.floor(roundMoney(nextPrice)) * 100);
+    const nextPointsRequest = Math.min(currentPointsRequest, nextPricePointsCap);
+    const nextBreakdown = PointsService.calculateDeduction(
+        nextPointsRequest,
+        nextPrice,
+        currentPointsRequest
+    );
+
+    return {
+        current_price: currentPrice,
+        current_cash_paid_amount: currentCashPaidAmount,
+        current_points_used: currentPointsUsed,
+        next_breakdown: nextBreakdown,
+        cash_delta: roundMoney(nextBreakdown.cash_paid_amount - currentCashPaidAmount),
+        points_delta: nextBreakdown.points_used - currentPointsUsed,
+    };
+}
+
+async function applyTaskPriceUpdate(task, nextPrice, paymentPassword, transaction) {
+    if (task.payment_status !== 'unpaid') {
+        throw new Error('当前任务支付状态不允许修改金额');
+    }
+
+    const { user, wallet } = await getLockedUserAndWallet(task.publisher_id, transaction);
+
+    if (!wallet.payment_password_set || !wallet.payment_password) {
+        throw new Error('请先设置支付密码');
+    }
+
+    if (!/^\d{6}$/.test(String(paymentPassword || ''))) {
+        throw new Error('请输入 6 位支付密码');
+    }
+
+    const encryptedPassword = cryptoUtils.sha256(String(paymentPassword));
+    if (wallet.payment_password !== encryptedPassword) {
+        throw new Error('支付密码错误');
+    }
+
+    const breakdown = calculateTaskPriceUpdateBreakdown(task, nextPrice);
+    const availableBalance = roundMoney(wallet.balance);
+    const frozenBalance = roundMoney(wallet.frozen_balance);
+
+    if (breakdown.cash_delta > 0) {
+        if (availableBalance < breakdown.cash_delta) {
+            throw new Error('余额不足，无法完成任务金额上调');
+        }
+
+        const nextAvailableBalance = roundMoney(availableBalance - breakdown.cash_delta);
+        const nextFrozenBalance = roundMoney(frozenBalance + breakdown.cash_delta);
+
+        await wallet.update(
+            {
+                balance: nextAvailableBalance,
+                frozen_balance: nextFrozenBalance,
+                last_transaction_at: new Date(),
+            },
+            { transaction }
+        );
+
+        await user.update(
+            {
+                balance: nextAvailableBalance,
+            },
+            { transaction }
+        );
+    } else if (breakdown.cash_delta < 0) {
+        const refundAmount = roundMoney(Math.abs(breakdown.cash_delta));
+        if (frozenBalance < refundAmount) {
+            throw new Error('冻结金额不足，无法完成任务金额下调');
+        }
+
+        const nextAvailableBalance = roundMoney(availableBalance + refundAmount);
+        const nextFrozenBalance = roundMoney(frozenBalance - refundAmount);
+
+        await wallet.update(
+            {
+                balance: nextAvailableBalance,
+                frozen_balance: nextFrozenBalance,
+                last_transaction_at: new Date(),
+            },
+            { transaction }
+        );
+
+        await user.update(
+            {
+                balance: nextAvailableBalance,
+            },
+            { transaction }
+        );
+    }
+
+    if (breakdown.points_delta > 0) {
+        await PointsService.deductPoints(user, wallet, breakdown.points_delta, transaction);
+    } else if (breakdown.points_delta < 0) {
+        await PointsService.addPoints(user, wallet, Math.abs(breakdown.points_delta), transaction);
+    }
+
+    await task.update(
+        {
+            price: roundMoney(nextPrice),
+            original_amount: breakdown.next_breakdown.original_amount,
+            cash_paid_amount: breakdown.next_breakdown.cash_paid_amount,
+            points_discount_amount: breakdown.next_breakdown.points_discount_amount,
+            platform_subsidy_amount: breakdown.next_breakdown.platform_subsidy_amount,
+            points_used: breakdown.next_breakdown.points_used,
+        },
+        { transaction }
+    );
+}
+
 async function settleTaskPayment(task, paymentPassword, transaction) {
     const { amount, commissionRate, commissionAmount, payoutAmount } =
         await calculateSettlementBreakdown(task.price, transaction);
@@ -1285,44 +1400,7 @@ class TaskController {
 
                 const dbTransaction = await Task.sequelize.transaction();
                 try {
-                    if (task.payment_status !== 'unpaid') {
-                        throw new Error('当前任务支付状态不允许修改金额');
-                    }
-
-                    const wallet = await Wallet.findOne({
-                        where: { user_id: task.publisher_id },
-                        transaction: dbTransaction,
-                        lock: dbTransaction.LOCK.UPDATE,
-                    });
-
-                    if (!wallet || !wallet.payment_password_set || !wallet.payment_password) {
-                        throw new Error('请先设置支付密码');
-                    }
-
-                    if (!/^\d{6}$/.test(String(payment_password || ''))) {
-                        throw new Error('请输入 6 位支付密码');
-                    }
-
-                    const encryptedPassword = cryptoUtils.sha256(String(payment_password));
-                    if (wallet.payment_password !== encryptedPassword) {
-                        throw new Error('支付密码错误');
-                    }
-
-                    if (nextPrice > currentPrice) {
-                        await freezeTaskFunds(
-                            task.publisher_id,
-                            nextPrice - currentPrice,
-                            dbTransaction
-                        );
-                    } else {
-                        await releaseTaskFunds(
-                            task.publisher_id,
-                            currentPrice - nextPrice,
-                            dbTransaction
-                        );
-                    }
-
-                    await task.update({ price: nextPrice }, { transaction: dbTransaction });
+                    await applyTaskPriceUpdate(task, nextPrice, payment_password, dbTransaction);
                     await dbTransaction.commit();
                 } catch (error) {
                     await dbTransaction.rollback();

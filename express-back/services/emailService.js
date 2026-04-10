@@ -173,6 +173,41 @@ function buildResetPasswordEmail(resetUrl, expireMinutes) {
     });
 }
 
+function buildSecurityNoticeEmail({ title, intro, details = [], footerNote }) {
+    const detailRows = details
+        .filter(item => item && item.label && item.value)
+        .map(
+            item => `
+                <tr>
+                  <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;font-size:12px;color:#9ca3af;width:110px;">
+                    ${escapeHtml(item.label)}
+                  </td>
+                  <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;font-size:14px;font-weight:600;color:#111827;">
+                    ${escapeHtml(item.value)}
+                  </td>
+                </tr>
+            `
+        )
+        .join('');
+
+    return buildEmailLayout({
+        eyebrow: 'Security Notice',
+        title,
+        intro,
+        body: `
+          <p style="margin:0 0 16px;color:#6b7280;">本次安全操作明细如下：</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px;border-collapse:collapse;">
+            ${detailRows}
+          </table>
+          <p style="margin:0 0 16px;color:#6b7280;">
+            如果不是你本人操作，请立即修改登录密码，并尽快联系平台处理。
+          </p>
+        `,
+        footerNote:
+            footerNote || '为保护账号安全，建议定期检查邮箱验证状态、登录密码和支付密码设置。',
+    });
+}
+
 async function sendVerifyCode(email) {
     const normalizedEmail = normalizeEmail(email);
     const cooldownKey = getCooldownKey(normalizedEmail);
@@ -234,9 +269,36 @@ async function verifyCode(email, code) {
     };
 }
 
+async function sendSecurityNotice(email, { subject, title, intro, details = [], text, footerNote }) {
+    const normalizedEmail = normalizeEmail(email);
+    const from = process.env.MAIL_FROM || process.env.MAIL_USER;
+
+    if (!normalizedEmail || !from) {
+        return false;
+    }
+
+    await transporter.sendMail({
+        from,
+        to: normalizedEmail,
+        subject,
+        text:
+            text ||
+            `${title}\n${intro}\n${details.map(item => `${item.label}: ${item.value}`).join('\n')}\n如果不是你本人操作，请立即检查账号安全。`,
+        html: buildSecurityNoticeEmail({
+            title,
+            intro,
+            details,
+            footerNote,
+        }),
+    });
+
+    return true;
+}
+
 module.exports = {
     sendVerifyCode,
     verifyCode,
     ServiceError,
     buildResetPasswordEmail,
+    sendSecurityNotice,
 };

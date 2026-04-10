@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { Wallet, Transaction, Deliverer, PickupOrder, Task, User, DelivererDebt } = require('../../models');
 const { responseUtils, paginationUtils, timeUtils, cryptoUtils } = require('../../utils');
 const DebtSettlementService = require('../../services/DebtSettlementService');
+const emailService = require('../../../services/emailService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
 const MIN_WALLET_AMOUNT = 10;
@@ -205,6 +206,10 @@ function normalizeTaskActivity(task, direction, amount, title, description) {
 
 function generateTransactionNo(prefix = 'TX') {
     return `${prefix}${Date.now()}${Math.random().toString().slice(2, 6)}`;
+}
+
+function formatSecurityTime(date = new Date()) {
+    return new Date(date).toLocaleString('zh-CN', { hour12: false });
 }
 
 function parseLegacyRemark(remark) {
@@ -938,6 +943,10 @@ class WalletController {
         try {
             const { payment_password, account_password } = req.body;
 
+            if (!req.user.email || !req.user.email_verified) {
+                return res.status(400).json(responseUtils.error('请先完成邮箱验证后再设置或修改支付密码'));
+            }
+
             if (!/^\d{6}$/.test(String(payment_password || ''))) {
                 return res.status(400).json(responseUtils.error('支付密码必须为6位数字'));
             }
@@ -952,18 +961,41 @@ class WalletController {
             }
 
             const wallet = await ensureWallet(req.user.id, req.user);
+            const wasSet = Boolean(wallet.payment_password_set);
             await wallet.update({
                 payment_password: cryptoUtils.sha256(String(payment_password)),
                 payment_password_set: true,
             });
 
+            try {
+                await emailService.sendSecurityNotice(req.user.email, {
+                    subject: wasSet ? '支付密码已修改' : '支付密码已设置',
+                    title: wasSet ? '支付密码已修改' : '支付密码已设置',
+                    intro: wasSet
+                        ? '你的账号支付密码刚刚被修改，请确认本次操作由你本人完成。'
+                        : '你的账号刚刚完成支付密码设置，请确认本次操作由你本人完成。',
+                    details: [
+                        {
+                            label: '账号',
+                            value: req.user.username || req.user.email || `用户 ${req.user.id}`,
+                        },
+                        { label: '操作时间', value: formatSecurityTime() },
+                        { label: 'IP 地址', value: req.ip || '未知' },
+                        { label: '设备信息', value: req.get('User-Agent') || '未知设备' },
+                    ],
+                    footerNote: '支付密码将用于余额支付、订单冻结和提现校验。如非本人操作，请立即修改登录密码并联系平台。',
+                });
+            } catch (mailError) {
+                console.error('发送支付密码变更通知邮件失败:', mailError);
+            }
+
             return res.json(
                 responseUtils.success(
                     {
                         payment_password_set: true,
-                        updated: Boolean(wallet.payment_password_set),
+                        updated: wasSet,
                     },
-                    wallet.payment_password_set ? '支付密码修改成功' : '支付密码设置成功'
+                    wasSet ? '支付密码修改成功' : '支付密码设置成功'
                 )
             );
         } catch (error) {

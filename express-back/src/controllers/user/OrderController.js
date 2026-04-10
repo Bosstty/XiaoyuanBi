@@ -430,6 +430,117 @@ async function releasePickupFunds(order, transaction, remark = '订单取消，�
     };
 }
 
+function calculateOrderPriceUpdateBreakdown(order, nextPrice) {
+    const currentGrossAmount = roundMoney(parseAmount(order.price) + parseAmount(order.tip));
+    const nextGrossAmount = roundMoney(parseAmount(nextPrice) + parseAmount(order.tip));
+    const currentCashPaidAmount = roundMoney(order.cash_paid_amount || currentGrossAmount);
+    const currentPointsUsed = Math.max(0, Math.floor(Number(order.points_used || 0)));
+    const currentPointsRequest = currentPointsUsed - (currentPointsUsed % 100);
+    const nextPricePointsCap = Math.max(0, Math.floor(nextGrossAmount) * 100);
+    const nextPointsRequest = Math.min(currentPointsRequest, nextPricePointsCap);
+    const nextBreakdown = PointsService.calculateDeduction(
+        nextPointsRequest,
+        nextGrossAmount,
+        currentPointsRequest
+    );
+
+    return {
+        current_cash_paid_amount: currentCashPaidAmount,
+        current_points_used: currentPointsUsed,
+        next_breakdown: nextBreakdown,
+        cash_delta: roundMoney(nextBreakdown.cash_paid_amount - currentCashPaidAmount),
+        points_delta: nextBreakdown.points_used - currentPointsUsed,
+    };
+}
+
+async function applyOrderPriceUpdate(order, nextPrice, paymentPassword, transaction) {
+    const { user, wallet } = await getLockedUserAndWallet(order.user_id, transaction);
+
+    if (!wallet.payment_password_set || !wallet.payment_password) {
+        throw new Error('请先设置支付密码');
+    }
+
+    if (!/^\d{6}$/.test(String(paymentPassword || ''))) {
+        throw new Error('请输入 6 位支付密码');
+    }
+
+    const encryptedPassword = cryptoUtils.sha256(String(paymentPassword));
+    if (wallet.payment_password !== encryptedPassword) {
+        throw new Error('支付密码错误');
+    }
+
+    const breakdown = calculateOrderPriceUpdateBreakdown(order, nextPrice);
+    const availableBalance = roundMoney(wallet.balance);
+    const frozenBalance = roundMoney(wallet.frozen_balance);
+
+    if (breakdown.cash_delta > 0) {
+        if (availableBalance < breakdown.cash_delta) {
+            throw new Error('余额不足，请先充值后再增加订单金额');
+        }
+
+        const nextAvailableBalance = roundMoney(availableBalance - breakdown.cash_delta);
+        const nextFrozenBalance = roundMoney(frozenBalance + breakdown.cash_delta);
+
+        await wallet.update(
+            {
+                balance: nextAvailableBalance,
+                frozen_balance: nextFrozenBalance,
+                last_transaction_at: new Date(),
+            },
+            { transaction }
+        );
+
+        await user.update(
+            {
+                balance: nextAvailableBalance,
+            },
+            { transaction }
+        );
+    } else if (breakdown.cash_delta < 0) {
+        const refundAmount = roundMoney(Math.abs(breakdown.cash_delta));
+        if (frozenBalance < refundAmount) {
+            throw new Error('冻结金额不足，无法完成订单金额下调');
+        }
+
+        const nextAvailableBalance = roundMoney(availableBalance + refundAmount);
+        const nextFrozenBalance = roundMoney(frozenBalance - refundAmount);
+
+        await wallet.update(
+            {
+                balance: nextAvailableBalance,
+                frozen_balance: nextFrozenBalance,
+                last_transaction_at: new Date(),
+            },
+            { transaction }
+        );
+
+        await user.update(
+            {
+                balance: nextAvailableBalance,
+            },
+            { transaction }
+        );
+    }
+
+    if (breakdown.points_delta > 0) {
+        await PointsService.deductPoints(user, wallet, breakdown.points_delta, transaction);
+    } else if (breakdown.points_delta < 0) {
+        await PointsService.addPoints(user, wallet, Math.abs(breakdown.points_delta), transaction);
+    }
+
+    await order.update(
+        {
+            price: roundMoney(nextPrice),
+            original_amount: breakdown.next_breakdown.original_amount,
+            cash_paid_amount: breakdown.next_breakdown.cash_paid_amount,
+            points_discount_amount: breakdown.next_breakdown.points_discount_amount,
+            platform_subsidy_amount: breakdown.next_breakdown.platform_subsidy_amount,
+            points_used: breakdown.next_breakdown.points_used,
+        },
+        { transaction }
+    );
+}
+
 async function settlePickupPayment(order, transaction) {
     const { amount, commissionRate, commissionAmount, payoutAmount } =
         await calculateSettlementBreakdown(
@@ -965,14 +1076,7 @@ class UserOrderController {
 
             const dbTransaction = await PickupOrder.sequelize.transaction();
             try {
-                await freezePickupFunds(
-                    order.user_id,
-                    nextPrice - currentPrice,
-                    payment_password,
-                    dbTransaction
-                );
-
-                await order.update({ price: nextPrice }, { transaction: dbTransaction });
+                await applyOrderPriceUpdate(order, nextPrice, payment_password, dbTransaction);
                 await dbTransaction.commit();
             } catch (error) {
                 await dbTransaction.rollback();

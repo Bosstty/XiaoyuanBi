@@ -45,7 +45,26 @@
         <div class="form-section">
           <div class="form-header">
             <h2>欢迎回来</h2>
-            <p>请输入管理员账号信息</p>
+            <p>{{ loginMode === 'service' ? '请输入客服账号信息' : '请输入管理员账号信息' }}</p>
+          </div>
+
+          <div class="login-mode-switch">
+            <button
+              type="button"
+              class="mode-chip"
+              :class="{ active: loginMode === 'admin' }"
+              @click="loginMode = 'admin'"
+            >
+              管理员登录
+            </button>
+            <button
+              type="button"
+              class="mode-chip"
+              :class="{ active: loginMode === 'service' }"
+              @click="loginMode = 'service'"
+            >
+              客服登录
+            </button>
           </div>
 
           <el-form
@@ -117,7 +136,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { authApi } from '../api/index.js'
+import { authApi, serviceAuthApi } from '../api/index.js'
 import { useAdminStore } from '@/stores/admin'
 import { School, DataBoard, TrendCharts, User, Lock, Unlock } from '@element-plus/icons-vue'
 
@@ -131,6 +150,7 @@ const loginForm = reactive({
 
 const rememberMe = ref(false)
 const loading = ref(false)
+const loginMode = ref('admin')
 
 const loginRules = {
   username: [
@@ -150,28 +170,46 @@ const handleLogin = async () => {
 
     loading.value = true
 
-    const response = await authApi.login({
-      username: loginForm.username,
-      password: loginForm.password,
-    })
+    const response =
+      loginMode.value === 'service'
+        ? await serviceAuthApi.login({
+            username: loginForm.username,
+            password: loginForm.password,
+          })
+        : await authApi.login({
+            username: loginForm.username,
+            password: loginForm.password,
+          })
 
     if (response.success) {
-      const normalizedUser = {
-        ...response.data.user,
-        role: 'admin',
-      }
+      const normalizedUser =
+        loginMode.value === 'service'
+          ? {
+              ...(response.data.service || {}),
+              permissions: ['service:access'],
+              role: 'service',
+            }
+          : {
+              ...response.data.user,
+              role: 'admin',
+            }
 
-      adminStore.setUserType('admin')
-      adminStore.setToken(response.data.token)
+      adminStore.setUserType(loginMode.value)
+      adminStore.setToken(response.data.token, loginMode.value)
       adminStore.setAdmin(normalizedUser)
-      localStorage.setItem('admin_user', JSON.stringify(normalizedUser))
+
+      if (loginMode.value === 'service') {
+        localStorage.setItem('service_user', JSON.stringify(normalizedUser))
+      } else {
+        localStorage.setItem('admin_user', JSON.stringify(normalizedUser))
+      }
 
       if (rememberMe.value) {
         localStorage.setItem('remember_admin', 'true')
       }
 
       ElMessage.success('登录成功')
-      router.push('/dashboard')
+      router.push(loginMode.value === 'service' ? '/service/chat' : '/dashboard')
     } else {
       ElMessage.error(response.message || '登录失败')
     }
@@ -426,6 +464,32 @@ const handleLogin = async () => {
   font-size: 0.9rem;
   color: var(--text-secondary);
   margin: 0;
+}
+
+.login-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.mode-chip {
+  height: 42px;
+  border: 1px solid rgba(49, 114, 228, 0.14);
+  border-radius: 12px;
+  background: #f4f7fb;
+  color: #6a7688;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-chip.active {
+  border-color: #3172e4;
+  background: rgba(49, 114, 228, 0.1);
+  color: #1f4fb3;
+  box-shadow: inset 0 0 0 1px rgba(49, 114, 228, 0.12);
 }
 
 /* 输入框包装 */

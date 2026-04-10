@@ -1,10 +1,9 @@
 const { Op } = require('sequelize');
-const { ChatConversation, ChatMessage, User, Deliverer, PickupOrder } = require('../../models');
+const { ChatConversation, ChatMessage, User, Deliverer, PickupOrder, Service } = require('../../models');
 const { emitConversationEvent } = require('../../../config/socket');
 
-const DEFAULT_SERVICE_ID = 1;
 const DIRECT_CHAT_TYPE = 'user_deliverer';
-const getCurrentRole = req => req.userRole || (req.admin ? 'service' : 'user');
+const getCurrentRole = req => req.userRole || 'user';
 
 const normalizeUserPair = (leftId, rightId) =>
     Number(leftId) <= Number(rightId) ? [Number(leftId), Number(rightId)] : [Number(rightId), Number(leftId)];
@@ -13,7 +12,12 @@ const hasConversationAccess = (conversation, userId, userRole = 'user') => {
     if (!conversation) return false;
 
     if (userRole === 'service') {
-        return conversation.type === 'user_service' || conversation.type === 'deliverer_service';
+        return (
+            (conversation.type === 'user_service' || conversation.type === 'deliverer_service') &&
+            (conversation.service_id === null ||
+                conversation.service_id === undefined ||
+                Number(conversation.service_id) === Number(userId))
+        );
     }
 
     if (!userId) return false;
@@ -26,7 +30,29 @@ const hasConversationAccess = (conversation, userId, userRole = 'user') => {
 };
 
 const getSenderType = req => (getCurrentRole(req) === 'service' ? 'service' : 'user');
-const getServiceScopeId = req => req.serviceScopeId || req.user?.id || DEFAULT_SERVICE_ID;
+const getServiceScopeId = req =>
+    getCurrentRole(req) === 'service' ? Number(req.serviceScopeId || req.user?.id || 0) || null : null;
+
+const findAssignableService = async preferredId => {
+    if (preferredId) {
+        const preferredService = await Service.findOne({
+            where: { id: preferredId, status: 'active' },
+            attributes: ['id', 'username', 'name', 'avatar'],
+        });
+        if (preferredService) {
+            return preferredService;
+        }
+    }
+
+    return Service.findOne({
+        where: { status: 'active' },
+        attributes: ['id', 'username', 'name', 'avatar'],
+        order: [
+            ['last_login_at', 'DESC'],
+            ['id', 'ASC'],
+        ],
+    });
+};
 
 const getReceiverType = (conversation, req) => {
     if (getCurrentRole(req) === 'service') {
@@ -38,6 +64,26 @@ const getReceiverType = (conversation, req) => {
     }
 
     return 'user';
+};
+
+const loadServiceProfile = async serviceId => {
+    if (!serviceId) return null;
+
+    const service = await Service.findByPk(serviceId, {
+        attributes: ['id', 'username', 'name', 'avatar', 'role', 'status'],
+    });
+
+    if (!service) return null;
+
+    return {
+        id: service.id,
+        username: service.username,
+        name: service.name || service.username || `客服 #${service.id}`,
+        avatar: service.avatar || null,
+        role: service.role,
+        status: service.status,
+        staff_code: `KF-${String(service.id).padStart(3, '0')}`,
+    };
 };
 
 const resolvePartnerInfo = async (conversation, currentUserId, currentUserRole = 'user') => {
@@ -84,10 +130,16 @@ const resolvePartnerInfo = async (conversation, currentUserId, currentUserRole =
     }
 
     if (conversation.type === 'user_service' || conversation.type === 'deliverer_service') {
+        const service = conversation.service_id
+            ? await Service.findByPk(conversation.service_id, {
+                  attributes: ['id', 'username', 'name', 'avatar'],
+              })
+            : await findAssignableService();
+
         return {
-            id: DEFAULT_SERVICE_ID,
-            name: '在线客服',
-            avatar: null,
+            id: service?.id || null,
+            name: service?.name || service?.username || '在线客服',
+            avatar: service?.avatar || null,
             role: '客服',
         };
     }
@@ -160,6 +212,7 @@ const resolvePartnerInfo = async (conversation, currentUserId, currentUserRole =
 
 const decorateConversation = async (conversation, currentUserId, currentUserRole = 'user') => {
     const conversationData = conversation.toJSON();
+    conversationData.service = await loadServiceProfile(conversationData.service_id);
     conversationData.partner = await resolvePartnerInfo(
         conversationData,
         currentUserId,
@@ -278,9 +331,18 @@ class ServiceChatController {
                 });
 
                 if (!conversation) {
+                    const assignedService = await findAssignableService();
+
+                    if (!assignedService) {
+                        return res.status(503).json({
+                            success: false,
+                            message: '当前暂无可用客服，请稍后再试',
+                        });
+                    }
+
                     conversation = await ChatConversation.create({
                         user_id: currentUserId,
-                        service_id: serviceId,
+                        service_id: assignedService.id,
                         order_id: order_id || null,
                         type: 'user_service',
                         status: 'open',
@@ -395,13 +457,20 @@ class ServiceChatController {
     async getConversations(req, res) {
         try {
             const { page = 1, limit = 20 } = req.query;
+            const currentRole = getCurrentRole(req);
+            const currentServiceId = getServiceScopeId(req);
+            const where = {
+                type: {
+                    [Op.in]: ['user_service', 'deliverer_service'],
+                },
+            };
+
+            if (currentRole === 'service' && currentServiceId) {
+                where.service_id = currentServiceId;
+            }
 
             const { count, rows } = await ChatConversation.findAndCountAll({
-                where: {
-                    type: {
-                        [Op.in]: ['user_service', 'deliverer_service'],
-                    },
-                },
+                where,
                 order: [['last_message_at', 'DESC']],
                 limit: parseInt(limit, 10),
                 offset: (parseInt(page, 10) - 1) * parseInt(limit, 10),
@@ -447,7 +516,7 @@ class ServiceChatController {
     async getConversationDetail(req, res) {
         try {
             const conversation = await ChatConversation.findByPk(req.params.id);
-            const currentUserId = req.user?.id || req.admin?.id;
+            const currentUserId = req.user?.id;
             const currentRole = getCurrentRole(req);
 
             if (!conversation) {
@@ -491,7 +560,7 @@ class ServiceChatController {
         try {
             const { conversation_id, page = 1, limit = 50 } = req.query;
             const conversation = await ChatConversation.findByPk(conversation_id);
-            const currentUserId = req.user?.id || req.admin?.id;
+            const currentUserId = req.user?.id;
             const currentRole = getCurrentRole(req);
 
             if (!conversation) {
@@ -537,7 +606,7 @@ class ServiceChatController {
     async sendMessage(req, res) {
         try {
             const { conversation_id, content, type = 'text' } = req.body;
-            const currentUserId = req.user?.id || req.admin?.id;
+            const currentUserId = req.user?.id;
             const currentRole = getCurrentRole(req);
 
             if (!currentUserId) {
@@ -618,7 +687,7 @@ class ServiceChatController {
     async markAsRead(req, res) {
         try {
             const { conversation_id } = req.body;
-            const currentUserId = req.user?.id || req.admin?.id;
+            const currentUserId = req.user?.id;
             const currentRole = getCurrentRole(req);
 
             if (!conversation_id) {

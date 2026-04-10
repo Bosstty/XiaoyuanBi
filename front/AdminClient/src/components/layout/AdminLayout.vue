@@ -277,7 +277,7 @@ const menuConfig = [
     index: '/service',
     title: '客服中心',
     icon: markRaw(Service),
-    roles: ['admin', 'service'],
+    roles: ['service'],
     children: [
       { index: '/service/chat', title: '在线客服', icon: markRaw(ChatLineRound) },
       { index: '/service/after-sales', title: '售后管理', icon: markRaw(ShoppingCart) },
@@ -412,7 +412,7 @@ function formatTime(time) {
 }
 
 async function fetchChatUnreadCount() {
-  if (!adminStore.isLoggedIn) {
+  if (!adminStore.isLoggedIn || adminStore.userType !== 'service') {
     chatUnreadCount.value = 0
     return
   }
@@ -430,7 +430,7 @@ async function fetchChatUnreadCount() {
 }
 
 function connectChatUnreadSocket() {
-  if (chatSocket.value || !adminStore.isLoggedIn) return
+  if (chatSocket.value || !adminStore.isLoggedIn || adminStore.userType !== 'service') return
 
   const client = createChatSocket()
   if (!client) return

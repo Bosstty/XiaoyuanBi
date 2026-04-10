@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { Service } = require('../../models');
+const bcrypt = require('bcryptjs');
 
 class ServiceAuthController {
     // 客服登录
@@ -18,9 +19,26 @@ class ServiceAuthController {
                 });
             }
 
+            const isPasswordValid = await service.comparePassword(password);
+            if (!isPasswordValid) {
+                return res.status(401).json({
+                    success: false,
+                    message: '用户名或密码错误'
+                });
+            }
+
+            if (!String(service.password || '').startsWith('$2')) {
+                const hashedPassword = await bcrypt.hash(String(password || ''), 12);
+                await service.update({ password: hashedPassword });
+            }
+
+            await service.update({
+                last_login_at: new Date(),
+            });
+
             // 生成token
             const token = jwt.sign(
-                { id: service.id, role: 'service' },
+                { id: service.id, type: 'service', role: 'service' },
                 process.env.JWT_SECRET,
                 { expiresIn: '24h' }
             );
@@ -32,7 +50,9 @@ class ServiceAuthController {
                     service: {
                         id: service.id,
                         username: service.username,
-                        name: service.name
+                        name: service.name,
+                        role: service.role,
+                        status: service.status,
                     },
                     token
                 }

@@ -287,25 +287,7 @@
                         <strong>¥{{ cashToFreeze }}</strong>
                     </div>
                 </div>
-                <div class="pin-input" @click="focusPaymentPasswordInput">
-                    <div
-                        v-for="index in 6"
-                        :key="index"
-                        class="pin-input__cell"
-                        :class="{ 'is-filled': Boolean(paymentPassword[index - 1]) }"
-                    >
-                        {{ paymentPassword[index - 1] ? '•' : '' }}
-                    </div>
-                    <input
-                        ref="paymentPasswordInputRef"
-                        v-model="paymentPassword"
-                        class="pin-input__native"
-                        inputmode="numeric"
-                        maxlength="6"
-                        autocomplete="one-time-code"
-                        @input="handlePaymentPasswordInput"
-                    />
-                </div>
+                <PaymentPasswordInput v-model="paymentPassword" autofocus />
             </div>
         </MobileModal>
     </div>
@@ -325,6 +307,7 @@ import {
 } from 'naive-ui';
 import { TaskApi, WalletApi } from '@/api';
 import MobileModal from '@/components/mobile/MobileModal.vue';
+import PaymentPasswordInput from '@/components/payment/PaymentPasswordInput.vue';
 import { useAppStore, useUserStore } from '@/stores';
 import type { CreateTaskData } from '@/types';
 
@@ -344,7 +327,6 @@ const skillsText = ref('');
 const attachmentsText = ref('');
 const imagesText = ref('');
 const paymentPassword = ref('');
-const paymentPasswordInputRef = ref<HTMLInputElement | null>(null);
 const paymentMode = ref<'balance' | 'balance_points'>('balance');
 
 const categoryOptions: Array<{ value: CreateTaskData['category']; label: string }> = [
@@ -473,17 +455,6 @@ const openSetPaymentPasswordDialog = () => {
             router.push('/wallet/payment-settings');
         },
     });
-};
-
-const handlePaymentPasswordInput = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const sanitized = target.value.replace(/\D/g, '').slice(0, 6);
-    paymentPassword.value = sanitized;
-    target.value = sanitized;
-};
-
-const focusPaymentPasswordInput = () => {
-    paymentPasswordInputRef.value?.focus();
 };
 
 const selectPointsPayment = () => {
@@ -892,37 +863,6 @@ const submitTask = async () => {
     color: var(--text);
 }
 
-.pin-input {
-    position: relative;
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 10px;
-}
-
-.pin-input__cell {
-    height: 52px;
-    border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    color: var(--text);
-}
-
-.pin-input__cell.is-filled {
-    border-color: rgba(59, 130, 246, 0.4);
-}
-
-.pin-input__native {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
-}
 
 .mt-16 {
     margin-top: 16px;

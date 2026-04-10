@@ -117,13 +117,13 @@ const router = createRouter({
           path: 'service/chat',
           name: 'service-chat',
           component: () => import('../views/service/ChatManagement.vue'),
-          meta: { roles: ['admin', 'service'] },
+          meta: { roles: ['service'] },
         },
         {
           path: 'service/after-sales',
           name: 'after-sales',
           component: () => import('../views/service/AfterSalesManagement.vue'),
-          meta: { roles: ['admin', 'service'] },
+          meta: { roles: ['service'] },
         },
       ],
     },
@@ -132,8 +132,12 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('auth_token') || localStorage.getItem('admin_token')
   const userType = localStorage.getItem('auth_user_type') || 'admin'
+  const token =
+    localStorage.getItem('auth_token') ||
+    (userType === 'service'
+      ? localStorage.getItem('service_token')
+      : localStorage.getItem('admin_token'))
 
   if (to.name !== 'login' && !token) {
     next({ name: 'login' })

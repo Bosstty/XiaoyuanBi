@@ -3,6 +3,7 @@ const router = express.Router();
 
 // 导入中间件
 const { authMiddleware, adminAuthMiddleware } = require('../middleware');
+const { serviceAuth } = require('../middleware/serviceAuth');
 const { generalRateLimit } = require('../middleware/rateLimitMiddleware');
 const { createAuditMiddleware } = require('../middleware/auditMiddleware');
 const permissionMiddleware = require('../middleware/permissionMiddleware');
@@ -178,30 +179,24 @@ router.use('/api/admin', adminRoutes);
 // 客服端 API (Service Client)
 // ==============================
 const serviceRoutes = express.Router();
-const defaultServiceScopeId = Number(process.env.DEFAULT_SERVICE_SCOPE_ID || 1);
-const attachServiceContext = (req, res, next) => {
-    req.userRole = 'service';
-    req.serviceScopeId = defaultServiceScopeId;
-    next();
-};
 
 // 客服认证 - /api/service/auth/*
 serviceRoutes.use('/auth', require('./service/auth'));
 
 // 客服工单 - /api/service/tickets/*
-serviceRoutes.use('/tickets', adminAuthMiddleware, attachServiceContext, require('./service/tickets'));
+serviceRoutes.use('/tickets', serviceAuth, require('./service/tickets'));
 
 // 客服聊天 - /api/service/chat/*
-serviceRoutes.use('/chat', adminAuthMiddleware, attachServiceContext, require('./service/chat'));
+serviceRoutes.use('/chat', serviceAuth, require('./service/chat'));
 
 // 客服订单处理 - /api/service/orders/*
-serviceRoutes.use('/orders', adminAuthMiddleware, attachServiceContext, require('./service/orders'));
+serviceRoutes.use('/orders', serviceAuth, require('./service/orders'));
 
 // 客服用户管理 - /api/service/users/*
-serviceRoutes.use('/users', adminAuthMiddleware, attachServiceContext, require('./service/users'));
+serviceRoutes.use('/users', serviceAuth, require('./service/users'));
 
 // 客服配送员管理 - /api/service/deliverers/*
-serviceRoutes.use('/deliverers', adminAuthMiddleware, attachServiceContext, require('./service/deliverers'));
+serviceRoutes.use('/deliverers', serviceAuth, require('./service/deliverers'));
 
 // 挂载客服端路由
 router.use('/api/service', serviceRoutes);

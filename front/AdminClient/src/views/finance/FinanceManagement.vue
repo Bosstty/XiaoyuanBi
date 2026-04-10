@@ -1,11 +1,13 @@
 <template>
-  <div class="finance-page">
+  <div class="finance-page finance-management">
     <div class="page-header">
-      <div>
-        <h2>财务中心</h2>
-        <p>统一查看系统账户余额、平台抽成流水和配送员欠款台账。</p>
+      <div class="header-content">
+        <h2 class="page-title">财务中心</h2>
+        <p class="page-subtitle">统一查看系统账户余额、平台抽成流水和配送员欠款台账。</p>
       </div>
-      <el-button type="primary" @click="loadAll">刷新数据</el-button>
+      <div class="header-actions">
+        <el-button type="primary" @click="loadAll">刷新数据</el-button>
+      </div>
     </div>
 
     <el-row :gutter="16" class="summary-grid">
@@ -38,10 +40,13 @@
 
     <el-row :gutter="16">
       <el-col :xs="24" :xl="14">
-        <el-card shadow="never" class="panel-card">
+        <el-card shadow="never" class="panel-card debt-card">
           <template #header>
             <div class="panel-head">
-              <span>配送员欠款台账</span>
+              <div class="panel-title-group">
+                <span class="panel-title">配送员欠款台账</span>
+                <span class="panel-desc">跟踪赔付垫资、待还金额与历史抵扣记录</span>
+              </div>
               <el-tag type="danger" effect="dark">
                 活跃欠款 {{ activeDebtSummaryText }}
               </el-tag>
@@ -118,10 +123,13 @@
       </el-col>
 
       <el-col :xs="24" :xl="10">
-        <el-card shadow="never" class="panel-card">
+        <el-card shadow="never" class="panel-card transaction-card">
           <template #header>
             <div class="panel-head">
-              <span>系统账户流水</span>
+              <div class="panel-title-group">
+                <span class="panel-title">系统账户流水</span>
+                <span class="panel-desc">查看平台补贴、抽成收入和欠款回收明细</span>
+              </div>
               <span class="panel-sub">最近 {{ transactionPagination.total }} 条中的分页结果</span>
             </div>
           </template>
@@ -377,56 +385,109 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.finance-management {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 8px 0 16px;
+}
+
 .finance-page {
   display: grid;
-  gap: 16px;
+  gap: 20px;
 }
 
 .page-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   gap: 16px;
-}
-
-.page-header h2 {
-  margin: 0 0 6px;
-  font-size: 24px;
-}
-
-.page-header p {
-  margin: 0;
-  color: #6b7280;
-}
-
-.summary-grid {
+  align-items: flex-start;
   margin-bottom: 4px;
 }
 
+.header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'Fira Code', monospace;
+  margin: 0;
+}
+
+.page-subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.summary-grid {
+  margin-bottom: 2px;
+}
+
 .summary-card {
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+  min-height: 146px;
+}
+
+.summary-card :deep(.el-card__body) {
+  padding: 22px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 146px;
 }
 
 .summary-label {
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 13px;
+  font-weight: 600;
 }
 
 .summary-value {
-  margin-top: 10px;
-  font-size: 28px;
+  margin-top: 12px;
+  font-size: 2.1rem;
+  line-height: 1;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .summary-foot {
-  margin-top: 8px;
+  margin-top: 12px;
   color: #ef4444;
   font-size: 12px;
+  font-weight: 600;
 }
 
 .panel-card {
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+}
+
+.panel-card :deep(.el-card__header) {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.panel-card :deep(.el-card__body) {
+  padding: 20px;
+}
+
+.debt-card,
+.transaction-card {
+  height: 100%;
 }
 
 .panel-head {
@@ -436,16 +497,35 @@ onMounted(() => {
   gap: 12px;
 }
 
+.panel-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.panel-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.panel-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
 .panel-sub {
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .person-cell,
@@ -455,16 +535,37 @@ onMounted(() => {
   gap: 4px;
 }
 
+.person-cell strong,
+.order-cell strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
 .person-cell span,
 .order-cell span {
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 12px;
+}
+
+.panel-card :deep(.el-table) {
+  --el-table-header-bg-color: #f8fafc;
+  --el-table-row-hover-bg-color: #f8fbff;
+}
+
+.panel-card :deep(.el-table th.el-table__cell) {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.panel-card :deep(.el-table td.el-table__cell) {
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .pagination-wrap {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .amount-in {
@@ -485,5 +586,41 @@ onMounted(() => {
   margin-bottom: 12px;
   font-size: 15px;
   font-weight: 700;
+}
+
+@media (max-width: 1200px) {
+  .panel-sub {
+    white-space: normal;
+    text-align: right;
+  }
+}
+
+@media (max-width: 768px) {
+  .finance-management {
+    padding: 0 0 12px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+  }
+
+  .summary-card,
+  .summary-card :deep(.el-card__body) {
+    min-height: auto;
+  }
+
+  .panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .panel-sub {
+    text-align: left;
+  }
 }
 </style>

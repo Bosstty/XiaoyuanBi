@@ -45,9 +45,12 @@ const resolveAvatarUrl = (value?: string | null) => {
 const getOtherParty = (conversation: any) => {
     if (conversation?.partner) {
         return {
+            id: conversation.partner.id || conversation?.service?.id || null,
             name: conversation.partner.name || '联系人',
             avatar: resolveAvatarUrl(conversation.partner.avatar),
             role: conversation.partner.role || '用户',
+            staffCode: conversation?.service?.staff_code || '',
+            serviceStatus: conversation?.service?.status || '',
         };
     }
 
@@ -68,10 +71,24 @@ const getOtherParty = (conversation: any) => {
     }
 
     return {
+        id: conversation?.service?.id || null,
         name: '在线客服',
         avatar: '',
         role: '客服',
+        staffCode: conversation?.service?.staff_code || '',
+        serviceStatus: conversation?.service?.status || '',
     };
+};
+
+const getConversationMeta = (conversation: any) => {
+    const otherParty = getOtherParty(conversation);
+
+    if (otherParty.role === '客服') {
+        const code = otherParty.staffCode ? ` · ${otherParty.staffCode}` : '';
+        return `当前接待客服${code}`;
+    }
+
+    return otherParty.role;
 };
 
 const formatListTime = (time?: string) => {
@@ -169,6 +186,7 @@ const isMyMessage = (msg: any) => {
     return msg.sender_id === userStore.user?.id && msg.sender_type === 'user';
 };
 
+const isSystemMessage = (msg: any) => msg.type === 'system';
 const isImageMessage = (msg: any) => msg.type === 'image';
 const resolveChatImageSrc = (content?: string) => {
     if (!content) return '';
@@ -666,7 +684,7 @@ onBeforeUnmount(() => {
                                 {{ conv.unread_count }}
                             </span>
                         </div>
-                        <div class="role">{{ getOtherParty(conv).role }}</div>
+                        <div class="role">{{ getConversationMeta(conv) }}</div>
                     </div>
                 </div>
             </div>
@@ -685,7 +703,9 @@ onBeforeUnmount(() => {
                     </button>
                     <div class="chat-header-copy">
                         <span class="title">{{ getOtherParty(currentConversation).name }}</span>
-                        <span class="role">{{ getOtherParty(currentConversation).role }}</span>
+                        <span class="role">
+                            {{ getConversationMeta(currentConversation) }}
+                        </span>
                     </div>
                 </div>
 
@@ -694,8 +714,12 @@ onBeforeUnmount(() => {
                         v-for="msg in messages"
                         :key="msg.id"
                         class="message"
-                        :class="{ mine: isMyMessage(msg) }"
+                        :class="{ mine: isMyMessage(msg), system: isSystemMessage(msg) }"
                     >
+                        <template v-if="isSystemMessage(msg)">
+                            <div class="system-note">{{ msg.content }}</div>
+                        </template>
+                        <template v-else>
                         <div class="avatar" v-if="!isMyMessage(msg)">
                             <img
                                 v-if="getOtherParty(currentConversation).avatar"
@@ -728,6 +752,7 @@ onBeforeUnmount(() => {
                             />
                             <span v-else>{{ userStore.user?.username?.charAt(0) || '我' }}</span>
                         </div>
+                        </template>
                     </div>
                 </div>
 
@@ -1071,10 +1096,26 @@ onBeforeUnmount(() => {
     justify-content: flex-end;
 }
 
+.message.system {
+    justify-content: center;
+    margin-bottom: 14px;
+}
+
 .message .avatar {
     width: 36px;
     height: 36px;
     font-size: 14px;
+}
+
+.system-note {
+    max-width: 82%;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(23, 48, 79, 0.08);
+    color: #6b7487;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
 }
 
 .content {

@@ -1,8 +1,18 @@
-const { ServiceTicket, User, PickupOrder, PickupOrderItem, Deliverer } = require('../../models');
+const {
+    ServiceTicket,
+    User,
+    PickupOrder,
+    PickupOrderItem,
+    Deliverer,
+    Service,
+    ChatConversation,
+    ChatMessage,
+} = require('../../models');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 const PickupSettlementService = require('../../services/PickupSettlementService');
 const DamageCompensationService = require('../../services/DamageCompensationService');
+const { emitConversationEvent } = require('../../../config/socket');
 
 async function ensureOrderReadyForCompensation(order, transaction) {
     if (order.status === 'completed') {
@@ -52,6 +62,123 @@ async function resolveTicketAfterOrderAction(ticketId, orderId, solution, operat
     return ticket;
 }
 
+async function buildConversationPayload(conversation) {
+    const service = conversation.service_id
+        ? await Service.findByPk(conversation.service_id, {
+              attributes: ['id', 'username', 'name', 'avatar', 'role', 'status'],
+          })
+        : null;
+
+    return {
+        ...conversation.toJSON(),
+        service: service
+            ? {
+                  id: service.id,
+                  username: service.username,
+                  name: service.name || service.username || `客服 #${service.id}`,
+                  avatar: service.avatar || null,
+                  role: service.role,
+                  status: service.status,
+                  staff_code: `KF-${String(service.id).padStart(3, '0')}`,
+              }
+            : null,
+    };
+}
+
+async function transferTicketConversations(ticket, fromServiceId, toServiceId) {
+    if (!ticket || !toServiceId || Number(fromServiceId) === Number(toServiceId)) {
+        return;
+    }
+
+    const [fromService, toService] = await Promise.all([
+        fromServiceId
+            ? Service.findByPk(fromServiceId, {
+                  attributes: ['id', 'username', 'name'],
+              })
+            : null,
+        Service.findByPk(toServiceId, {
+            attributes: ['id', 'username', 'name'],
+        }),
+    ]);
+
+    if (!toService) {
+        return;
+    }
+
+    const conversationWhere = {
+        [Op.or]: [],
+    };
+
+    if (ticket.order_id) {
+        conversationWhere[Op.or].push({ order_id: ticket.order_id });
+    }
+
+    if (ticket.user_id) {
+        conversationWhere[Op.or].push({
+            type: 'user_service',
+            user_id: ticket.user_id,
+        });
+    }
+
+    if (ticket.deliverer_id) {
+        conversationWhere[Op.or].push({
+            type: 'deliverer_service',
+            deliverer_id: ticket.deliverer_id,
+        });
+    }
+
+    if (!conversationWhere[Op.or].length) {
+        return;
+    }
+
+    const conversations = await ChatConversation.findAll({
+        where: conversationWhere,
+    });
+
+    if (!conversations.length) {
+        return;
+    }
+
+    const systemMessageText = fromService
+        ? `当前会话已由 ${fromService.name || fromService.username} 转交给 ${toService.name || toService.username}`
+        : `当前会话已分配给 ${toService.name || toService.username}`;
+
+    for (const conversation of conversations) {
+        if (
+            Number(conversation.service_id || 0) &&
+            Number(conversation.service_id || 0) !== Number(fromServiceId || 0)
+        ) {
+            continue;
+        }
+
+        await conversation.update({
+            service_id: toService.id,
+            last_message: systemMessageText,
+            last_message_at: new Date(),
+        });
+
+        const systemMessage = await ChatMessage.create({
+            conversation_id: conversation.id,
+            sender_id: toService.id,
+            sender_type: 'service',
+            receiver_type: conversation.type === 'deliverer_service' ? 'deliverer' : 'user',
+            content: systemMessageText,
+            type: 'system',
+            is_read: false,
+        });
+
+        emitConversationEvent(conversation, 'chat:message:new', {
+            conversation_id: conversation.id,
+            message: systemMessage.toJSON(),
+        });
+
+        emitConversationEvent(conversation, 'chat:conversation:updated', {
+            conversation_id: conversation.id,
+            conversation: await buildConversationPayload(conversation),
+        });
+    }
+}
+
 class ServiceTicketController {
     // 获取工单列表
     async getTickets(req, res) {
@@ -79,6 +206,10 @@ class ServiceTicketController {
 
             if (priority) {
                 where.priority = priority;
+            }
+
+            if (req.userRole === 'service' && req.user?.id) {
+                where[Op.or] = [{ service_id: null }, { service_id: req.user.id }];
             }
 
             if (rangeStart || rangeEnd) {
@@ -270,7 +401,7 @@ class ServiceTicketController {
     // 分配工单
     async assignTicket(req, res) {
         try {
-            const { service_id } = req.body;
+            const serviceId = Number(req.body.service_id || req.body.assignee_id || 0);
             const ticket = await ServiceTicket.findByPk(req.params.id);
 
             if (!ticket) {
@@ -280,9 +411,31 @@ class ServiceTicketController {
                 });
             }
 
-            ticket.service_id = service_id;
+            if (!serviceId) {
+                return res.status(400).json({
+                    success: false,
+                    message: '请选择要分配的客服',
+                });
+            }
+
+            const service = await Service.findOne({
+                where: { id: serviceId, status: 'active' },
+                attributes: ['id'],
+            });
+
+            if (!service) {
+                return res.status(404).json({
+                    success: false,
+                    message: '客服不存在或已停用',
+                });
+            }
+
+            const previousServiceId = ticket.service_id;
+            ticket.service_id = service.id;
             ticket.status = 'processing';
             await ticket.save();
+
+            await transferTicketConversations(ticket, previousServiceId, service.id);
 
             res.json({
                 success: true,

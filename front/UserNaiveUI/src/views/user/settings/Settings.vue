@@ -127,6 +127,15 @@
                     <span>邮箱</span>
                     <strong>{{ userStore.user?.email || '--' }}</strong>
                     <p>{{ userStore.user?.email_verified ? '已验证' : '未验证' }}</p>
+                    <button
+                        v-if="userStore.user?.email && !userStore.user?.email_verified"
+                        type="button"
+                        class="profile-settings__verify-button"
+                        :disabled="emailSending"
+                        @click="openEmailVerificationModal"
+                    >
+                        {{ emailSending ? '发送中...' : '验证邮箱' }}
+                    </button>
                 </article>
                 <article class="profile-settings__status-card">
                     <span>学生认证</span>
@@ -166,13 +175,60 @@
             class="profile-settings__file-input"
             @change="handleStudentCardChange"
         />
+
+        <NModal
+            v-model:show="emailVerificationVisible"
+            preset="card"
+            class="profile-settings__email-modal"
+            title="验证邮箱"
+            :bordered="false"
+            :mask-closable="!emailSending && !emailVerifying"
+        >
+            <div class="profile-settings__email-modal-copy">
+                <p>验证码将发送到当前绑定邮箱</p>
+                <strong>{{ userStore.user?.email || '--' }}</strong>
+            </div>
+
+            <div class="profile-settings__field">
+                <span>邮箱验证码</span>
+                <div class="profile-settings__code-row">
+                    <NInput
+                        v-model:value="emailVerificationCode"
+                        placeholder="请输入 6 位验证码"
+                        maxlength="6"
+                    />
+                    <NButton
+                        type="primary"
+                        secondary
+                        :disabled="emailSending || countdown > 0 || !userStore.user?.email"
+                        @click="sendEmailVerificationCode"
+                    >
+                        {{ countdown > 0 ? `${countdown}s 后重发` : '发送验证码' }}
+                    </NButton>
+                </div>
+            </div>
+
+            <template #footer>
+                <div class="profile-settings__email-modal-actions">
+                    <NButton quaternary @click="emailVerificationVisible = false">取消</NButton>
+                    <NButton
+                        type="primary"
+                        :loading="emailVerifying"
+                        :disabled="emailVerificationCode.trim().length !== 6"
+                        @click="handleEmailVerification"
+                    >
+                        确认验证
+                    </NButton>
+                </div>
+            </template>
+        </NModal>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NInput, NSelect, useMessage } from 'naive-ui';
+import { NButton, NInput, NModal, NSelect, useMessage } from 'naive-ui';
 import { useUserStore } from '@/stores';
 import { UserApi } from '@/api';
 import type { User } from '@/types';
@@ -188,6 +244,12 @@ const avatarUploading = ref(false);
 const studentVerificationUploading = ref(false);
 const saving = ref(false);
 const skillsInput = ref('');
+const emailVerificationVisible = ref(false);
+const emailVerificationCode = ref('');
+const emailSending = ref(false);
+const emailVerifying = ref(false);
+const countdown = ref(0);
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
 const form = reactive({
     username: '',
@@ -253,6 +315,85 @@ const triggerAvatarUpload = () => {
 const triggerStudentCardUpload = () => {
     studentCardInputRef.value?.click();
 }
+
+const clearCountdown = () => {
+    if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+    }
+};
+
+const startCountdown = () => {
+    clearCountdown();
+    countdown.value = 60;
+    countdownTimer = setInterval(() => {
+        if (countdown.value <= 1) {
+            countdown.value = 0;
+            clearCountdown();
+            return;
+        }
+        countdown.value -= 1;
+    }, 1000);
+};
+
+const openEmailVerificationModal = async () => {
+    if (!userStore.user?.email || userStore.user.email_verified) {
+        return;
+    }
+
+    emailVerificationVisible.value = true;
+    emailVerificationCode.value = '';
+
+    if (countdown.value === 0) {
+        await sendEmailVerificationCode();
+    }
+};
+
+const sendEmailVerificationCode = async () => {
+    if (!userStore.user?.email || emailSending.value) {
+        return;
+    }
+
+    emailSending.value = true;
+
+    try {
+        await userStore.sendVerificationCode('email', userStore.user.email);
+        startCountdown();
+        message.success('验证码已发送到邮箱');
+    } catch (error) {
+        message.error(error instanceof Error ? error.message : '验证码发送失败');
+    } finally {
+        emailSending.value = false;
+    }
+};
+
+const handleEmailVerification = async () => {
+    const email = userStore.user?.email;
+    const code = emailVerificationCode.value.trim();
+
+    if (!email) {
+        message.error('当前账号未绑定邮箱');
+        return;
+    }
+
+    if (code.length !== 6) {
+        message.error('请输入 6 位验证码');
+        return;
+    }
+
+    emailVerifying.value = true;
+
+    try {
+        await userStore.verifyCode('email', email, code);
+        message.success('邮箱验证成功');
+        emailVerificationVisible.value = false;
+        emailVerificationCode.value = '';
+    } catch (error) {
+        message.error(error instanceof Error ? error.message : '邮箱验证失败');
+    } finally {
+        emailVerifying.value = false;
+    }
+};
 
 const handleAvatarChange = async (event: Event) => {
     const input = event.target as HTMLInputElement;
@@ -344,6 +485,10 @@ onMounted(async () => {
         await userStore.fetchUserProfile();
     }
     syncFormFromUser();
+})
+
+onBeforeUnmount(() => {
+    clearCountdown();
 })
 </script>
 
@@ -554,6 +699,42 @@ onMounted(async () => {
     opacity: 0.7;
 }
 
+.profile-settings__email-modal {
+    width: min(92vw, 420px);
+    border-radius: 24px;
+}
+
+.profile-settings__email-modal-copy {
+    margin-bottom: 18px;
+}
+
+.profile-settings__email-modal-copy p {
+    margin: 0;
+    font-size: 13px;
+    color: #6e7a91;
+}
+
+.profile-settings__email-modal-copy strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 20px;
+    font-weight: 800;
+    color: #17304f;
+    word-break: break-all;
+}
+
+.profile-settings__code-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.profile-settings__email-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
 .profile-settings__footer {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -574,6 +755,18 @@ onMounted(async () => {
 
     .profile-settings__avatar-row {
         align-items: flex-start;
+    }
+
+    .profile-settings__code-row {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-settings__email-modal-actions {
+        justify-content: stretch;
+    }
+
+    .profile-settings__email-modal-actions :deep(.n-button) {
+        flex: 1;
     }
 }
 </style>

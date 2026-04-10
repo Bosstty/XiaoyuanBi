@@ -424,14 +424,6 @@
                 提交处理
               </el-button>
               <el-button
-                type="success"
-                v-if="detailDrawer.data.status !== 'closed'"
-                @click="moderateTicket('resolve', detailDrawer.data)"
-                :loading="handleForm.loading"
-              >
-                标记已解决
-              </el-button>
-              <el-button
                 type="danger"
                 v-if="detailDrawer.data.status !== 'resolved'"
                 @click="moderateTicket('close', detailDrawer.data)"

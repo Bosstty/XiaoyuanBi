@@ -71,6 +71,14 @@ export class AuthApi {
         return apiClient.post('/auth/verify-code', data);
     }
 
+    static async verifyEmail(data: {
+        email?: string;
+        target?: string;
+        code: string;
+    }): Promise<ApiResponse> {
+        return apiClient.post('/auth/verify-email', data);
+    }
+
     // 微信登录
     static async wechatLogin(data: { code: string }): Promise<ApiResponse<LoginResponse>> {
         return apiClient.post('/auth/wechat-login', data);

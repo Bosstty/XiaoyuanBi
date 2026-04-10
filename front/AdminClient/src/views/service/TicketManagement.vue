@@ -491,7 +491,7 @@ const fetchTickets = async () => {
         order_id: 5,
         user_id: 5,
         deliverer_id: 1,
-        service_id: 1,
+        service_id: null,
         created_at: '2026-02-28T02:38:28.000Z',
         updated_at: '2026-02-28T02:38:28.000Z',
         user: {
@@ -512,7 +512,7 @@ const fetchTickets = async () => {
         order_id: 2,
         user_id: 2,
         deliverer_id: 3,
-        service_id: 1,
+        service_id: null,
         created_at: '2026-02-28T02:38:28.000Z',
         updated_at: '2026-02-28T02:38:28.000Z',
         user: {

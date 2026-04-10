@@ -568,14 +568,9 @@
                             (adjustedPrice = Number(String(value).replace(/[^\d.]/g, '')) || null)
                     "
                 />
-                <NInput
-                    v-model:value="adjustPricePassword"
-                    type="password"
-                    show-password-on="click"
-                    placeholder="请输入 6 位支付密码"
-                    maxlength="6"
-                    style="margin-top: 12px"
-                />
+                <div style="margin-top: 12px">
+                    <PaymentPasswordInput v-model="adjustPricePassword" autofocus />
+                </div>
                 <div class="review-modal__actions">
                     <button
                         type="button"
@@ -784,6 +779,7 @@ import { NButton, NIcon, NInput, NTag, useDialog, useMessage } from 'naive-ui';
 import { StarOutline } from '@vicons/ionicons5';
 import { DelivererOrderApi, PickupApi, chatApi } from '@/api';
 import { MobileEmpty, MobileLoading, MobileModal } from '@/components/mobile';
+import PaymentPasswordInput from '@/components/payment/PaymentPasswordInput.vue';
 import { useAppStore, useUserStore } from '@/stores';
 import { resolveAssetUrl as resolvePublicAssetUrl } from '@/utils/apiBase';
 import type { PickupOrder, PickupOrderItem } from '@/types';

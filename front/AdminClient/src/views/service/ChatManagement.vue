@@ -110,34 +110,41 @@
                 v-for="msg in messages"
                 :key="msg.id"
                 class="message-item"
-                :class="{ own: isOwnMessage(msg) }"
+                :class="{ own: isOwnMessage(msg), system: isSystemMessage(msg) }"
               >
-                <el-avatar
-                  v-if="!isOwnMessage(msg)"
-                  :size="34"
-                  :src="currentPartner.avatar || undefined"
-                >
-                  {{ currentPartner.name.charAt(0) }}
-                </el-avatar>
-
-                <div class="message-bubble">
-                  <div v-if="msg.type === 'image'" class="message-image-wrap">
-                    <img
-                      :src="resolveImage(msg.content)"
-                      alt="chat-image"
-                      class="message-image"
-                      @click="openImagePreview(resolveImage(msg.content))"
-                    />
+                <template v-if="isSystemMessage(msg)">
+                  <div class="system-message">
+                    {{ msg.content }}
                   </div>
-                  <div v-else class="message-text">{{ msg.content }}</div>
-                  <div class="message-time">
-                    {{ formatMessageTime(msg.created_at || msg.createdAt) }}
-                  </div>
-                </div>
+                </template>
+                <template v-else>
+                  <el-avatar
+                    v-if="!isOwnMessage(msg)"
+                    :size="34"
+                    :src="currentPartner.avatar || undefined"
+                  >
+                    {{ currentPartner.name.charAt(0) }}
+                  </el-avatar>
 
-                <el-avatar v-if="isOwnMessage(msg)" :size="34">
-                  <el-icon><Service /></el-icon>
-                </el-avatar>
+                  <div class="message-bubble">
+                    <div v-if="msg.type === 'image'" class="message-image-wrap">
+                      <img
+                        :src="resolveImage(msg.content)"
+                        alt="chat-image"
+                        class="message-image"
+                        @click="openImagePreview(resolveImage(msg.content))"
+                      />
+                    </div>
+                    <div v-else class="message-text">{{ msg.content }}</div>
+                    <div class="message-time">
+                      {{ formatMessageTime(msg.created_at || msg.createdAt) }}
+                    </div>
+                  </div>
+
+                  <el-avatar v-if="isOwnMessage(msg)" :size="34">
+                    <el-icon><Service /></el-icon>
+                  </el-avatar>
+                </template>
               </div>
             </div>
           </div>
@@ -451,6 +458,7 @@ const closeImagePreview = () => {
 }
 
 const isOwnMessage = (message) => message.sender_type === 'service'
+const isSystemMessage = (message) => message.type === 'system'
 
 const scrollToBottom = async () => {
   await nextTick()
@@ -1051,8 +1059,23 @@ watch(
   gap: 10px;
 }
 
+.message-item.system {
+  justify-content: center;
+}
+
 .message-item.own {
   justify-content: flex-end;
+}
+
+.system-message {
+  max-width: 80%;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #3f5f97;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .message-bubble {

@@ -138,13 +138,7 @@
 
             <div class="wallet-action-page__password-block">
                 <span>支付密码</span>
-                <NInput
-                    v-model:value="paymentPassword"
-                    type="password"
-                    show-password-on="click"
-                    placeholder="请输入 6 位支付密码"
-                    maxlength="6"
-                />
+                <PaymentPasswordInput v-model="paymentPassword" autofocus />
             </div>
 
             <div class="wallet-action-page__modal-actions">
@@ -175,6 +169,7 @@ import {
 } from 'naive-ui';
 import { ChevronBackOutline } from '@vicons/ionicons5';
 import { WalletApi } from '@/api';
+import PaymentPasswordInput from '@/components/payment/PaymentPasswordInput.vue';
 import { useUserStore } from '@/stores';
 import {
     alipayPhonePattern,

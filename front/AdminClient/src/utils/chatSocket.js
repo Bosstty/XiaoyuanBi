@@ -14,7 +14,12 @@ const resolveSocketBaseUrl = () => {
 }
 
 export const createChatSocket = () => {
-  const token = localStorage.getItem('admin_token') || localStorage.getItem('auth_token')
+  const userType = localStorage.getItem('auth_user_type') || 'admin'
+  const token =
+    localStorage.getItem('auth_token') ||
+    (userType === 'service'
+      ? localStorage.getItem('service_token')
+      : localStorage.getItem('admin_token'))
   if (!token) {
     if (socketInstance) {
       socketInstance.disconnect()

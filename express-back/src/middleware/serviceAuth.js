@@ -37,6 +37,7 @@ const serviceAuth = async (req, res, next) => {
         req.user = service;
         req.userId = service.id;
         req.userRole = 'service';
+        req.serviceScopeId = service.id;
 
         next();
     } catch (error) {

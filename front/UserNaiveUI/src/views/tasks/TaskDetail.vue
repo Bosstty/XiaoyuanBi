@@ -526,14 +526,9 @@
                             (adjustedPrice = Number(String(value).replace(/[^\d.]/g, '')) || null)
                     "
                 />
-                <NInput
-                    v-model:value="adjustPricePassword"
-                    type="password"
-                    show-password-on="click"
-                    placeholder="请输入 6 位支付密码"
-                    maxlength="6"
-                    style="margin-top: 12px"
-                />
+                <div style="margin-top: 12px">
+                    <PaymentPasswordInput v-model="adjustPricePassword" autofocus />
+                </div>
                 <div class="review-modal__actions">
                     <NButton round @click="showAdjustPriceModal = false">取消</NButton>
                     <NButton
@@ -651,6 +646,7 @@ import {
     useMessage,
 } from 'naive-ui';
 import { PersonOutline, TimeOutline } from '@vicons/ionicons5';
+import PaymentPasswordInput from '@/components/payment/PaymentPasswordInput.vue';
 import { TaskApi, WalletApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
 import { resolveAssetUrl } from '@/utils/apiBase';
@@ -1153,14 +1149,11 @@ const openTaskPaymentDialog = () => {
                     { style: 'margin:0;color:#64748b;font-size:13px;line-height:1.6;' },
                     '本次将优先解冻已冻结的任务金额并完成支付，确认后不可撤回。'
                 ),
-                h(NInput, {
-                    value: paymentPassword.value,
-                    type: 'password',
-                    maxlength: 6,
-                    showPasswordOn: 'click',
-                    placeholder: '请输入6位支付密码',
-                    onUpdateValue: (value: string) => {
-                        paymentPassword.value = value.replace(/\D/g, '').slice(0, 6);
+                h(PaymentPasswordInput, {
+                    modelValue: paymentPassword.value,
+                    autofocus: true,
+                    'onUpdate:modelValue': (value: string) => {
+                        paymentPassword.value = value;
                     },
                 }),
             ]),

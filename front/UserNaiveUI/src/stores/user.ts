@@ -225,7 +225,10 @@ export const useUserStore = defineStore('user', () => {
 
     const verifyCode = async (type: 'email' | 'phone', target: string, code: string) => {
         try {
-            const response = await AuthApi.verifyCode({ type, target, code });
+            const response =
+                type === 'email' && token.value
+                    ? await AuthApi.verifyEmail({ email: target, target, code })
+                    : await AuthApi.verifyCode({ type, target, code });
             if (response.success) {
                 // 更新用户验证状态
                 if (user.value) {

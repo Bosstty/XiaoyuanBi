@@ -19,6 +19,15 @@
         </section>
 
         <section class="payment-settings-page__card">
+            <div v-if="!emailVerified" class="payment-settings-page__alert">
+                <span>邮箱验证</span>
+                <strong>请先完成邮箱验证</strong>
+                <p>设置或修改支付密码前，需要先验证当前绑定邮箱，验证完成后再返回此页继续操作。</p>
+                <NButton quaternary type="primary" @click="router.push('/settings')">
+                    前往验证邮箱
+                </NButton>
+            </div>
+
             <div class="payment-settings-page__status">
                 <span>当前状态</span>
                 <strong :class="{ 'is-active': paymentPasswordSet }">
@@ -40,23 +49,11 @@
                     :label="paymentPasswordSet ? '新支付密码' : '支付密码'"
                     path="paymentPassword"
                 >
-                    <NInput
-                        v-model:value="form.paymentPassword"
-                        type="password"
-                        show-password-on="click"
-                        maxlength="6"
-                        placeholder="请输入 6 位数字支付密码"
-                    />
+                    <PaymentPasswordInput v-model="form.paymentPassword" />
                 </NFormItem>
 
                 <NFormItem label="确认支付密码" path="confirmPaymentPassword">
-                    <NInput
-                        v-model:value="form.confirmPaymentPassword"
-                        type="password"
-                        show-password-on="click"
-                        maxlength="6"
-                        placeholder="请再次输入 6 位数字支付密码"
-                    />
+                    <PaymentPasswordInput v-model="form.confirmPaymentPassword" />
                 </NFormItem>
             </NForm>
 
@@ -71,6 +68,7 @@
                 block
                 size="large"
                 :loading="submitting"
+                :disabled="!emailVerified"
                 @click="handleSubmit"
             >
                 {{ paymentPasswordSet ? '修改支付密码' : '设置支付密码' }}
@@ -94,9 +92,12 @@ import {
 } from 'naive-ui';
 import { ChevronBackOutline } from '@vicons/ionicons5';
 import { WalletApi } from '@/api';
+import { useUserStore } from '@/stores';
+import PaymentPasswordInput from '@/components/payment/PaymentPasswordInput.vue';
 
 const router = useRouter();
 const message = useMessage();
+const userStore = useUserStore();
 const formRef = ref<FormInst | null>(null);
 const submitting = ref(false);
 const paymentPasswordSet = ref(false);
@@ -108,8 +109,11 @@ const form = reactive({
 });
 
 const pageTitle = computed(() => (paymentPasswordSet.value ? '修改支付密码' : '设置支付密码'));
+const emailVerified = computed(() => Boolean(userStore.user?.email_verified));
 const pageDescription = computed(() =>
-    paymentPasswordSet.value
+    !emailVerified.value
+        ? '当前邮箱尚未验证，请先完成邮箱验证后再设置支付密码。'
+        : paymentPasswordSet.value
         ? '已存在支付密码，修改前仍需验证账户登录密码。'
         : '首次设置支付密码前，需要先验证账户登录密码。'
 );
@@ -148,6 +152,12 @@ const loadOverview = async () => {
 };
 
 const handleSubmit = async () => {
+    if (!emailVerified.value) {
+        message.warning('请先完成邮箱验证后再设置或修改支付密码');
+        router.push('/settings');
+        return;
+    }
+
     try {
         await formRef.value?.validate();
     } catch {
@@ -257,6 +267,35 @@ onMounted(async () => {
     border-radius: 16px;
     background: #fff;
     box-shadow: 0 8px 24px rgba(20, 46, 88, 0.06);
+}
+
+.payment-settings-page__alert {
+    margin-bottom: 16px;
+    padding: 16px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #fff8ef 0%, #fff3e0 100%);
+    border: 1px solid rgba(255, 166, 77, 0.28);
+}
+
+.payment-settings-page__alert span {
+    display: block;
+    font-size: 12px;
+    color: #ad6a16;
+}
+
+.payment-settings-page__alert strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #7c4b06;
+}
+
+.payment-settings-page__alert p {
+    margin: 8px 0 12px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #8a5b1d;
 }
 
 .payment-settings-page__status {
