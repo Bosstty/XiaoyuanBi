@@ -183,7 +183,6 @@ class DebtSettlementService {
         await platformWallet.update(
             {
                 balance: platformBalance,
-                total_income: roundMoney(parseAmount(platformWallet.total_income) + totalDeducted),
                 last_transaction_at: totalDeducted > 0 ? now : platformWallet.last_transaction_at,
             },
             { transaction }

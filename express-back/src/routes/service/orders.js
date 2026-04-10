@@ -5,6 +5,9 @@ const ServiceTicketController = require('../../controllers/service/TicketControl
 // 申请退款
 router.post('/:id/refund', ServiceTicketController.processRefund);
 
+// 投诉赔偿
+router.post('/:id/compensation', ServiceTicketController.processCompensation);
+
 // 补偿处理
 router.post('/:id/compensate', ServiceTicketController.processCompensate);
 

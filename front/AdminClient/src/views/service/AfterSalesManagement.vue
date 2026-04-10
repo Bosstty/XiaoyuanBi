@@ -432,10 +432,18 @@
               </el-button>
             </el-form-item>
 
-            <!-- 退款和补偿按钮 -->
+            <!-- 工单处理动作 -->
             <el-form-item v-if="detailDrawer.data.order_id">
-              <el-button type="warning" @click="handleRefund"> 退款 </el-button>
-              <el-button type="danger" @click="handleCompensate"> 损坏赔付 </el-button>
+              <el-button v-if="detailDrawer.data.type === 'refund'" type="warning" @click="handleRefund">
+                退款
+              </el-button>
+              <el-button v-else-if="detailDrawer.data.type === 'complaint'" type="danger" @click="handleCompensation">
+                赔偿
+              </el-button>
+              <template v-else-if="detailDrawer.data.type === 'dispute'">
+                <el-button type="warning" @click="handleRefund">退款</el-button>
+                <el-button type="danger" @click="handleCompensate">赔付</el-button>
+              </template>
             </el-form-item>
           </el-form>
         </div>
@@ -460,6 +468,7 @@ import {
   Close,
 } from '@element-plus/icons-vue'
 import { serviceChatApi, serviceOrderApi, serviceTicketApi } from '@/api'
+import { dateUtils } from '@/utils'
 import { exportCsvFile, normalizeExportValue } from '@/utils/export'
 import DashboardFilterHeader from '../dashboard/components/DashboardFilterHeader.vue'
 
@@ -844,6 +853,46 @@ const handleRefund = async () => {
   }
 }
 
+// 投诉赔偿处理
+const handleCompensation = async () => {
+  if (!detailDrawer.data.order_id) {
+    ElMessage.warning('该工单没有关联订单')
+    return
+  }
+
+  try {
+    const { value } = await ElMessageBox.prompt('请输入赔偿金额和原因（格式：金额|原因）', '投诉赔偿处理', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPattern: /^\d+(\.\d+)?\|.+$/,
+      inputErrorMessage: '格式错误，请输入：金额|原因',
+    })
+
+    const [amount, reason] = value.split('|')
+
+    const response = await serviceOrderApi.processCompensation(detailDrawer.data.order_id, {
+      amount: parseFloat(amount),
+      reason: reason.trim(),
+      ticket_id: detailDrawer.data.id,
+    })
+
+    if (response.success) {
+      const result = response.data?.result || {}
+      ElMessage.success(
+        Number(result.offline_amount || 0) > 0
+          ? `赔偿已处理，系统赔偿 ¥${Number(result.processed_amount || 0).toFixed(2)}，线下待处理 ¥${Number(result.offline_amount || 0).toFixed(2)}`
+          : `赔偿已处理，赔偿金额 ¥${Number(result.processed_amount || 0).toFixed(2)}`,
+      )
+      await refreshPageData()
+      await refreshDetailDrawer(detailDrawer.data.id)
+    }
+  } catch (error) {
+    if (!isDialogCancel(error)) {
+      ElMessage.error(error.message || '赔偿处理失败')
+    }
+  }
+}
+
 // 损坏赔付处理
 const handleCompensate = async () => {
   if (!detailDrawer.data.order_id) {
@@ -1037,7 +1086,7 @@ onMounted(() => {
   const end = new Date()
   const start = new Date()
   start.setDate(start.getDate() - 30)
-  dateRange.value = [start.toISOString().slice(0, 10), end.toISOString().slice(0, 10)]
+  dateRange.value = [dateUtils.formatDate(start), dateUtils.formatDate(end)]
   refreshPageData()
 })
 </script>

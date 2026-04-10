@@ -15,11 +15,7 @@ const DamageCompensationService = require('../../services/DamageCompensationServ
 const { emitConversationEvent } = require('../../../config/socket');
 
 async function ensureOrderReadyForCompensation(order, transaction) {
-    if (order.status === 'completed') {
-        return order;
-    }
-
-    if (!['accepted', 'picking', 'delivering'].includes(order.status)) {
+    if (!['accepted', 'picking', 'delivering', 'completed'].includes(order.status)) {
         throw new Error('当前订单状态不支持直接处理赔付');
     }
 
@@ -27,7 +23,6 @@ async function ensureOrderReadyForCompensation(order, transaction) {
         throw new Error('订单缺少配送员信息，无法处理赔付');
     }
 
-    await PickupSettlementService.holdOrderSettlement(order, transaction, new Date());
     return order;
 }
 
@@ -589,6 +584,72 @@ class ServiceTicketController {
             res.status(400).json({
                 success: false,
                 message: error.message || '补偿处理失败',
+                error: error.message,
+            });
+        }
+    }
+
+    // 投诉赔偿处理
+    async processCompensation(req, res) {
+        try {
+            const { amount, reason, ticket_id: ticketId } = req.body;
+            const dbTransaction = await PickupOrder.sequelize.transaction();
+
+            try {
+                const order = await PickupOrder.findByPk(req.params.id, {
+                    transaction: dbTransaction,
+                    lock: dbTransaction.LOCK.UPDATE,
+                });
+
+                if (!order) {
+                    await dbTransaction.rollback();
+                    return res.status(404).json({
+                        success: false,
+                        message: '订单不存在',
+                    });
+                }
+
+                const result = await PickupSettlementService.processCompensation(
+                    order,
+                    amount,
+                    reason,
+                    dbTransaction
+                );
+
+                await resolveTicketAfterOrderAction(
+                    ticketId,
+                    order.id,
+                    `投诉赔偿处理完成：补偿${Number(result.processed_amount || 0).toFixed(2)}元。${
+                        Number(result.offline_amount || 0) > 0
+                            ? `另有${Number(result.offline_amount).toFixed(2)}元需线下处理。`
+                            : ''
+                    }${reason || '客服确认赔偿'}`,
+                    req.user?.id || null,
+                    dbTransaction
+                );
+
+                await dbTransaction.commit();
+
+                return res.json({
+                    success: true,
+                    message:
+                        Number(result.offline_amount || 0) > 0
+                            ? '赔偿已处理，超出系统可处理部分需线下处理'
+                            : '赔偿处理成功',
+                    data: {
+                        order,
+                        result,
+                    },
+                });
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
+            }
+        } catch (error) {
+            console.error('处理投诉赔偿失败详情:', error);
+            res.status(400).json({
+                success: false,
+                message: error.message || '赔偿处理失败',
                 error: error.message,
             });
         }

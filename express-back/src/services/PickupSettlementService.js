@@ -367,6 +367,7 @@ class PickupSettlementService {
             remark: `订单 ${order.order_no || order.id} 积分抵扣补贴`,
             completedAt,
             extraData: {
+                expense_category: 'points_subsidy',
                 order_id: order.id,
                 points_used: Number(order.points_used || 0),
                 subsidy_amount: subsidyAmount,
@@ -609,114 +610,92 @@ class PickupSettlementService {
             throw new Error('补偿金额必须大于0');
         }
 
-        const remainingFrozen = parseAmount(order.deliverer_frozen_amount);
-        const systemCompensationAmount = roundMoney(Math.min(requestedAmount, remainingFrozen));
-        const offlineCompensationAmount = roundMoney(
-            Math.max(requestedAmount - systemCompensationAmount, 0)
-        );
-
         const { user: publisher, wallet: publisherWallet } = await getLockedUserAndWallet(
             order.user_id,
             transaction
         );
-        const { delivererUser, delivererWallet } = await getLockedDelivererStake(order, transaction);
+        const systemCompensationAmount = requestedAmount;
+        const offlineCompensationAmount = 0;
 
-        if (systemCompensationAmount > 0) {
-            await delivererWallet.update(
-                {
-                    frozen_balance: roundMoney(
-                        parseAmount(delivererWallet.frozen_balance) - systemCompensationAmount
-                    ),
-                    last_transaction_at: now,
-                },
-                { transaction }
-            );
+        const publisherBalanceBefore = parseAmount(publisherWallet.balance);
+        const publisherBalanceAfter = roundMoney(publisherBalanceBefore + systemCompensationAmount);
 
-            const publisherBalanceBefore = parseAmount(publisherWallet.balance);
-            const publisherBalanceAfter = roundMoney(
-                publisherBalanceBefore + systemCompensationAmount
-            );
-
-            await publisherWallet.update(
-                {
-                    balance: publisherBalanceAfter,
-                    last_transaction_at: now,
-                },
-                { transaction }
-            );
-
-            await publisher.update(
-                {
-                    balance: publisherBalanceAfter,
-                },
-                { transaction }
-            );
-
-            await Transaction.create(
-                {
-                    transaction_no: generateTransactionNo(),
-                    user_id: publisher.id,
-                    type: 'bonus',
-                    amount: systemCompensationAmount,
-                    direction: 'in',
-                    balance_before: publisherBalanceBefore,
-                    balance_after: publisherBalanceAfter,
-                    status: 'success',
-                    related_type: 'pickup_order',
-                    related_id: order.id,
-                    payment_method: 'balance',
-                    description: `订单补偿入账：${order.title}`,
-                    remark: reason || '客服处理订单补偿',
-                    completed_at: now,
-                },
-                { transaction }
-            );
-        }
-
-        const nextFrozen = roundMoney(remainingFrozen - systemCompensationAmount);
-        const nextCompensationAmount = roundMoney(
-            parseAmount(order.compensation_amount) + systemCompensationAmount
-        );
-        const nextOfflineCompensationAmount = roundMoney(
-            parseAmount(order.offline_compensation_amount) + offlineCompensationAmount
-        );
-
-        await order.update(
+        await publisherWallet.update(
             {
-                deliverer_frozen_amount: nextFrozen,
-                compensation_amount: nextCompensationAmount,
-                offline_compensation_amount: nextOfflineCompensationAmount,
-                settlement_status: deriveSettlementStatus({
-                    ...order.toJSON(),
-                    deliverer_frozen_amount: nextFrozen,
-                    compensation_amount: nextCompensationAmount,
-                }),
-                settled_at: nextFrozen <= 0 ? now : order.settled_at,
-                settlement_note: appendSettlementNote(
-                    order.settlement_note,
-                    `补偿申请${requestedAmount.toFixed(2)}元，系统处理${systemCompensationAmount.toFixed(
-                        2
-                    )}元，线下处理${offlineCompensationAmount.toFixed(2)}元：${reason || '客服处理'}`
-                ),
+                balance: publisherBalanceAfter,
+                last_transaction_at: now,
             },
             { transaction }
         );
 
-        await upsertPendingEarnTransaction(order, delivererUser, delivererWallet, transaction, {
-            amount: nextFrozen,
-            status: nextFrozen > 0 ? 'pending' : 'cancelled',
-            description: nextFrozen > 0 ? `配送收入担保中：${order.title}` : `配送收入已扣减完：${order.title}`,
-            remark:
-                offlineCompensationAmount > 0
-                    ? '补偿金额超出系统可处理范围，超出部分需配送员线下赔付'
-                    : '担保期内发生补偿扣减，剩余金额继续冻结',
+        await publisher.update(
+            {
+                balance: publisherBalanceAfter,
+            },
+            { transaction }
+        );
+
+        await Transaction.create(
+            {
+                transaction_no: generateTransactionNo(),
+                user_id: publisher.id,
+                type: 'bonus',
+                amount: systemCompensationAmount,
+                direction: 'in',
+                balance_before: publisherBalanceBefore,
+                balance_after: publisherBalanceAfter,
+                status: 'success',
+                related_type: 'pickup_order',
+                related_id: order.id,
+                payment_method: 'balance',
+                description: `平台补偿入账：${order.title}`,
+                remark: reason || '客服处理投诉赔偿',
+                completed_at: now,
+                extra_data: {
+                    compensation_category: 'platform_compensation',
+                },
+            },
+            { transaction }
+        );
+
+        await FinanceAccountService.recordPlatformExpense(transaction, {
+            amount: systemCompensationAmount,
+            relatedType: 'pickup_order',
+            relatedId: order.id,
+            paymentMethod: 'balance',
+            description: '平台投诉赔偿支出',
+            remark: reason || `订单 ${order.order_no || order.id} 投诉赔偿`,
+            completedAt: now,
             extraData: {
-                settlement_mode: 'holding',
-                compensation_amount: nextCompensationAmount,
-                offline_compensation_amount: nextOfflineCompensationAmount,
-                remaining_frozen_amount: nextFrozen,
+                expense_category: 'platform_compensation',
+                order_id: order.id,
+                compensation_amount: systemCompensationAmount,
             },
         });
+
+        const nextFrozen = roundMoney(parseAmount(order.deliverer_frozen_amount));
+        const nextCompensationAmount = roundMoney(
+            parseAmount(order.compensation_amount) + systemCompensationAmount
+        );
+        const nextOfflineCompensationAmount = roundMoney(parseAmount(order.offline_compensation_amount));
+
+        await order.update(
+            {
+                compensation_amount: nextCompensationAmount,
+                offline_compensation_amount: nextOfflineCompensationAmount,
+                settlement_status: deriveSettlementStatus({
+                    ...order.toJSON(),
+                    deliverer_frozen_amount: parseAmount(order.deliverer_frozen_amount),
+                    compensation_amount: nextCompensationAmount,
+                }),
+                settled_at: order.settled_at || now,
+                settlement_note: appendSettlementNote(
+                    order.settlement_note,
+                    `平台补偿${requestedAmount.toFixed(2)}元：${reason || '客服处理'}`
+                ),
+            },
+            { transaction }
+        );
 
         return {
             requested_amount: requestedAmount,

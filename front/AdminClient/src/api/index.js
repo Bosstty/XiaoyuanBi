@@ -294,6 +294,7 @@ export const financeManagementApi = {
   getDelivererDebts: (params) => apiClient.get('/admin/finance/debts', params),
   getDelivererDebtDetail: (id) => apiClient.get(`/admin/finance/debts/${id}`),
   getSystemAccountOverview: () => apiClient.get('/admin/finance/system-account/overview'),
+  getSystemAccountAnalysis: (params) => apiClient.get('/admin/finance/system-account/analysis', params),
   getSystemAccountTransactions: (params) =>
     apiClient.get('/admin/finance/system-account/transactions', params),
 }
@@ -377,6 +378,8 @@ export const serviceOrderApi = {
   handleOrderStatus: (id, data) => apiClient.patch(`/service/orders/${id}/status`, data),
   // 申请退款
   processRefund: (id, data) => apiClient.post(`/service/orders/${id}/refund`, data),
+  // 投诉赔偿
+  processCompensation: (id, data) => apiClient.post(`/service/orders/${id}/compensation`, data),
   // 补偿处理
   processCompensate: (id, data) => apiClient.post(`/service/orders/${id}/compensate`, data),
 }

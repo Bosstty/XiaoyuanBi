@@ -407,6 +407,7 @@ import {
   RefreshLeft,
 } from '@element-plus/icons-vue'
 import { serviceChatApi, serviceTicketApi } from '@/api'
+import { dateUtils } from '@/utils'
 import { exportCsvFile, normalizeExportValue } from '@/utils/export'
 import DashboardFilterHeader from '../dashboard/components/DashboardFilterHeader.vue'
 
@@ -865,7 +866,7 @@ onMounted(() => {
   const end = new Date()
   const start = new Date()
   start.setDate(start.getDate() - 30)
-  dateRange.value = [start.toISOString().slice(0, 10), end.toISOString().slice(0, 10)]
+  dateRange.value = [dateUtils.formatDate(start), dateUtils.formatDate(end)]
   fetchTickets()
   fetchStats()
 })

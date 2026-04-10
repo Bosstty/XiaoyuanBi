@@ -21,6 +21,19 @@ const parseAmount = value => Number.parseFloat(value || 0) || 0;
 const roundMoney = value => Number(parseAmount(value).toFixed(2));
 const roundRating = value => Number(Number(value || 0).toFixed(2));
 
+async function findActiveDamageTicket(orderId, transaction) {
+    return ServiceTicket.findOne({
+        where: {
+            order_id: orderId,
+            status: { [Op.in]: ['pending', 'processing'] },
+            type: { [Op.in]: ['refund', 'dispute'] },
+        },
+        order: [['created_at', 'DESC']],
+        transaction,
+        lock: transaction?.LOCK?.UPDATE,
+    });
+}
+
 async function getPlatformCommissionRate(transaction) {
     const setting = await SystemSetting.findOne({
         transaction,
@@ -1224,6 +1237,13 @@ class UserOrderController {
                 return res.status(400).json(responseUtils.error('配送员尚未提交送达照片'));
             }
 
+            const activeDamageTicket = await findActiveDamageTicket(order.id);
+            if (order.damage_claim_status === 'processing' || activeDamageTicket) {
+                return res
+                    .status(400)
+                    .json(responseUtils.error('该订单正在赔付处理中，请联系客服'));
+            }
+
             const dbTransaction = await PickupOrder.sequelize.transaction();
 
             try {
@@ -1316,6 +1336,13 @@ class UserOrderController {
             const normalizedPriority = ['low', 'medium', 'high', 'urgent'].includes(priority)
                 ? priority
                 : 'high';
+            const typeTitleMap = {
+                complaint: '订单投诉',
+                refund: '订单退款',
+                dispute: '订单损坏赔付',
+                suggestion: '订单建议',
+                other: '订单其他问题',
+            };
 
             const ticket = await ServiceTicket.create({
                 ticket_no: `ST${Date.now()}${Math.random().toString().slice(2, 6)}`,
@@ -1323,12 +1350,18 @@ class UserOrderController {
                 order_id: order.id,
                 user_id: userId,
                 deliverer_id: order.deliverer_id || null,
-                title: `订单客服介入：${order.title}`,
+                title: `${typeTitleMap[normalizedType] || '订单客服介入'}：${order.title}`,
                 description: normalizedDescription,
                 priority: normalizedPriority,
                 status: 'pending',
                 service_id: null,
             });
+
+            if (normalizedType === 'dispute') {
+                await order.update({
+                    damage_claim_status: 'processing',
+                });
+            }
 
             return res.json(responseUtils.success(ticket, '工单已创建，请等待客服介入处理'));
         } catch (error) {
@@ -1355,13 +1388,69 @@ class UserOrderController {
                 return res.status(403).json(responseUtils.error('无权限操作此订单'));
             }
 
-            // 检查订单状态
+            const dbTransaction = await PickupOrder.sequelize.transaction();
+
+            try {
+                const lockedOrder = await PickupOrder.findByPk(id, {
+                    transaction: dbTransaction,
+                    lock: dbTransaction.LOCK.UPDATE,
+                });
+
+                if (!lockedOrder) {
+                    await dbTransaction.rollback();
+                    return res.status(404).json(responseUtils.error('订单不存在'));
+                }
+
+                const activeTicket = await findActiveDamageTicket(lockedOrder.id, dbTransaction);
+                if (lockedOrder.damage_claim_status === 'processing' || activeTicket) {
+                    if (activeTicket && activeTicket.type === 'refund') {
+                        await activeTicket.update(
+                            {
+                                type: 'dispute',
+                                title: `订单损坏赔付：${lockedOrder.title}`,
+                                description: [
+                                    activeTicket.description,
+                                    reason ? `用户追加说明：${String(reason).trim()}` : null,
+                                ]
+                                    .filter(Boolean)
+                                    .join('\n'),
+                                priority:
+                                    activeTicket.priority === 'urgent' ? 'urgent' : 'high',
+                            },
+                            { transaction: dbTransaction }
+                        );
+                    }
+
+                    await lockedOrder.update(
+                        {
+                            damage_claim_status: 'processing',
+                        },
+                        { transaction: dbTransaction }
+                    );
+
+                    await dbTransaction.commit();
+                    return res.json(
+                        responseUtils.success(
+                            {
+                                ticket_id: activeTicket?.id || null,
+                                ticket_type:
+                                    activeTicket?.type === 'refund' ? 'dispute' : activeTicket?.type || null,
+                            },
+                            '已存在进行中的赔付工单，本次退款申请已并入赔付处理'
+                        )
+                    );
+                }
+
+                await dbTransaction.rollback();
+            } catch (error) {
+                await dbTransaction.rollback();
+                throw error;
+            }
+
+            // 普通退款仍沿用原状态限制
             if (!['completed', 'cancelled'].includes(order.status)) {
                 return res.status(400).json(responseUtils.error('该订单不支持退款'));
             }
-
-            // TODO: 创建退款记录
-            // await RefundRecord.create({...});
 
             res.json(responseUtils.success(null, '退款申请已提交'));
         } catch (error) {

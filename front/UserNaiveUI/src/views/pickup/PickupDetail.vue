@@ -443,18 +443,9 @@
                                 size="tiny"
                                 round
                                 quaternary
-                                @click="openServiceTicketModal('refund')"
+                                @click="openServiceTicketModal('complaint')"
                             >
-                                申请退款
-                            </NButton>
-                            <NButton
-                                v-if="canCreateTicket"
-                                size="tiny"
-                                round
-                                quaternary
-                                @click="openServiceTicketModal('dispute')"
-                            >
-                                申请损坏赔付
+                                申请客服介入
                             </NButton>
                             <NButton
                                 v-if="canChatNow"
@@ -597,7 +588,7 @@
         >
             <div class="review-modal">
                 <div class="review-modal__head">
-                    <strong>{{ serviceTicketMode === 'refund' ? '申请退款' : '申请损坏赔付' }}</strong>
+                    <strong>提交售后工单</strong>
                     <button
                         type="button"
                         class="review-modal__close"
@@ -606,21 +597,25 @@
                         ×
                     </button>
                 </div>
+                <div class="service-ticket-type-grid">
+                    <button
+                        v-for="option in serviceTicketTypeOptions"
+                        :key="option.value"
+                        type="button"
+                        class="service-ticket-type-btn"
+                        :class="{ active: serviceTicketMode === option.value }"
+                        @click="serviceTicketMode = option.value"
+                    >
+                        {{ option.label }}
+                    </button>
+                </div>
                 <p class="review-modal__hint">
-                    {{
-                        serviceTicketMode === 'refund'
-                            ? '如果订单未正常履约、配送异常或需要退回款项，可以提交退款申请，由客服介入处理。'
-                            : '如果出现物品损坏、丢失或需要平台先行赔付的情况，可以提交损坏赔付申请，由客服介入处理。'
-                    }}
+                    {{ currentServiceTicketHint }}
                 </p>
                 <NInput
                     v-model:value="serviceTicketDescription"
                     type="textarea"
-                    :placeholder="
-                        serviceTicketMode === 'refund'
-                            ? '请说明退款原因，尽量写清订单经过、当前状态和退款诉求'
-                            : '请说明损坏情况、订单经过、物品影响和你的赔付诉求，便于客服核定处理'
-                    "
+                    :placeholder="currentServiceTicketPlaceholder"
                     :rows="5"
                     maxlength="500"
                     show-count
@@ -812,7 +807,34 @@ const adjustedPrice = ref<number | null>(null);
 const adjustPricePassword = ref('');
 const submittingServiceTicket = ref(false);
 const serviceTicketDescription = ref('');
-const serviceTicketMode = ref<'refund' | 'dispute'>('refund');
+const serviceTicketMode = ref<'complaint' | 'refund' | 'dispute' | 'suggestion' | 'other'>('complaint');
+const serviceTicketTypeOptions = [
+    { label: '投诉', value: 'complaint' },
+    { label: '退款', value: 'refund' },
+    { label: '损坏赔付', value: 'dispute' },
+    { label: '建议', value: 'suggestion' },
+    { label: '其他', value: 'other' },
+] as const;
+const currentServiceTicketHint = computed(() => {
+    const map = {
+        complaint: '如果存在服务态度、配送异常、超时等投诉问题，可提交投诉工单，由客服介入并视情况赔偿。',
+        refund: '如果订单未正常履约、配送异常或需要退回款项，可以提交退款申请，由客服介入处理。',
+        dispute: '如果出现物品损坏、丢失或需要平台先行赔付的情况，可以提交损坏赔付申请，由客服介入处理。',
+        suggestion: '如果你对平台、配送流程或功能体验有改进建议，可以提交建议工单。',
+        other: '其他无法归类的问题，也可以通过工单提交给客服处理。',
+    } as const;
+    return map[serviceTicketMode.value];
+});
+const currentServiceTicketPlaceholder = computed(() => {
+    const map = {
+        complaint: '请说明投诉内容、订单经过、你希望平台如何处理，便于客服判断是否需要赔偿',
+        refund: '请说明退款原因，尽量写清订单经过、当前状态和退款诉求',
+        dispute: '请说明损坏情况、订单经过、物品影响和你的赔付诉求，便于客服核定处理',
+        suggestion: '请说明你的建议内容、使用场景和希望改进的点',
+        other: '请尽量完整描述问题经过、当前状态和你的诉求',
+    } as const;
+    return map[serviceTicketMode.value];
+});
 const order = ref<PickupOrder | null>(null);
 const ratingImageInputRef = ref<HTMLInputElement | null>(null);
 const pickupPhotoInputRef = ref<HTMLInputElement | null>(null);
@@ -1231,7 +1253,9 @@ const openAdjustPriceModal = () => {
     showAdjustPriceModal.value = true;
 };
 
-const openServiceTicketModal = (mode: 'refund' | 'dispute') => {
+const openServiceTicketModal = (
+    mode: 'complaint' | 'refund' | 'dispute' | 'suggestion' | 'other'
+) => {
     serviceTicketMode.value = mode;
     serviceTicketDescription.value = '';
     showServiceTicketModal.value = true;
@@ -2378,6 +2402,29 @@ onBeforeUnmount(() => {
     font-size: 13px;
     line-height: 1.7;
     color: #64748b;
+}
+
+.service-ticket-type-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0 0 14px;
+}
+
+.service-ticket-type-btn {
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 14px;
+    padding: 10px 8px;
+    background: rgba(248, 250, 252, 0.9);
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.service-ticket-type-btn.active {
+    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
 }
 
 .review-modal__actions {

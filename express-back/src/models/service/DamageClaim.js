@@ -47,12 +47,12 @@ const DamageClaim = sequelize.define(
         frozen_deduct_amount: {
             type: DataTypes.DECIMAL(10, 2),
             defaultValue: 0,
-            comment: '从配送员冻结收益扣除金额',
+            comment: '从配送员冻结余额扣除的订单金额',
         },
         balance_deduct_amount: {
             type: DataTypes.DECIMAL(10, 2),
             defaultValue: 0,
-            comment: '从配送员可用余额扣除金额',
+            comment: '从配送员未冻结余额扣除的赔付金额',
         },
         deliverer_deduct_amount: {
             type: DataTypes.DECIMAL(10, 2),
