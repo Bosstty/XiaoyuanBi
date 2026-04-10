@@ -443,7 +443,6 @@ import {
     PersonOutline,
     ReceiptOutline,
     RibbonOutline,
-    ShieldCheckmarkOutline,
     StarOutline,
     WalletOutline,
 } from '@vicons/ionicons5';
@@ -618,11 +617,6 @@ const courierChipRow = computed(() => {
     }
 
     return ['抢单大厅', '服务区域', '上传凭证', '收益管理'];
-});
-
-const verificationSummary = computed(() => {
-    if (!userStore.isAuthenticated || !userStore.user) return '待登录';
-    return userStore.user.student_verified ? '学生认证' : '待认证';
 });
 
 const profileStats = computed(() => {

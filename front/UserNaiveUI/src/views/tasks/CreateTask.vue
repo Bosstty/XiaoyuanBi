@@ -375,7 +375,6 @@ const maxUsablePoints = computed(() => {
     return Math.max(0, Math.min(byAmount, byBalance));
 });
 const pointsPaymentAvailable = computed(() => maxUsablePoints.value >= 100);
-const maxPointsDiscountAmount = computed(() => (maxUsablePoints.value / 100).toFixed(2));
 const summaryPrice = computed(() => Number(form.price || 0).toFixed(2));
 const normalizedPointsToUse = computed(() => {
     if (paymentMode.value !== 'balance_points') return 0;
