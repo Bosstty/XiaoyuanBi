@@ -100,6 +100,5 @@ jobs:
                       git rev-parse HEAD
                       cd express-back
                       npm install
-                      npm run migrate
                       pm2 restart backend --update-env
                       pm2 save
