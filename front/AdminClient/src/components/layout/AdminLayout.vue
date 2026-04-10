@@ -187,6 +187,7 @@ import {
   Tickets,
   ChatLineRound,
   ShoppingCart,
+  Money,
   TrendCharts,
   Setting,
   Fold,
@@ -283,6 +284,7 @@ const menuConfig = [
     ],
   },
   { index: '/analytics', title: '数据分析', icon: markRaw(TrendCharts), roles: ['admin'] },
+  { index: '/finance', title: '财务中心', icon: markRaw(Money), roles: ['admin'] },
   { index: '/system', title: '系统设置', icon: markRaw(Setting), roles: ['admin'] },
   { index: '/system/audit', title: '审计日志', icon: markRaw(Document), roles: ['admin'] },
 ]
@@ -304,6 +306,7 @@ const breadcrumbs = computed(() => {
     chat: '在线客服',
     'after-sales': '售后管理',
     analytics: '数据分析',
+    finance: '财务中心',
     system: '系统设置',
     'system-audit': '审计日志',
   }

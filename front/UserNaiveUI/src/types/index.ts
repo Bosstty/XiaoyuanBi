@@ -112,6 +112,16 @@ export interface PickupOrder {
     items?: PickupOrderItem[];
     price: number;
     tip: number;
+    original_amount?: number;
+    cash_paid_amount?: number;
+    points_discount_amount?: number;
+    platform_subsidy_amount?: number;
+    refunded_cash_amount?: number;
+    points_used?: number;
+    returned_points?: number;
+    reward_points?: number;
+    reverted_reward_points?: number;
+    reward_points_granted?: boolean;
     urgent: boolean;
     fragile: boolean;
     status: 'pending' | 'accepted' | 'picking' | 'delivering' | 'completed' | 'cancelled';
@@ -176,6 +186,7 @@ export interface CreatePickupOrderData {
     images?: string[];
     notes?: string;
     payment_password?: string;
+    points_used?: number;
 }
 
 export type TaskCancellationStatus = 'none' | 'pending' | 'rejected' | 'accepted' | 'disputed';
@@ -193,6 +204,17 @@ export interface Task {
     tags?: string[];
     skills_required?: string[];
     price: number;
+    original_amount?: number;
+    cash_paid_amount?: number;
+    points_discount_amount?: number;
+    platform_subsidy_amount?: number;
+    refund_amount?: number;
+    refunded_cash_amount?: number;
+    points_used?: number;
+    returned_points?: number;
+    reward_points?: number;
+    reverted_reward_points?: number;
+    reward_points_granted?: boolean;
     location?: string;
     start_time?: string;
     deadline: string;
@@ -248,6 +270,8 @@ export interface CreateTaskData {
     remote_work?: boolean;
     images?: string[];
     attachments?: string[];
+    payment_password?: string;
+    points_used?: number;
 }
 
 // 任务申请类型
@@ -508,6 +532,15 @@ export interface WalletOverview {
     };
     deliverer: WalletDelivererStats;
     recent_activities: WalletActivity[];
+}
+
+export interface WalletPaymentSummary {
+    available_balance: number;
+    display_balance: number;
+    debt_amount: number;
+    frozen_balance: number;
+    points: number;
+    payment_password_set: boolean;
 }
 
 export interface WalletActivitiesResponse {

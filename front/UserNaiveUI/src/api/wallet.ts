@@ -3,6 +3,7 @@ import type {
     ApiResponse,
     PaginationMeta,
     WalletActivitiesResponse,
+    WalletPaymentSummary,
     WalletOverview,
 } from '@/types';
 
@@ -11,6 +12,10 @@ const WALLET_REQUEST_TIMEOUT = 20000;
 export class WalletApi {
     static async getOverview(): Promise<ApiResponse<WalletOverview>> {
         return apiClient.get('/wallet/overview', { timeout: WALLET_REQUEST_TIMEOUT });
+    }
+
+    static async getPaymentSummary(): Promise<ApiResponse<WalletPaymentSummary>> {
+        return apiClient.get('/wallet/payment-summary', { timeout: 8000 });
     }
 
     static async getActivities(params?: {

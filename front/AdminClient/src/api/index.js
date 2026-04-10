@@ -270,6 +270,17 @@ export const delivererManagementApi = {
 }
 
 // =========================================
+// 财务管理 API (/api/admin/finance/*)
+// =========================================
+export const financeManagementApi = {
+  getDelivererDebts: (params) => apiClient.get('/admin/finance/debts', params),
+  getDelivererDebtDetail: (id) => apiClient.get(`/admin/finance/debts/${id}`),
+  getSystemAccountOverview: () => apiClient.get('/admin/finance/system-account/overview'),
+  getSystemAccountTransactions: (params) =>
+    apiClient.get('/admin/finance/system-account/transactions', params),
+}
+
+// =========================================
 // 论坛管理 API (/api/admin/forum/*)
 // =========================================
 export const forumManagementApi = {

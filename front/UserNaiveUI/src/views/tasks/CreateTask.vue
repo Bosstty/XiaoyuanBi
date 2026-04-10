@@ -178,6 +178,7 @@
                                 :rows="3"
                             />
                         </div>
+
                     </div>
                 </section>
             </div>
@@ -186,6 +187,9 @@
                 <div class="summary-line">
                     <div class="total-label">任务报酬</div>
                     <div class="total-val">¥{{ summaryPrice }}</div>
+                </div>
+                <div v-if="normalizedPointsToUse > 0" class="summary-note">
+                    积分抵扣 ¥{{ pointsDiscountAmount }}，实际冻结 ¥{{ cashToFreeze }}
                 </div>
                 <NButton
                     type="primary"
@@ -200,6 +204,110 @@
                 </NButton>
             </footer>
         </main>
+        <MobileModal
+            v-model:show="showPaymentSheet"
+            title="选择支付方式"
+            bottom-sheet
+            :show-footer="true"
+            confirm-text="确认支付方式"
+            :loading="submitting"
+            @confirm="confirmPaymentPlan"
+        >
+            <div class="payment-sheet">
+                <div class="payment-sheet__account">
+                    <span>余额 ¥{{ Number(userStore.user?.balance || 0).toFixed(2) }}</span>
+                    <span>积分 {{ availablePoints }}</span>
+                </div>
+                <button
+                    type="button"
+                    class="payment-sheet__option"
+                    :class="{ 'is-active': paymentMode === 'balance' }"
+                    @click="paymentMode = 'balance'"
+                >
+                    <span class="payment-sheet__check">✓</span>
+                    <strong>余额支付</strong>
+                    <span>余额 ¥{{ summaryPrice }}</span>
+                </button>
+                <button
+                    type="button"
+                    class="payment-sheet__option"
+                    :class="{
+                        'is-active': paymentMode === 'balance_points',
+                        'is-disabled': !pointsPaymentAvailable,
+                    }"
+                    :disabled="!pointsPaymentAvailable"
+                    @click="selectPointsPayment"
+                >
+                    <span class="payment-sheet__check">✓</span>
+                    <strong>余额 + 积分抵扣</strong>
+                    <span v-if="pointsPaymentAvailable">
+                        余额 ¥{{ cashToFreeze }} + 积分 {{ normalizedPointsToUse || maxUsablePoints }}
+                    </span>
+                    <span v-else>积分不足</span>
+                </button>
+
+                <div
+                    v-if="paymentMode === 'balance_points' && pointsPaymentAvailable"
+                    class="payment-sheet__points"
+                >
+                    <p class="payment-sheet__hint">
+                        本次自动抵扣 {{ normalizedPointsToUse }} 积分，抵扣 ¥{{ pointsDiscountAmount }}
+                    </p>
+                </div>
+
+                <div class="payment-sheet__summary">
+                    <div>
+                        <span>任务报酬</span>
+                        <strong>¥{{ summaryPrice }}</strong>
+                    </div>
+                    <div>
+                        <span>实际冻结</span>
+                        <strong>¥{{ cashToFreeze }}</strong>
+                    </div>
+                </div>
+            </div>
+        </MobileModal>
+        <MobileModal
+            v-model:show="showPasswordSheet"
+            title="输入支付密码"
+            bottom-sheet
+            :show-footer="true"
+            confirm-text="确认支付"
+            :loading="submitting"
+            @confirm="submitTaskPayment"
+        >
+            <div class="payment-sheet">
+                <div class="payment-sheet__summary payment-sheet__summary--compact">
+                    <div>
+                        <span>支付方式</span>
+                        <strong>{{ paymentModeLabel }}</strong>
+                    </div>
+                    <div>
+                        <span>实际冻结</span>
+                        <strong>¥{{ cashToFreeze }}</strong>
+                    </div>
+                </div>
+                <div class="pin-input" @click="focusPaymentPasswordInput">
+                    <div
+                        v-for="index in 6"
+                        :key="index"
+                        class="pin-input__cell"
+                        :class="{ 'is-filled': Boolean(paymentPassword[index - 1]) }"
+                    >
+                        {{ paymentPassword[index - 1] ? '•' : '' }}
+                    </div>
+                    <input
+                        ref="paymentPasswordInputRef"
+                        v-model="paymentPassword"
+                        class="pin-input__native"
+                        inputmode="numeric"
+                        maxlength="6"
+                        autocomplete="one-time-code"
+                        @input="handlePaymentPasswordInput"
+                    />
+                </div>
+            </div>
+        </MobileModal>
     </div>
 </template>
 
@@ -215,22 +323,29 @@ import {
     useDialog,
     useMessage,
 } from 'naive-ui';
-import { TaskApi } from '@/api';
-import { useAppStore } from '@/stores';
+import { TaskApi, WalletApi } from '@/api';
+import MobileModal from '@/components/mobile/MobileModal.vue';
+import { useAppStore, useUserStore } from '@/stores';
 import type { CreateTaskData } from '@/types';
 
 const router = useRouter();
 const appStore = useAppStore();
 const message = useMessage();
 const dialog = useDialog();
+const userStore = useUserStore();
 
 const submitting = ref(false);
 const showAdvanced = ref(false);
+const showPaymentSheet = ref(false);
+const showPasswordSheet = ref(false);
 const deadlineValue = ref<number | null>(null);
 const tagsText = ref('');
 const skillsText = ref('');
 const attachmentsText = ref('');
 const imagesText = ref('');
+const paymentPassword = ref('');
+const paymentPasswordInputRef = ref<HTMLInputElement | null>(null);
+const paymentMode = ref<'balance' | 'balance_points'>('balance');
 
 const categoryOptions: Array<{ value: CreateTaskData['category']; label: string }> = [
     { value: 'study', label: '学习辅导类' },
@@ -253,7 +368,26 @@ const form = reactive<Partial<CreateTaskData>>({
     remote_work: false,
 });
 
+const availablePoints = computed(() => Number(userStore.user?.points || 0));
+const maxUsablePoints = computed(() => {
+    const byAmount = Math.floor(Number(form.price || 0)) * 100;
+    const byBalance = availablePoints.value - (availablePoints.value % 100);
+    return Math.max(0, Math.min(byAmount, byBalance));
+});
+const pointsPaymentAvailable = computed(() => maxUsablePoints.value >= 100);
+const maxPointsDiscountAmount = computed(() => (maxUsablePoints.value / 100).toFixed(2));
 const summaryPrice = computed(() => Number(form.price || 0).toFixed(2));
+const normalizedPointsToUse = computed(() => {
+    if (paymentMode.value !== 'balance_points') return 0;
+    return maxUsablePoints.value;
+});
+const pointsDiscountAmount = computed(() => (normalizedPointsToUse.value / 100).toFixed(2));
+const cashToFreeze = computed(() =>
+    Math.max(Number(form.price || 0) - Number(pointsDiscountAmount.value), 0).toFixed(2)
+);
+const paymentModeLabel = computed(() =>
+    paymentMode.value === 'balance_points' ? '余额 + 积分抵扣' : '余额支付'
+);
 
 const toISOStringOrUndefined = (value: number | null) =>
     value ? new Date(value).toISOString() : undefined;
@@ -282,6 +416,7 @@ const buildPayload = (): CreateTaskData => ({
     attachments: splitLines(attachmentsText.value).length
         ? splitLines(attachmentsText.value)
         : undefined,
+    points_used: normalizedPointsToUse.value || undefined,
 });
 
 const validateForm = () => {
@@ -289,6 +424,9 @@ const validateForm = () => {
     if (!form.title?.trim()) return '请填写任务标题';
     if (!form.description?.trim()) return '请填写任务描述';
     if (!Number(form.price)) return '请填写任务报酬';
+    if (Number(userStore.user?.balance || 0) < Number(cashToFreeze.value)) {
+        return '余额不足，请先充值后再发布';
+    }
     if (!deadlineValue.value) return '请选择截止时间';
     return '';
 };
@@ -297,36 +435,127 @@ const createTask = async () => {
     if (submitting.value) return;
     submitting.value = true;
     try {
-        const response = await TaskApi.createTask(buildPayload());
+        const response = await TaskApi.createTask({
+            ...buildPayload(),
+            payment_password: paymentPassword.value,
+        });
         if (!response.success) {
             throw new Error(response.message || '创建任务失败');
         }
+        if (userStore.user) {
+            userStore.user.balance = Math.max(
+                0,
+                Number(userStore.user.balance || 0) - Number(cashToFreeze.value)
+            );
+            userStore.user.points = Math.max(
+                0,
+                Number(userStore.user.points || 0) - Number(normalizedPointsToUse.value || 0)
+            );
+        }
         appStore.hapticFeedback('medium');
-        message.success(`任务创建成功，已冻结 ¥${summaryPrice.value}`);
+        message.success(`任务创建成功，已冻结 ¥${cashToFreeze.value}`);
         router.replace('/tasks/my');
+        return true;
     } catch (error: any) {
         message.error(error?.message || '创建任务失败');
+        return false;
     } finally {
         submitting.value = false;
     }
 };
 
-const submitTask = () => {
+const openSetPaymentPasswordDialog = () => {
+    dialog.info({
+        title: '请先设置支付密码',
+        positiveText: '前往设置',
+        negativeText: '取消',
+        content: '发布任务前需要先设置 6 位数字支付密码，设置时需验证账户密码。',
+        onPositiveClick() {
+            router.push('/wallet/payment-settings');
+        },
+    });
+};
+
+const handlePaymentPasswordInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const sanitized = target.value.replace(/\D/g, '').slice(0, 6);
+    paymentPassword.value = sanitized;
+    target.value = sanitized;
+};
+
+const focusPaymentPasswordInput = () => {
+    paymentPasswordInputRef.value?.focus();
+};
+
+const selectPointsPayment = () => {
+    if (!pointsPaymentAvailable.value) return;
+    paymentMode.value = 'balance_points';
+};
+
+const confirmPaymentPlan = () => {
+    if (paymentMode.value === 'balance_points') {
+        if (!pointsPaymentAvailable.value) {
+            message.warning('当前不可使用积分抵扣');
+            return;
+        }
+        if (normalizedPointsToUse.value < 100) {
+            message.warning('请输入至少 100 积分');
+            return;
+        }
+    }
+
+    paymentPassword.value = '';
+    showPaymentSheet.value = false;
+    showPasswordSheet.value = true;
+};
+
+const submitTaskPayment = async () => {
+    if (!/^\d{6}$/.test(paymentPassword.value)) {
+        message.warning('请输入 6 位数字支付密码');
+        return;
+    }
+
+    const success = await createTask();
+    if (success !== false) {
+        showPasswordSheet.value = false;
+    }
+};
+
+const submitTask = async () => {
     const error = validateForm();
     if (error) {
         message.warning(error);
         return;
     }
 
-    dialog.warning({
-        title: '确认发布任务',
-        positiveText: '确认发布',
-        negativeText: '取消',
-        content: `发布后将先冻结 ¥${summaryPrice.value} 作为任务报酬。任务完成并由你确认后，这笔金额才会支付给承接人。`,
-        async onPositiveClick() {
-            await createTask();
-        },
-    });
+    try {
+        const paymentSummaryResponse = await WalletApi.getPaymentSummary();
+        if (!paymentSummaryResponse.success || !paymentSummaryResponse.data) {
+            throw new Error(paymentSummaryResponse.message || '获取支付信息失败');
+        }
+
+        const availableBalance = Number(
+            paymentSummaryResponse.data.available_balance ?? userStore.user?.balance ?? 0
+        );
+        const requiredAmount = Number(cashToFreeze.value);
+
+        if (availableBalance < requiredAmount) {
+            throw new Error(`余额不足，当前余额 ¥${availableBalance.toFixed(2)}，请先充值`);
+        }
+
+        if (!paymentSummaryResponse.data.payment_password_set) {
+            openSetPaymentPasswordDialog();
+            return;
+        }
+
+        if (userStore.user && typeof paymentSummaryResponse.data.points === 'number') {
+            userStore.user.points = paymentSummaryResponse.data.points;
+        }
+
+        showPaymentSheet.value = true;
+    } catch (err: any) {
+        message.error(err?.message || '创建任务失败');
+    }
 };
 </script>
 
@@ -413,6 +642,22 @@ const submitTask = () => {
     font-weight: 700;
     color: var(--text);
     padding-left: 4px;
+}
+
+.field-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.field-label-row .field-label {
+    padding-left: 4px;
+}
+
+.field-label-hint {
+    font-size: 12px;
+    color: rgba(59, 130, 246, 0.75);
 }
 
 .field-grid {
@@ -528,6 +773,156 @@ const submitTask = () => {
     background: var(--grad) !important;
     border: none !important;
     box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+}
+
+.summary-note {
+    margin-bottom: 14px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.payment-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.payment-sheet__account {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.payment-sheet__option {
+    position: relative;
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 18px;
+    padding: 16px 44px 16px 16px;
+    background: color-mix(in srgb, var(--surface) 76%, var(--card));
+    color: var(--text);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.payment-sheet__option strong {
+    font-size: 15px;
+}
+
+.payment-sheet__option span {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.payment-sheet__option.is-active {
+    border-color: rgba(59, 130, 246, 0.55);
+    box-shadow: 0 10px 24px rgba(59, 130, 246, 0.14);
+    background: rgba(59, 130, 246, 0.06);
+}
+
+.payment-sheet__option.is-disabled {
+    opacity: 0.55;
+}
+
+.payment-sheet__check {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    color: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    background: #fff;
+}
+
+.payment-sheet__option.is-active .payment-sheet__check {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+}
+
+.payment-sheet__points {
+    border-radius: 18px;
+    padding: 16px;
+    background: rgba(59, 130, 246, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.payment-sheet__hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text);
+}
+
+.payment-sheet__summary {
+    border-radius: 18px;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.04);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.payment-sheet__summary--compact {
+    grid-template-columns: 1fr 1fr;
+}
+
+.payment-sheet__summary span {
+    display: block;
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.payment-sheet__summary strong {
+    font-size: 18px;
+    color: var(--text);
+}
+
+.pin-input {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.pin-input__cell {
+    height: 52px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--text);
+}
+
+.pin-input__cell.is-filled {
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.pin-input__native {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
 }
 
 .mt-16 {

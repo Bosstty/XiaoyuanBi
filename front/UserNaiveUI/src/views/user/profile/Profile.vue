@@ -72,10 +72,6 @@
                     <NIcon :size="12"><RibbonOutline /></NIcon>
                     {{ userStore.user?.points || 0 }} 积分
                 </span>
-                <span>
-                    <NIcon :size="12"><ShieldCheckmarkOutline /></NIcon>
-                    {{ verificationSummary }}
-                </span>
             </div>
 
             <template v-if="userStore.isAuthenticated">
@@ -86,9 +82,9 @@
                         @click="handleMenuClick('/wallet')"
                     >
                         <div>
-                            <span>钱包余额</span>
+                            <span>净余额</span>
                             <strong>¥{{ Number(userStore.user?.balance || 0).toFixed(2) }}</strong>
-                            <p>冻结金额 ¥{{ frozenBalanceText }}</p>
+                            <p>{{ walletBalanceNote }}</p>
                         </div>
 
                         <NIcon :size="18"><ChevronForwardOutline /></NIcon>
@@ -495,6 +491,16 @@ const userInitial = computed(() => userStore.userName?.slice(0, 1).toUpperCase()
 const frozenBalanceText = computed(() =>
     Number(walletOverview.value?.summary.frozen_balance || 0).toFixed(2)
 );
+const walletBalanceNote = computed(() => {
+    const debtAmount = Number(walletOverview.value?.summary.debt_amount || 0);
+    const frozenText = `冻结金额 ¥${frozenBalanceText.value}`;
+
+    if (debtAmount > 0) {
+        return `已扣除欠款，${frozenText}`;
+    }
+
+    return frozenText;
+});
 
 const courierEnabled = computed(() => {
     return Boolean(
@@ -616,17 +622,7 @@ const courierChipRow = computed(() => {
 
 const verificationSummary = computed(() => {
     if (!userStore.isAuthenticated || !userStore.user) return '待登录';
-
-    const verifiedCount = [
-        userStore.user.student_verified,
-        userStore.user.phone_verified,
-        userStore.user.email_verified,
-    ].filter(Boolean).length;
-
-    if (verifiedCount === 3) return '三项已认证';
-    if (verifiedCount === 2) return '两项已认证';
-    if (verifiedCount === 1) return '单项认证';
-    return '待认证';
+    return userStore.user.student_verified ? '学生认证' : '待认证';
 });
 
 const profileStats = computed(() => {

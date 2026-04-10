@@ -13,7 +13,9 @@ const { orderUtils, responseUtils, paginationUtils, cryptoUtils } = require('../
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 const SecurityService = require('../../services/SecurityService');
+const FinanceAccountService = require('../../services/FinanceAccountService');
 const PickupSettlementService = require('../../services/PickupSettlementService');
+const PointsService = require('../../services/PointsService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
 const roundMoney = value => Number(parseAmount(value).toFixed(2));
@@ -239,7 +241,7 @@ async function getLockedUserAndWallet(userId, transaction) {
 }
 
 async function awardPaymentPoints(user, wallet, amount, transaction) {
-    const earnedPoints = Math.floor(parseAmount(amount));
+    const earnedPoints = PointsService.calculateRewardPoints(amount);
     if (earnedPoints <= 0) {
         return 0;
     }
@@ -303,26 +305,47 @@ async function freezePickupFunds(userId, amount, paymentPassword, transaction) {
     );
 }
 
-async function releasePickupFunds(order, transaction, remark = '订单取消，冻结金额已退回余额') {
-    const amount = parseAmount(order.price) + parseAmount(order.tip);
-    if (amount <= 0) {
-        return;
+async function freezePickupFundsWithPoints(
+    userId,
+    totalAmount,
+    paymentPassword,
+    requestedPoints,
+    transaction
+) {
+    const { user, wallet } = await getLockedUserAndWallet(userId, transaction);
+    const breakdown = PointsService.calculateDeduction(
+        requestedPoints,
+        totalAmount,
+        Number(user.points || 0)
+    );
+
+    if (!wallet.payment_password_set || !wallet.payment_password) {
+        throw new Error('请先设置支付密码');
     }
 
-    const { user, wallet } = await getLockedUserAndWallet(order.user_id, transaction);
+    if (!paymentPassword || !String(paymentPassword).trim()) {
+        throw new Error('请输入支付密码');
+    }
+
+    const encryptedPassword = cryptoUtils.sha256(String(paymentPassword).trim());
+    if (wallet.payment_password !== encryptedPassword) {
+        throw new Error('支付密码错误');
+    }
+
     const availableBalance = parseAmount(wallet.balance);
     const frozenBalance = parseAmount(wallet.frozen_balance);
-
-    if (frozenBalance < amount) {
-        throw new Error('冻结金额不足，无法退回订单金额');
+    if (availableBalance < breakdown.cash_paid_amount) {
+        throw new Error('余额不足，请先充值后再创建订单');
     }
 
-    const nextAvailableBalance = availableBalance + amount;
+    await PointsService.deductPoints(user, wallet, breakdown.points_used, transaction);
+
+    const nextAvailableBalance = roundMoney(availableBalance - breakdown.cash_paid_amount);
 
     await wallet.update(
         {
             balance: nextAvailableBalance,
-            frozen_balance: frozenBalance - amount,
+            frozen_balance: roundMoney(frozenBalance + breakdown.cash_paid_amount),
             last_transaction_at: new Date(),
         },
         { transaction }
@@ -335,25 +358,76 @@ async function releasePickupFunds(order, transaction, remark = '订单取消，�
         { transaction }
     );
 
-    await Transaction.create(
+    return breakdown;
+}
+
+async function releasePickupFunds(order, transaction, remark = '订单取消，冻结金额已退回余额') {
+    const amount = roundMoney(
+        order.cash_paid_amount || parseAmount(order.price) + parseAmount(order.tip)
+    );
+    const returnedPoints = Math.max(
+        0,
+        Number(order.points_used || 0) - Number(order.returned_points || 0)
+    );
+
+    if (amount <= 0 && returnedPoints <= 0) {
+        return { refunded_cash_amount: 0, returned_points: 0 };
+    }
+
+    const { user, wallet } = await getLockedUserAndWallet(order.user_id, transaction);
+    const availableBalance = parseAmount(wallet.balance);
+    const frozenBalance = parseAmount(wallet.frozen_balance);
+
+    if (frozenBalance < amount) {
+        throw new Error('冻结金额不足，无法退回订单金额');
+    }
+
+    const nextAvailableBalance = roundMoney(availableBalance + amount);
+
+    await wallet.update(
         {
-            transaction_no: `TX${Date.now()}${Math.random().toString().slice(2, 6)}`,
-            user_id: user.id,
-            type: 'refund',
-            amount,
-            direction: 'in',
-            balance_before: availableBalance,
-            balance_after: nextAvailableBalance,
-            status: 'success',
-            related_type: 'pickup_order',
-            related_id: order.id,
-            payment_method: 'balance',
-            description: `订单退款返还：${order.title}`,
-            remark,
-            completed_at: new Date(),
+            balance: nextAvailableBalance,
+            frozen_balance: roundMoney(frozenBalance - amount),
+            last_transaction_at: new Date(),
         },
         { transaction }
     );
+
+    await user.update(
+        {
+            balance: nextAvailableBalance,
+        },
+        { transaction }
+    );
+
+    if (amount > 0) {
+        await Transaction.create(
+            {
+                transaction_no: `TX${Date.now()}${Math.random().toString().slice(2, 6)}`,
+                user_id: user.id,
+                type: 'refund',
+                amount,
+                direction: 'in',
+                balance_before: availableBalance,
+                balance_after: nextAvailableBalance,
+                status: 'success',
+                related_type: 'pickup_order',
+                related_id: order.id,
+                payment_method: 'balance',
+                description: `订单退款返还：${order.title}`,
+                remark,
+                completed_at: new Date(),
+            },
+            { transaction }
+        );
+    }
+
+    await PointsService.addPoints(user, wallet, returnedPoints, transaction);
+
+    return {
+        refunded_cash_amount: amount,
+        returned_points: returnedPoints,
+    };
 }
 
 async function settlePickupPayment(order, transaction) {
@@ -485,6 +559,23 @@ async function settlePickupPayment(order, transaction) {
         },
         { transaction }
     );
+
+    await FinanceAccountService.recordPlatformIncome(transaction, {
+        amount: commissionAmount,
+        relatedType: 'pickup_order',
+        relatedId: order.id,
+        paymentMethod: 'balance',
+        description: '订单平台抽成收入',
+        remark: `订单 ${order.order_no || order.id} 结算抽成`,
+        commissionRate,
+        commissionAmount,
+        completedAt: new Date(),
+        extraData: {
+            order_id: order.id,
+            gross_amount: amount,
+            net_payout_amount: payoutAmount,
+        },
+    });
 }
 
 class UserOrderController {
@@ -512,6 +603,7 @@ class UserOrderController {
                 images,
                 notes,
                 payment_password,
+                points_used = 0,
             } = req.body;
 
             const minimumPriceMap = {
@@ -546,7 +638,13 @@ class UserOrderController {
             let order;
 
             try {
-                await freezePickupFunds(userId, totalAmount, payment_password, dbTransaction);
+                const paymentBreakdown = await freezePickupFundsWithPoints(
+                    userId,
+                    totalAmount,
+                    payment_password,
+                    points_used,
+                    dbTransaction
+                );
 
                 const orderNo = orderUtils.generateOrderNo('PO');
                 const primaryExpressItem =
@@ -584,6 +682,11 @@ class UserOrderController {
                         size: type === 'express' ? primaryExpressItem?.size || null : size,
                         price,
                         tip: tip || 0,
+                        original_amount: paymentBreakdown.original_amount,
+                        cash_paid_amount: paymentBreakdown.cash_paid_amount,
+                        points_discount_amount: paymentBreakdown.points_discount_amount,
+                        platform_subsidy_amount: paymentBreakdown.platform_subsidy_amount,
+                        points_used: paymentBreakdown.points_used,
                         urgent: urgent || false,
                         fragile: fragile || false,
                         images,
@@ -959,7 +1062,7 @@ class UserOrderController {
             const dbTransaction = await PickupOrder.sequelize.transaction();
 
             try {
-                await releasePickupFunds(order, dbTransaction);
+                const refundResult = await releasePickupFunds(order, dbTransaction);
 
                 await order.update(
                     {
@@ -967,6 +1070,13 @@ class UserOrderController {
                         cancel_reason: reason,
                         cancel_time: new Date(),
                         payment_status: 'refunded',
+                        refund_amount: roundMoney(
+                            parseAmount(order.refund_amount || 0) +
+                                parseAmount(order.price) +
+                                parseAmount(order.tip)
+                        ),
+                        refunded_cash_amount: roundMoney(refundResult.refunded_cash_amount),
+                        returned_points: Number(refundResult.returned_points || 0),
                     },
                     { transaction: dbTransaction }
                 );

@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { Wallet, Transaction, Deliverer, PickupOrder, Task, User, DelivererDebt } = require('../../models');
 const { responseUtils, paginationUtils, timeUtils, cryptoUtils } = require('../../utils');
+const DebtSettlementService = require('../../services/DebtSettlementService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
 const MIN_WALLET_AMOUNT = 10;
@@ -57,6 +58,31 @@ async function ensureWallet(userId, user) {
     });
 
     return wallet;
+}
+
+async function getWalletDebtSnapshot(userId, wallet) {
+    const debtRows = await DelivererDebt.findAll({
+        where: {
+            user_id: userId,
+            status: {
+                [Op.in]: ['active', 'partial'],
+            },
+        },
+        attributes: ['remaining_amount'],
+    });
+
+    const debtAmount = debtRows.reduce(
+        (sum, debt) => sum + parseAmount(debt.remaining_amount),
+        0
+    );
+    const availableBalance = parseAmount(wallet.balance);
+    const displayBalance = Number((availableBalance - debtAmount).toFixed(2));
+
+    return {
+        available_balance: availableBalance,
+        debt_amount: debtAmount,
+        display_balance: displayBalance,
+    };
 }
 
 async function ensureSystemWalletAccount(dbTransaction) {
@@ -555,10 +581,21 @@ async function createRechargeTransaction(user, payload) {
             { transaction: dbTransaction }
         );
 
+        await DebtSettlementService.settleDelivererDebts(user.id, dbTransaction, {
+            sourceTransactionId: transactionRecord.id,
+            remark: `钱包充值后自动抵扣历史欠款，充值流水ID：${transactionRecord.id}`,
+        });
+
+        const latestWallet = await Wallet.findOne({
+            where: { user_id: user.id },
+            transaction: dbTransaction,
+            lock: dbTransaction.LOCK.UPDATE,
+        });
+
         await dbTransaction.commit();
 
         return {
-            wallet,
+            wallet: latestWallet,
             transaction: transactionRecord,
         };
     } catch (error) {
@@ -727,6 +764,31 @@ async function createWithdrawTransaction(user, payload) {
 }
 
 class WalletController {
+    static async getWalletPaymentSummary(req, res) {
+        try {
+            const userId = req.user.id;
+            const wallet = await ensureWallet(userId, req.user);
+            const snapshot = await getWalletDebtSnapshot(userId, wallet);
+
+            return res.json(
+                responseUtils.success(
+                    {
+                        available_balance: snapshot.available_balance,
+                        display_balance: snapshot.display_balance,
+                        debt_amount: snapshot.debt_amount,
+                        frozen_balance: parseAmount(wallet.frozen_balance),
+                        points: Number(wallet.points || req.user.points || 0),
+                        payment_password_set: Boolean(wallet.payment_password_set),
+                    },
+                    '获取支付摘要成功'
+                )
+            );
+        } catch (error) {
+            console.error('获取支付摘要失败:', error);
+            return res.status(500).json(responseUtils.error('获取支付摘要失败'));
+        }
+    }
+
     static async getWalletOverview(req, res) {
         try {
             const userId = req.user.id;
@@ -767,28 +829,14 @@ class WalletController {
                 (sum, task) => sum + parseAmount(task.price),
                 0
             );
-            const debtRows = await DelivererDebt.findAll({
-                where: {
-                    user_id: userId,
-                    status: {
-                        [Op.in]: ['active', 'partial'],
-                    },
-                },
-                attributes: ['remaining_amount'],
-            });
-            const debtAmount = debtRows.reduce(
-                (sum, debt) => sum + parseAmount(debt.remaining_amount),
-                0
-            );
-            const availableBalance = parseAmount(wallet.balance || req.user.balance);
-            const displayBalance = availableBalance - debtAmount;
+            const snapshot = await getWalletDebtSnapshot(userId, wallet);
 
             res.json(
                 responseUtils.success(
                     {
                         wallet: {
                             id: wallet.id,
-                            balance: availableBalance,
+                            balance: snapshot.available_balance,
                             frozen_balance: parseAmount(wallet.frozen_balance),
                             total_income: parseAmount(wallet.total_income) || totalIncome,
                             total_expense: parseAmount(wallet.total_expense) || totalExpense,
@@ -798,9 +846,9 @@ class WalletController {
                             last_transaction_at: wallet.last_transaction_at,
                         },
                         summary: {
-                            available_balance: availableBalance,
-                            display_balance: displayBalance,
-                            debt_amount: debtAmount,
+                            available_balance: snapshot.available_balance,
+                            display_balance: snapshot.display_balance,
+                            debt_amount: snapshot.debt_amount,
                             frozen_balance: parseAmount(wallet.frozen_balance),
                             total_income: totalIncome,
                             total_expense: totalExpense,
@@ -939,11 +987,14 @@ class WalletController {
             };
 
             const result = await createRechargeTransaction(req.user, payload);
+            const snapshot = await getWalletDebtSnapshot(req.user.id, result.wallet);
 
             res.json(
                 responseUtils.success(
                     {
                         balance: parseAmount(result.wallet.balance),
+                        display_balance: snapshot.display_balance,
+                        debt_amount: snapshot.debt_amount,
                         transaction: normalizeTransaction(result.transaction),
                     },
                     '充值成功'
@@ -970,11 +1021,14 @@ class WalletController {
             };
 
             const result = await createWithdrawTransaction(req.user, payload);
+            const snapshot = await getWalletDebtSnapshot(req.user.id, result.wallet);
 
             res.json(
                 responseUtils.success(
                     {
                         balance: parseAmount(result.wallet.balance),
+                        display_balance: snapshot.display_balance,
+                        debt_amount: snapshot.debt_amount,
                         fee: parseAmount(result.fee),
                         actual_amount: parseAmount(result.actualAmount),
                         transaction: normalizeTransaction(result.transaction),

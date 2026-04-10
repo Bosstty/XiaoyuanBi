@@ -147,6 +147,14 @@ adminRoutes.use(
     require('./admin/analytics')
 );
 
+// 财务管理 - /api/admin/finance/*
+adminRoutes.use(
+    '/finance',
+    adminAuthMiddleware,
+    permissionMiddleware.checkPermission('analytics', 'read'),
+    require('./admin/finance')
+);
+
 // 审计日志 - /api/admin/audit/*
 adminRoutes.use(
     '/audit',

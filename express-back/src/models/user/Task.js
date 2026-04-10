@@ -60,6 +60,56 @@ const Task = sequelize.define(
             allowNull: false,
             comment: '任务价格',
         },
+        original_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '任务原始应付金额',
+        },
+        cash_paid_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '实际现金支付金额',
+        },
+        points_discount_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '积分抵扣金额',
+        },
+        platform_subsidy_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '平台承担补贴金额',
+        },
+        refunded_cash_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '已退回现金金额',
+        },
+        points_used: {
+            type: DataTypes.INTEGER,
+            defaultValue: 0,
+            comment: '使用积分数',
+        },
+        returned_points: {
+            type: DataTypes.INTEGER,
+            defaultValue: 0,
+            comment: '已退回积分数',
+        },
+        reward_points: {
+            type: DataTypes.INTEGER,
+            defaultValue: 0,
+            comment: '任务奖励积分数',
+        },
+        reverted_reward_points: {
+            type: DataTypes.INTEGER,
+            defaultValue: 0,
+            comment: '已扣回奖励积分数',
+        },
+        reward_points_granted: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            comment: '是否已发放奖励积分',
+        },
         location: {
             type: DataTypes.STRING(200),
             allowNull: true,
@@ -112,6 +162,11 @@ const Task = sequelize.define(
             type: DataTypes.ENUM('unpaid', 'paid', 'refunded'),
             defaultValue: 'unpaid',
             comment: '支付状态',
+        },
+        refund_amount: {
+            type: DataTypes.DECIMAL(10, 2),
+            defaultValue: 0,
+            comment: '已退款金额',
         },
         images: {
             type: DataTypes.JSON,

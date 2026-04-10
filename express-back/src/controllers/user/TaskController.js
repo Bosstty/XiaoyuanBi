@@ -12,6 +12,8 @@ const { responseUtils, orderUtils, cryptoUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 const DebtSettlementService = require('../../services/DebtSettlementService');
+const FinanceAccountService = require('../../services/FinanceAccountService');
+const PointsService = require('../../services/PointsService');
 
 const parseAmount = value => Number(value || 0);
 const roundMoney = value => Number(parseAmount(value).toFixed(2));
@@ -224,7 +226,7 @@ async function getLockedUserAndWallet(userId, transaction) {
 }
 
 async function awardPaymentPoints(user, wallet, amount, transaction) {
-    const earnedPoints = Math.floor(parseAmount(amount));
+    const earnedPoints = PointsService.calculateRewardPoints(amount);
     if (earnedPoints <= 0) {
         return 0;
     }
@@ -275,6 +277,63 @@ async function freezeTaskFunds(publisherId, amount, transaction) {
     );
 }
 
+async function freezeTaskFundsWithPoints(
+    publisherId,
+    totalAmount,
+    paymentPassword,
+    requestedPoints,
+    transaction
+) {
+    const { user, wallet } = await getLockedUserAndWallet(publisherId, transaction);
+    const breakdown = PointsService.calculateDeduction(
+        requestedPoints,
+        totalAmount,
+        Number(user.points || 0)
+    );
+
+    if (!wallet.payment_password_set || !wallet.payment_password) {
+        throw new Error('请先设置支付密码');
+    }
+
+    if (!paymentPassword || !String(paymentPassword).trim()) {
+        throw new Error('请输入支付密码');
+    }
+
+    const encryptedPassword = cryptoUtils.sha256(String(paymentPassword).trim());
+    if (wallet.payment_password !== encryptedPassword) {
+        throw new Error('支付密码错误');
+    }
+
+    const availableBalance = parseAmount(wallet.balance);
+    const frozenBalance = parseAmount(wallet.frozen_balance);
+
+    if (availableBalance < breakdown.cash_paid_amount) {
+        throw new Error('余额不足，任务创建失败，请先充值后再发布');
+    }
+
+    await PointsService.deductPoints(user, wallet, breakdown.points_used, transaction);
+
+    const nextAvailableBalance = roundMoney(availableBalance - breakdown.cash_paid_amount);
+
+    await wallet.update(
+        {
+            balance: nextAvailableBalance,
+            frozen_balance: roundMoney(frozenBalance + breakdown.cash_paid_amount),
+            last_transaction_at: new Date(),
+        },
+        { transaction }
+    );
+
+    await user.update(
+        {
+            balance: nextAvailableBalance,
+        },
+        { transaction }
+    );
+
+    return breakdown;
+}
+
 async function releaseTaskFunds(publisherId, amount, transaction) {
     const { user, wallet } = await getLockedUserAndWallet(publisherId, transaction);
     const availableBalance = parseAmount(wallet.balance);
@@ -301,11 +360,15 @@ async function releaseTaskFunds(publisherId, amount, transaction) {
         },
         { transaction }
     );
+
+    return { user, wallet };
 }
 
 async function settleTaskPayment(task, paymentPassword, transaction) {
     const { amount, commissionRate, commissionAmount, payoutAmount } =
         await calculateSettlementBreakdown(task.price, transaction);
+    const cashPaidAmount = roundMoney(task.cash_paid_amount || amount);
+    const subsidyAmount = roundMoney(task.platform_subsidy_amount || 0);
     const { user: publisher, wallet: publisherWallet } = await getLockedUserAndWallet(
         task.publisher_id,
         transaction
@@ -325,39 +388,64 @@ async function settleTaskPayment(task, paymentPassword, transaction) {
     }
 
     const publisherFrozenBalance = parseAmount(publisherWallet.frozen_balance);
-    if (publisherFrozenBalance < amount) {
+    if (publisherFrozenBalance < cashPaidAmount) {
         throw new Error('冻结金额不足，无法完成支付');
     }
 
     await publisherWallet.update(
         {
-            frozen_balance: publisherFrozenBalance - amount,
-            total_expense: parseAmount(publisherWallet.total_expense) + amount,
+            frozen_balance: roundMoney(publisherFrozenBalance - cashPaidAmount),
+            total_expense: roundMoney(parseAmount(publisherWallet.total_expense) + cashPaidAmount),
             last_transaction_at: new Date(),
         },
         { transaction }
     );
 
-    await Transaction.create(
+    if (cashPaidAmount > 0) {
+        await Transaction.create(
+            {
+                transaction_no: generateTransactionNo(),
+                user_id: publisher.id,
+                type: 'payment',
+                amount: cashPaidAmount,
+                direction: 'out',
+                balance_before: parseAmount(publisherWallet.balance),
+                balance_after: parseAmount(publisherWallet.balance),
+                status: 'success',
+                related_type: 'task',
+                related_id: task.id,
+                payment_method: 'balance',
+                description: `任务报酬支出：${task.title}`,
+                completed_at: new Date(),
+            },
+            { transaction }
+        );
+    }
+
+    const rewardPoints = await awardPaymentPoints(publisher, publisherWallet, cashPaidAmount, transaction);
+
+    await task.update(
         {
-            transaction_no: generateTransactionNo(),
-            user_id: publisher.id,
-            type: 'payment',
-            amount,
-            direction: 'out',
-            balance_before: parseAmount(publisherWallet.balance),
-            balance_after: parseAmount(publisherWallet.balance),
-            status: 'success',
-            related_type: 'task',
-            related_id: task.id,
-            payment_method: 'balance',
-            description: `任务报酬支出：${task.title}`,
-            completed_at: new Date(),
+            reward_points: rewardPoints,
+            reward_points_granted: rewardPoints > 0,
         },
         { transaction }
     );
 
-    await awardPaymentPoints(publisher, publisherWallet, amount, transaction);
+    await FinanceAccountService.recordPlatformExpense(transaction, {
+        amount: subsidyAmount,
+        relatedType: 'task',
+        relatedId: task.id,
+        paymentMethod: 'balance',
+        description: '积分抵扣平台补贴支出',
+        remark: `任务 ${task.task_no || task.id} 积分抵扣补贴`,
+        completedAt: new Date(),
+        extraData: {
+            task_id: task.id,
+            points_used: Number(task.points_used || 0),
+            subsidy_amount: subsidyAmount,
+        },
+    });
 
     if (!task.assignee_id) {
         return;
@@ -416,6 +504,23 @@ async function settleTaskPayment(task, paymentPassword, transaction) {
         },
         { transaction }
     );
+
+    await FinanceAccountService.recordPlatformIncome(transaction, {
+        amount: commissionAmount,
+        relatedType: 'task',
+        relatedId: task.id,
+        paymentMethod: 'balance',
+        description: '任务平台抽成收入',
+        remark: `任务 ${task.task_no || task.id} 结算抽成`,
+        commissionRate,
+        commissionAmount,
+        completedAt: new Date(),
+        extraData: {
+            task_id: task.id,
+            gross_amount: amount,
+            net_payout_amount: payoutAmount,
+        },
+    });
 
     await DebtSettlementService.settleDelivererDebts(assignee.id, transaction, {
         sourceTransactionId: earnTx.id,
@@ -477,25 +582,27 @@ async function createTaskWalletTransaction(
 }
 
 async function refundTaskFrozenFunds(task, amount, description, transaction) {
-    const refundAmount = parseAmount(amount);
-    if (refundAmount <= 0) {
+    const refundAmount = roundMoney(amount);
+    if (refundAmount <= 0 && !Number(task.points_used || 0)) {
         return;
     }
 
     const { user, wallet } = await getLockedUserAndWallet(task.publisher_id, transaction);
+    const refundSnapshot = PointsService.calculateRefundSnapshot(task, refundAmount);
+    const cashRefundAmount = refundSnapshot.cash_refund_delta;
     const balanceBefore = parseAmount(wallet.balance);
     const frozenBefore = parseAmount(wallet.frozen_balance);
 
-    if (frozenBefore < refundAmount) {
+    if (frozenBefore < cashRefundAmount) {
         throw new Error('冻结金额不足，无法退回任务资金');
     }
 
-    const balanceAfter = balanceBefore + refundAmount;
+    const balanceAfter = roundMoney(balanceBefore + cashRefundAmount);
 
     await wallet.update(
         {
             balance: balanceAfter,
-            frozen_balance: frozenBefore - refundAmount,
+            frozen_balance: roundMoney(frozenBefore - cashRefundAmount),
             last_transaction_at: new Date(),
         },
         { transaction }
@@ -508,19 +615,53 @@ async function refundTaskFrozenFunds(task, amount, description, transaction) {
         { transaction }
     );
 
-    await createTaskWalletTransaction(
+    if (cashRefundAmount > 0) {
+        await createTaskWalletTransaction(
+            {
+                userId: user.id,
+                type: 'refund',
+                amount: cashRefundAmount,
+                direction: 'in',
+                balanceBefore,
+                balanceAfter,
+                description,
+                taskId: task.id,
+            },
+            transaction
+        );
+    }
+
+    const netPointDelta =
+        Number(refundSnapshot.points_return_delta || 0) -
+        Number(refundSnapshot.reward_revert_delta || 0);
+    if (netPointDelta !== 0) {
+        await Promise.all([
+            user.update(
+                {
+                    points: Number(user.points || 0) + netPointDelta,
+                },
+                { transaction }
+            ),
+            wallet.update(
+                {
+                    points: Number(wallet.points || 0) + netPointDelta,
+                },
+                { transaction }
+            ),
+        ]);
+    }
+
+    await task.update(
         {
-            userId: user.id,
-            type: 'refund',
-            amount: refundAmount,
-            direction: 'in',
-            balanceBefore,
-            balanceAfter,
-            description,
-            taskId: task.id,
+            refund_amount: refundSnapshot.next_refund_amount,
+            refunded_cash_amount: refundSnapshot.target_cash_refund,
+            returned_points: refundSnapshot.target_returned_points,
+            reverted_reward_points: refundSnapshot.target_reverted_reward_points,
         },
-        transaction
+        { transaction }
     );
+
+    return refundSnapshot;
 }
 
 async function transferBalanceCompensation(
@@ -651,8 +792,6 @@ async function transferFrozenCompensationToAssignee(task, amount, description, t
         transaction
     );
 
-    await awardPaymentPoints(publisher, publisherWallet, compensationAmount, transaction);
-
     const { user: assignee, wallet: assigneeWallet } = await getLockedUserAndWallet(
         task.assignee_id,
         transaction
@@ -756,6 +895,8 @@ class TaskController {
                 remote_work,
                 images,
                 attachments,
+                payment_password,
+                points_used = 0,
             } = req.body;
 
             const validCategories = ['study', 'design', 'tech', 'writing', 'life'];
@@ -805,7 +946,13 @@ class TaskController {
                 const taskNo = orderUtils.generateOrderNo('TK');
                 const taskAmount = parseAmount(price);
 
-                await freezeTaskFunds(userId, taskAmount, dbTransaction);
+                const paymentBreakdown = await freezeTaskFundsWithPoints(
+                    userId,
+                    taskAmount,
+                    payment_password,
+                    points_used,
+                    dbTransaction
+                );
 
                 task = await Task.create(
                     {
@@ -818,6 +965,11 @@ class TaskController {
                         tags: Array.isArray(tags) ? tags : null,
                         skills_required: Array.isArray(skills_required) ? skills_required : null,
                         price: taskAmount,
+                        original_amount: paymentBreakdown.original_amount,
+                        cash_paid_amount: paymentBreakdown.cash_paid_amount,
+                        points_discount_amount: paymentBreakdown.points_discount_amount,
+                        platform_subsidy_amount: paymentBreakdown.platform_subsidy_amount,
+                        points_used: paymentBreakdown.points_used,
                         location: location ? String(location).trim() : null,
                         deadline: deadlineDate,
                         estimated_duration: estimated_duration ? Number(estimated_duration) : null,
@@ -1282,9 +1434,10 @@ class TaskController {
             const dbTransaction = await Task.sequelize.transaction();
             try {
                 if (task.payment_status === 'unpaid') {
-                    await releaseTaskFunds(
-                        task.publisher_id,
-                        parseAmount(task.price),
+                    await refundTaskFrozenFunds(
+                        task,
+                        parseAmount(task.original_amount || task.price),
+                        `任务取消退回：${task.title}`,
                         dbTransaction
                     );
                 }

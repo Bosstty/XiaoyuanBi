@@ -1,4 +1,4 @@
-const { User, Deliverer, PickupOrder, Task } = require('../../models');
+const { User, Deliverer, PickupOrder, Task, Wallet, DelivererDebt } = require('../../models');
 const { jwtUtils, responseUtils, validationUtils, cryptoUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
@@ -39,8 +39,34 @@ async function buildUserResponse(user) {
         attributes: ['id', 'application_status', 'status'],
     });
 
+    const wallet = await Wallet.findOne({
+        where: { user_id: user.id },
+        attributes: ['balance', 'frozen_balance'],
+    });
+    const debtRows = await DelivererDebt.findAll({
+        where: {
+            user_id: user.id,
+            status: {
+                [Op.in]: ['active', 'partial'],
+            },
+        },
+        attributes: ['remaining_amount'],
+    });
+    const walletBalance = Number.parseFloat(wallet?.balance || user.balance || 0) || 0;
+    const frozenBalance = Number.parseFloat(wallet?.frozen_balance || 0) || 0;
+    const debtAmount = debtRows.reduce(
+        (sum, debt) => sum + (Number.parseFloat(debt.remaining_amount || 0) || 0),
+        0
+    );
+    const displayBalance = Number((walletBalance - debtAmount).toFixed(2));
+
     return {
         ...user.toJSON(),
+        balance: displayBalance,
+        wallet_balance: walletBalance,
+        frozen_balance: frozenBalance,
+        debt_amount: debtAmount,
+        display_balance: displayBalance,
         is_deliverer: Boolean(deliverer),
         deliverer_id: deliverer ? deliverer.id : null,
     };

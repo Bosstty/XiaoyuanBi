@@ -19,7 +19,7 @@
                 @click="handleOpenTransactions"
             >
                 <div>
-                    <span>可用余额</span>
+                    <span>净余额</span>
                     <strong>¥{{ balanceText }}</strong>
                     <p
                         v-if="Number(walletOverview?.summary.debt_amount || 0) > 0"
@@ -30,7 +30,7 @@
                         }}
                     </p>
                     <p class="wallet-center__frozen-text">
-                        钱包可用：¥{{
+                        钱包原始可用：¥{{
                             Number(walletOverview?.summary.available_balance || 0).toFixed(2)
                         }}
                     </p>

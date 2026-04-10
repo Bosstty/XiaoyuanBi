@@ -331,6 +331,9 @@
                     <div class="total-label">合计费用</div>
                     <div class="total-val">¥{{ totalAmount }}</div>
                 </div>
+                <div v-if="normalizedPointsToUse > 0" class="summary-subline">
+                    积分抵扣 ¥{{ pointsDiscountAmount }}，实际冻结 ¥{{ cashToFreeze }}
+                </div>
                 <div v-if="optionSurcharge > 0" class="summary-subline">
                     订单金额已包含附加费 ¥{{ optionSurcharge.toFixed(2) }}，另加小费 ¥{{
                         Number(form.tip || 0).toFixed(2)
@@ -350,11 +353,115 @@
             </footer>
         </main>
         <div class="safe-bottom"></div>
+        <MobileModal
+            v-model:show="showPaymentSheet"
+            title="选择支付方式"
+            bottom-sheet
+            :show-footer="true"
+            confirm-text="确认支付方式"
+            :loading="submitting"
+            @confirm="confirmPaymentPlan"
+        >
+            <div class="payment-sheet">
+                <div class="payment-sheet__account">
+                    <span>余额 ¥{{ Number(userStore.user?.balance || 0).toFixed(2) }}</span>
+                    <span>积分 {{ availablePoints }}</span>
+                </div>
+                <button
+                    type="button"
+                    class="payment-sheet__option"
+                    :class="{ 'is-active': paymentMode === 'balance' }"
+                    @click="paymentMode = 'balance'"
+                >
+                    <span class="payment-sheet__check">✓</span>
+                    <strong>余额支付</strong>
+                    <span>余额 ¥{{ totalAmount }}</span>
+                </button>
+                <button
+                    type="button"
+                    class="payment-sheet__option"
+                    :class="{
+                        'is-active': paymentMode === 'balance_points',
+                        'is-disabled': !pointsPaymentAvailable,
+                    }"
+                    :disabled="!pointsPaymentAvailable"
+                    @click="selectPointsPayment"
+                >
+                    <span class="payment-sheet__check">✓</span>
+                    <strong>余额 + 积分抵扣</strong>
+                    <span v-if="pointsPaymentAvailable">
+                        余额 ¥{{ cashToFreeze }} + 积分 {{ normalizedPointsToUse || maxUsablePoints }}
+                    </span>
+                    <span v-else>积分不足</span>
+                </button>
+
+                <div
+                    v-if="paymentMode === 'balance_points' && pointsPaymentAvailable"
+                    class="payment-sheet__points"
+                >
+                    <p class="payment-sheet__hint">
+                        本次自动抵扣 {{ normalizedPointsToUse }} 积分，抵扣 ¥{{ pointsDiscountAmount }}
+                    </p>
+                </div>
+
+                <div class="payment-sheet__summary">
+                    <div>
+                        <span>订单总额</span>
+                        <strong>¥{{ totalAmount }}</strong>
+                    </div>
+                    <div>
+                        <span>实际冻结</span>
+                        <strong>¥{{ cashToFreeze }}</strong>
+                    </div>
+                </div>
+            </div>
+        </MobileModal>
+        <MobileModal
+            v-model:show="showPasswordSheet"
+            title="输入支付密码"
+            bottom-sheet
+            :show-footer="true"
+            confirm-text="确认支付"
+            :loading="submitting"
+            @confirm="submitOrderPayment"
+        >
+            <div class="payment-sheet">
+                <div class="payment-sheet__summary">
+                    <div>
+                        <span>支付方式</span>
+                        <strong>{{ paymentModeLabel }}</strong>
+                    </div>
+                    <div>
+                        <span>实际冻结</span>
+                        <strong>¥{{ cashToFreeze }}</strong>
+                    </div>
+                </div>
+                <div class="pin-input" @click="focusPaymentPasswordInput">
+                    <div
+                        v-for="index in 6"
+                        :key="index"
+                        class="pin-input__cell"
+                        :class="{ 'is-filled': Boolean(paymentPassword[index - 1]) }"
+                    >
+                        {{ paymentPassword[index - 1] ? '•' : '' }}
+                    </div>
+                    <input
+                        ref="paymentPasswordInputRef"
+                        v-model="paymentPassword"
+                        class="pin-input__native"
+                        inputmode="numeric"
+                        maxlength="6"
+                        autocomplete="one-time-code"
+                        @input="handlePaymentPasswordInput"
+                    />
+                </div>
+            </div>
+        </MobileModal>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
     NButton,
@@ -367,6 +474,7 @@ import {
     useMessage,
 } from 'naive-ui';
 import { PickupApi, WalletApi } from '@/api';
+import MobileModal from '@/components/mobile/MobileModal.vue';
 import { useAppStore, useUserStore } from '@/stores';
 import type { CreatePickupOrderData } from '@/types';
 
@@ -456,6 +564,10 @@ const showAdvanced = ref(false);
 const pickupTime = ref<number | null>(null);
 const deliveryTime = ref<number | null>(null);
 const paymentPassword = ref('');
+const paymentPasswordInputRef = ref<HTMLInputElement | null>(null);
+const showPaymentSheet = ref(false);
+const showPasswordSheet = ref(false);
+const paymentMode = ref<'balance' | 'balance_points'>('balance');
 
 const orderTypes = [
     { value: 'express', label: '快递代取', note: '驿站、快递柜、代收点' },
@@ -519,6 +631,25 @@ const optionSurcharge = computed(() => {
 });
 
 const totalAmount = computed(() => (Number(form.price || 0) + Number(form.tip || 0)).toFixed(2));
+const availablePoints = computed(() => Number(userStore.user?.points || 0));
+const maxUsablePoints = computed(() => {
+    const byAmount = Math.floor(Number(totalAmount.value || 0)) * 100;
+    const byBalance = availablePoints.value - (availablePoints.value % 100);
+    return Math.max(0, Math.min(byAmount, byBalance));
+});
+const pointsPaymentAvailable = computed(() => maxUsablePoints.value >= 100);
+const maxPointsDiscountAmount = computed(() => (maxUsablePoints.value / 100).toFixed(2));
+const normalizedPointsToUse = computed(() => {
+    if (paymentMode.value !== 'balance_points') return 0;
+    return maxUsablePoints.value;
+});
+const pointsDiscountAmount = computed(() => (normalizedPointsToUse.value / 100).toFixed(2));
+const cashToFreeze = computed(() =>
+    Math.max(Number(totalAmount.value) - Number(pointsDiscountAmount.value), 0).toFixed(2)
+);
+const paymentModeLabel = computed(() =>
+    paymentMode.value === 'balance_points' ? '余额 + 积分抵扣' : '余额支付'
+);
 
 const defaultContactName = computed(
     () => userStore.user?.real_name || userStore.user?.username || '校园用户'
@@ -724,6 +855,7 @@ const buildOrderPayload = (): CreatePickupOrderData & {
         urgent: form.urgent,
         fragile: form.fragile,
         notes: form.notes?.trim() || undefined,
+        points_used: normalizedPointsToUse.value || undefined,
     };
 };
 
@@ -782,11 +914,15 @@ const createOrderWithPassword = async (password: string) => {
 
         if (userStore.user) {
             userStore.user.balance = Number(
-                Math.max(0, Number(userStore.user.balance || 0) - Number(totalAmount.value))
+                Math.max(0, Number(userStore.user.balance || 0) - Number(cashToFreeze.value))
+            );
+            userStore.user.points = Math.max(
+                0,
+                Number(userStore.user.points || 0) - Number(normalizedPointsToUse.value || 0)
             );
         }
         appStore.hapticFeedback('medium');
-        message.success(response.message || `订单创建成功，已冻结 ¥${totalAmount.value}`);
+        message.success(response.message || `订单创建成功，已冻结 ¥${cashToFreeze.value}`);
         router.replace('/pickup/my');
         return true;
     } catch (err: any) {
@@ -797,45 +933,20 @@ const createOrderWithPassword = async (password: string) => {
     }
 };
 
-const openPaymentPasswordDialog = () => {
+const openPasswordSheet = () => {
     paymentPassword.value = '';
+    showPasswordSheet.value = true;
+};
 
-    dialog.warning({
-        title: '确认冻结订单金额',
-        positiveText: '确认创建',
-        negativeText: '取消',
-        content: () =>
-            h('div', { style: 'display:flex;flex-direction:column;gap:12px;' }, [
-                h(
-                    'p',
-                    { style: 'margin:0;color:#0f172a;font-size:14px;font-weight:600;' },
-                    `本次将冻结 ¥${totalAmount.value} 作为订单担保金，订单完成后自动转给配送员。`
-                ),
-                h(
-                    'p',
-                    { style: 'margin:0;color:#64748b;font-size:13px;line-height:1.6;' },
-                    '请输入6位支付密码后创建订单。若订单取消，冻结金额会退回余额。'
-                ),
-                h(NInput, {
-                    value: paymentPassword.value,
-                    type: 'password',
-                    maxlength: 6,
-                    showPasswordOn: 'click',
-                    placeholder: '请输入6位支付密码',
-                    onUpdateValue: (value: string) => {
-                        paymentPassword.value = value.replace(/\D/g, '').slice(0, 6);
-                    },
-                }),
-            ]),
-        async onPositiveClick() {
-            if (!/^\d{6}$/.test(paymentPassword.value)) {
-                message.warning('请输入6位数字支付密码');
-                return false;
-            }
+const handlePaymentPasswordInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const sanitized = target.value.replace(/\D/g, '').slice(0, 6);
+    paymentPassword.value = sanitized;
+    target.value = sanitized;
+};
 
-            return await createOrderWithPassword(paymentPassword.value);
-        },
-    });
+const focusPaymentPasswordInput = () => {
+    paymentPasswordInputRef.value?.focus();
 };
 
 const openSetPaymentPasswordDialog = () => {
@@ -858,9 +969,48 @@ const openDailyOrderNoticeDialog = () => {
         content:
             '请确认：若在订单进行途中已由配送员完成购买，但用户恶意拒绝支付货款，系统将封禁该用户，并计入该用户的评价系统。',
         onPositiveClick() {
-            openPaymentPasswordDialog();
+            openPasswordSheet();
         },
     });
+};
+
+const selectPointsPayment = () => {
+    if (!pointsPaymentAvailable.value) return;
+    paymentMode.value = 'balance_points';
+};
+
+const confirmPaymentPlan = () => {
+    if (paymentMode.value === 'balance_points') {
+        if (!pointsPaymentAvailable.value) {
+            message.warning('当前不可使用积分抵扣');
+            return;
+        }
+
+        if (normalizedPointsToUse.value < 100) {
+            message.warning('请输入至少 100 积分');
+            return;
+        }
+    }
+
+    showPaymentSheet.value = false;
+    if (form.type === 'daily') {
+        openDailyOrderNoticeDialog();
+        return;
+    }
+
+    openPasswordSheet();
+};
+
+const submitOrderPayment = async () => {
+    if (!/^\d{6}$/.test(paymentPassword.value)) {
+        message.warning('请输入6位数字支付密码');
+        return;
+    }
+
+    const success = await createOrderWithPassword(paymentPassword.value);
+    if (success) {
+        showPasswordSheet.value = false;
+    }
 };
 
 const addDailyItem = () => {
@@ -899,31 +1049,30 @@ const submitOrder = async () => {
     }
 
     try {
-        const overviewResponse = await WalletApi.getOverview();
-        if (!overviewResponse.success || !overviewResponse.data) {
-            throw new Error(overviewResponse.message || '获取钱包信息失败');
+        const paymentSummaryResponse = await WalletApi.getPaymentSummary();
+        if (!paymentSummaryResponse.success || !paymentSummaryResponse.data) {
+            throw new Error(paymentSummaryResponse.message || '获取支付信息失败');
         }
 
         const availableBalance = Number(
-            overviewResponse.data.summary?.available_balance ?? userStore.user?.balance ?? 0
+            paymentSummaryResponse.data.available_balance ?? userStore.user?.balance ?? 0
         );
-        const requiredAmount = Number(totalAmount.value);
+        const requiredAmount = Number(cashToFreeze.value);
 
         if (availableBalance < requiredAmount) {
             throw new Error(`余额不足，当前余额 ¥${availableBalance.toFixed(2)}，请先充值`);
         }
 
-        if (!overviewResponse.data.wallet?.payment_password_set) {
+        if (!paymentSummaryResponse.data.payment_password_set) {
             openSetPaymentPasswordDialog();
             return;
         }
 
-        if (form.type === 'daily') {
-            openDailyOrderNoticeDialog();
-            return;
+        if (userStore.user && typeof paymentSummaryResponse.data.points === 'number') {
+            userStore.user.points = paymentSummaryResponse.data.points;
         }
 
-        openPaymentPasswordDialog();
+        showPaymentSheet.value = true;
     } catch (err: any) {
         message.error(err?.message || '创建订单失败');
     }
@@ -1090,6 +1239,11 @@ watch(
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 8px;
+}
+
+.field-label-hint {
+    color: var(--muted);
+    font-size: 12px;
 }
 
 .add-item-btn,
@@ -1270,6 +1424,146 @@ watch(
     font-size: 12px;
     line-height: 1.6;
     color: var(--muted);
+}
+
+.payment-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.payment-sheet__account {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.payment-sheet__option {
+    position: relative;
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 18px;
+    padding: 16px 44px 16px 16px;
+    background: color-mix(in srgb, var(--surface) 76%, var(--card));
+    color: var(--text);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.payment-sheet__option strong {
+    font-size: 15px;
+}
+
+.payment-sheet__option span {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.payment-sheet__option.is-active {
+    border-color: rgba(59, 130, 246, 0.55);
+    box-shadow: 0 10px 24px rgba(59, 130, 246, 0.14);
+    background: rgba(59, 130, 246, 0.06);
+}
+
+.payment-sheet__option.is-disabled {
+    opacity: 0.55;
+}
+
+.payment-sheet__check {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    color: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    background: #fff;
+}
+
+.payment-sheet__option.is-active .payment-sheet__check {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+}
+
+.payment-sheet__points {
+    border-radius: 18px;
+    padding: 16px;
+    background: rgba(59, 130, 246, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.payment-sheet__hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text);
+}
+
+.payment-sheet__summary {
+    border-radius: 18px;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.04);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.payment-sheet__summary span {
+    display: block;
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.payment-sheet__summary strong {
+    font-size: 18px;
+    color: var(--text);
+}
+
+.pin-input {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.pin-input__cell {
+    height: 52px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--text);
+}
+
+.pin-input__cell.is-filled {
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.pin-input__native {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
 }
 
 .total-label {

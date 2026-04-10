@@ -86,12 +86,49 @@
                                     <span>联系信息</span>
                                 </div>
                                 <div class="detail-kv">
-                                    <label>联系人</label>
+                                    <label>下单联系人</label>
                                     <strong>{{ order.contact_name }}</strong>
                                 </div>
                                 <div class="detail-kv">
-                                    <label>联系电话</label>
+                                    <label>下单电话</label>
                                     <strong>{{ visibleContactPhone }}</strong>
+                                </div>
+                                <div
+                                    v-if="counterpartName !== '暂未接单'"
+                                    class="detail-kv detail-kv--contact-action"
+                                >
+                                    <label>{{ counterpartLabel }}</label>
+                                    <div class="detail-contact-line">
+                                        <strong>{{ counterpartName }}</strong>
+                                        <NButton
+                                            v-if="!isPublisher && counterpartPhone"
+                                            tag="a"
+                                            :href="`tel:${counterpartPhone}`"
+                                            size="tiny"
+                                            round
+                                            quaternary
+                                        >
+                                            联系
+                                        </NButton>
+                                    </div>
+                                </div>
+                                <div
+                                    v-if="isPublisher && counterpartName !== '暂未接单' && counterpartPhone"
+                                    class="detail-kv detail-kv--contact-action"
+                                >
+                                    <label>{{ counterpartLabel }}电话</label>
+                                    <div class="detail-contact-line">
+                                        <strong>{{ counterpartPhone }}</strong>
+                                        <NButton
+                                            tag="a"
+                                            :href="`tel:${counterpartPhone}`"
+                                            size="tiny"
+                                            round
+                                            quaternary
+                                        >
+                                            联系
+                                        </NButton>
+                                    </div>
                                 </div>
                             </article>
 
@@ -427,16 +464,6 @@
                                 @click="handleChat"
                             >
                                 聊一聊
-                            </NButton>
-                            <NButton
-                                v-if="counterpartPhone"
-                                tag="a"
-                                :href="`tel:${counterpartPhone}`"
-                                size="tiny"
-                                round
-                                quaternary
-                            >
-                                联系
                             </NButton>
                         </div>
                     </div>
@@ -2030,6 +2057,17 @@ onBeforeUnmount(() => {
     word-break: break-word;
 }
 
+.detail-kv--contact-action {
+    align-items: center;
+}
+
+.detail-contact-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
 .detail-kv--stack {
     display: flex;
     flex-direction: column;
@@ -2672,6 +2710,10 @@ onBeforeUnmount(() => {
 
     .detail-kv strong {
         text-align: left;
+    }
+
+    .detail-contact-line {
+        flex-wrap: wrap;
     }
 
     .node-footer {

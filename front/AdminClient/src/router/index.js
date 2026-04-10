@@ -86,6 +86,12 @@ const router = createRouter({
           component: () => import('../views/dashboard/Analytics.vue'),
           meta: { roles: ['admin'] },
         },
+        {
+          path: 'finance',
+          name: 'finance',
+          component: () => import('../views/finance/FinanceManagement.vue'),
+          meta: { roles: ['admin'] },
+        },
         // 配送员管理
         {
           path: 'deliverers',

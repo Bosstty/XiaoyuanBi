@@ -1,6 +1,8 @@
 const { Op } = require('sequelize');
 const { PickupOrder, User, Deliverer, Wallet, Transaction, SystemSetting } = require('../models');
 const DebtSettlementService = require('./DebtSettlementService');
+const FinanceAccountService = require('./FinanceAccountService');
+const PointsService = require('./PointsService');
 
 const HOLD_DURATION_MS = 48 * 60 * 60 * 1000;
 const ACTIVE_HOLD_STATUSES = ['holding', 'partial_refunded', 'partial_compensated'];
@@ -102,7 +104,7 @@ function appendSettlementNote(currentNote, extraNote) {
 }
 
 async function awardPaymentPoints(user, wallet, amount, transaction) {
-    const earnedPoints = Math.floor(parseAmount(amount));
+    const earnedPoints = PointsService.calculateRewardPoints(amount);
     if (earnedPoints <= 0) {
         return 0;
     }
@@ -212,8 +214,8 @@ class PickupSettlementService {
             throw new Error('已完成订单请走担保期退款流程');
         }
 
-        const refundAmount = calculateOrderAmount(order);
-        if (refundAmount <= 0) {
+        const refundAmount = roundMoney(order.cash_paid_amount || calculateOrderAmount(order));
+        if (refundAmount <= 0 && !Number(order.points_used || 0)) {
             throw new Error('订单金额异常，无法退款');
         }
 
@@ -248,25 +250,33 @@ class PickupSettlementService {
             { transaction }
         );
 
-        await Transaction.create(
-            {
-                transaction_no: generateTransactionNo(),
-                user_id: publisher.id,
-                type: 'refund',
-                amount: refundAmount,
-                direction: 'in',
-                balance_before: publisherBalanceBefore,
-                balance_after: publisherBalanceAfter,
-                status: 'success',
-                related_type: 'pickup_order',
-                related_id: order.id,
-                payment_method: 'balance',
-                description: `订单退款返还：${order.title}`,
-                remark: reason || '客服同意退款，订单未完成直接解冻',
-                completed_at: new Date(),
-            },
-            { transaction }
+        if (refundAmount > 0) {
+            await Transaction.create(
+                {
+                    transaction_no: generateTransactionNo(),
+                    user_id: publisher.id,
+                    type: 'refund',
+                    amount: refundAmount,
+                    direction: 'in',
+                    balance_before: publisherBalanceBefore,
+                    balance_after: publisherBalanceAfter,
+                    status: 'success',
+                    related_type: 'pickup_order',
+                    related_id: order.id,
+                    payment_method: 'balance',
+                    description: `订单退款返还：${order.title}`,
+                    remark: reason || '客服同意退款，订单未完成直接解冻',
+                    completed_at: new Date(),
+                },
+                { transaction }
+            );
+        }
+
+        const pointsToReturn = Math.max(
+            0,
+            Number(order.points_used || 0) - Number(order.returned_points || 0)
         );
+        await PointsService.addPoints(publisher, publisherWallet, pointsToReturn, transaction);
 
         await order.update(
             {
@@ -275,13 +285,15 @@ class PickupSettlementService {
                 cancel_reason: reason || '客服同意退款',
                 cancel_time: new Date(),
                 settlement_status: 'refunded',
-                settlement_amount: refundAmount,
+                settlement_amount: calculateOrderAmount(order),
                 deliverer_frozen_amount: 0,
-                refund_amount: refundAmount,
+                refund_amount: calculateOrderAmount(order),
+                refunded_cash_amount: roundMoney(order.cash_paid_amount || refundAmount),
+                returned_points: Number(order.points_used || 0),
                 settled_at: new Date(),
                 settlement_note: appendSettlementNote(
                     order.settlement_note,
-                    `订单未完成，客服退款并解冻${refundAmount.toFixed(2)}元：${reason || '客服同意退款'}`
+                    `订单未完成，客服退款并解冻现金${refundAmount.toFixed(2)}元，返还积分${pointsToReturn}：${reason || '客服同意退款'}`
                 ),
             },
             { transaction }
@@ -289,12 +301,15 @@ class PickupSettlementService {
 
         return {
             refund_amount: refundAmount,
+            returned_points: pointsToReturn,
             mode: 'release_user_frozen',
         };
     }
 
     static async holdOrderSettlement(order, transaction, completedAt = new Date()) {
         const amount = calculateOrderAmount(order);
+        const cashPaidAmount = roundMoney(order.cash_paid_amount || amount);
+        const subsidyAmount = roundMoney(order.platform_subsidy_amount || 0);
         const holdUntil = new Date(completedAt.getTime() + HOLD_DURATION_MS);
         const { user: publisher, wallet: publisherWallet } = await getLockedUserAndWallet(
             order.user_id,
@@ -302,39 +317,61 @@ class PickupSettlementService {
         );
 
         const publisherFrozenBalance = parseAmount(publisherWallet.frozen_balance);
-        if (publisherFrozenBalance < amount) {
+        if (publisherFrozenBalance < cashPaidAmount) {
             throw new Error('冻结金额不足，无法进入担保结算');
         }
 
         await publisherWallet.update(
             {
-                frozen_balance: roundMoney(publisherFrozenBalance - amount),
-                total_expense: roundMoney(parseAmount(publisherWallet.total_expense) + amount),
+                frozen_balance: roundMoney(publisherFrozenBalance - cashPaidAmount),
+                total_expense: roundMoney(parseAmount(publisherWallet.total_expense) + cashPaidAmount),
                 last_transaction_at: completedAt,
             },
             { transaction }
         );
 
-        await Transaction.create(
-            {
-                transaction_no: generateTransactionNo(),
-                user_id: publisher.id,
-                type: 'payment',
-                amount,
-                direction: 'out',
-                balance_before: parseAmount(publisherWallet.balance),
-                balance_after: parseAmount(publisherWallet.balance),
-                status: 'success',
-                related_type: 'pickup_order',
-                related_id: order.id,
-                payment_method: 'balance',
-                description: `代取订单支出：${order.title}`,
-                completed_at: completedAt,
-            },
-            { transaction }
+        if (cashPaidAmount > 0) {
+            await Transaction.create(
+                {
+                    transaction_no: generateTransactionNo(),
+                    user_id: publisher.id,
+                    type: 'payment',
+                    amount: cashPaidAmount,
+                    direction: 'out',
+                    balance_before: parseAmount(publisherWallet.balance),
+                    balance_after: parseAmount(publisherWallet.balance),
+                    status: 'success',
+                    related_type: 'pickup_order',
+                    related_id: order.id,
+                    payment_method: 'balance',
+                    description: `代取订单支出：${order.title}`,
+                    completed_at: completedAt,
+                },
+                { transaction }
+            );
+        }
+
+        const rewardPoints = await awardPaymentPoints(
+            publisher,
+            publisherWallet,
+            cashPaidAmount,
+            transaction
         );
 
-        await awardPaymentPoints(publisher, publisherWallet, amount, transaction);
+        await FinanceAccountService.recordPlatformExpense(transaction, {
+            amount: subsidyAmount,
+            relatedType: 'pickup_order',
+            relatedId: order.id,
+            paymentMethod: 'balance',
+            description: '积分抵扣平台补贴支出',
+            remark: `订单 ${order.order_no || order.id} 积分抵扣补贴`,
+            completedAt,
+            extraData: {
+                order_id: order.id,
+                points_used: Number(order.points_used || 0),
+                subsidy_amount: subsidyAmount,
+            },
+        });
 
         if (order.deliverer_id) {
             const { delivererProfile, delivererUser, delivererWallet } =
@@ -389,6 +426,8 @@ class PickupSettlementService {
                 platform_commission_rate: null,
                 platform_commission_amount: 0,
                 platform_commission_settled_at: null,
+                reward_points: rewardPoints,
+                reward_points_granted: rewardPoints > 0,
                 settlement_note: appendSettlementNote(
                     order.settlement_note,
                     `订单进入48小时担保期：${completedAt.toISOString()}`
@@ -432,8 +471,12 @@ class PickupSettlementService {
             { transaction }
         );
 
+        const refundSnapshot = PointsService.calculateRefundSnapshot(order, refundAmount);
+        const cashRefundAmount = refundSnapshot.cash_refund_delta;
+        const subsidyRecoveryAmount = roundMoney(refundAmount - cashRefundAmount);
+
         const publisherBalanceBefore = parseAmount(publisherWallet.balance);
-        const publisherBalanceAfter = roundMoney(publisherBalanceBefore + refundAmount);
+        const publisherBalanceAfter = roundMoney(publisherBalanceBefore + cashRefundAmount);
 
         await publisherWallet.update(
             {
@@ -450,25 +493,61 @@ class PickupSettlementService {
             { transaction }
         );
 
-        await Transaction.create(
-            {
-                transaction_no: generateTransactionNo(),
-                user_id: publisher.id,
-                type: 'refund',
-                amount: refundAmount,
-                direction: 'in',
-                balance_before: publisherBalanceBefore,
-                balance_after: publisherBalanceAfter,
-                status: 'success',
-                related_type: 'pickup_order',
-                related_id: order.id,
-                payment_method: 'balance',
-                description: `订单退款返还：${order.title}`,
-                remark: reason || '客服处理订单退款',
-                completed_at: now,
+        if (cashRefundAmount > 0) {
+            await Transaction.create(
+                {
+                    transaction_no: generateTransactionNo(),
+                    user_id: publisher.id,
+                    type: 'refund',
+                    amount: cashRefundAmount,
+                    direction: 'in',
+                    balance_before: publisherBalanceBefore,
+                    balance_after: publisherBalanceAfter,
+                    status: 'success',
+                    related_type: 'pickup_order',
+                    related_id: order.id,
+                    payment_method: 'balance',
+                    description: `订单退款返还：${order.title}`,
+                    remark: reason || '客服处理订单退款',
+                    completed_at: now,
+                },
+                { transaction }
+            );
+        }
+
+        const netPointDelta =
+            Number(refundSnapshot.points_return_delta || 0) -
+            Number(refundSnapshot.reward_revert_delta || 0);
+        if (netPointDelta !== 0) {
+            await Promise.all([
+                publisher.update(
+                    {
+                        points: Number(publisher.points || 0) + netPointDelta,
+                    },
+                    { transaction }
+                ),
+                publisherWallet.update(
+                    {
+                        points: Number(publisherWallet.points || 0) + netPointDelta,
+                    },
+                    { transaction }
+                ),
+            ]);
+        }
+
+        await FinanceAccountService.recordPlatformIncome(transaction, {
+            amount: subsidyRecoveryAmount,
+            relatedType: 'pickup_order',
+            relatedId: order.id,
+            paymentMethod: 'balance',
+            description: '积分抵扣平台补贴回收',
+            remark: `订单 ${order.order_no || order.id} 退款回收平台补贴`,
+            completedAt: now,
+            extraData: {
+                order_id: order.id,
+                subsidy_recovery_amount: subsidyRecoveryAmount,
             },
-            { transaction }
-        );
+        });
 
         const nextFrozen = roundMoney(remainingFrozen - refundAmount);
         const nextRefundAmount = roundMoney(parseAmount(order.refund_amount) + refundAmount);
@@ -477,6 +556,9 @@ class PickupSettlementService {
             {
                 deliverer_frozen_amount: nextFrozen,
                 refund_amount: nextRefundAmount,
+                refunded_cash_amount: refundSnapshot.target_cash_refund,
+                returned_points: refundSnapshot.target_returned_points,
+                reverted_reward_points: refundSnapshot.target_reverted_reward_points,
                 payment_status: nextFrozen <= 0 ? 'refunded' : order.payment_status,
                 settlement_status: deriveSettlementStatus({
                     ...order.toJSON(),
@@ -727,6 +809,24 @@ class PickupSettlementService {
             },
             transaction,
             lock: transaction.LOCK.UPDATE,
+        });
+
+        await FinanceAccountService.recordPlatformIncome(transaction, {
+            amount: commissionAmount,
+            relatedType: 'pickup_order',
+            relatedId: order.id,
+            paymentMethod: 'balance',
+            description: '订单担保结算平台抽成收入',
+            remark: `订单 ${order.order_no || order.id} 担保解冻结算抽成`,
+            commissionRate,
+            commissionAmount,
+            completedAt: settledAt,
+            extraData: {
+                order_id: order.id,
+                settlement_mode: 'released',
+                gross_amount: remainingFrozen,
+                net_payout_amount: payoutAmount,
+            },
         });
 
         await DebtSettlementService.settleDelivererDebts(delivererUser.id, transaction, {
