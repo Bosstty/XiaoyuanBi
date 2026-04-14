@@ -6,94 +6,117 @@
         <div class="hero-title-row">
           <div>
             <h2 class="page-title">财务中心</h2>
-            <p class="page-subtitle">优先监控平台收入、净流入和待回收风险，台账与流水同步下钻。</p>
+            <p class="page-subtitle">平台收入、支出、风险与台账总览</p>
           </div>
           <el-button class="hero-refresh" type="primary" @click="loadAll">刷新数据</el-button>
         </div>
 
-        <div class="hero-income-card" v-loading="loading.overview">
-          <div class="income-copy">
-            <span class="income-kicker">平台净收入</span>
-            <div class="income-amount">¥{{ formatMoney(netIncome) }}</div>
-            <div class="income-meta">
-              <span>累计 {{ overviewTransactionCount }} 笔成功流水</span>
-              <span>最近更新 {{ lastTransactionLabel }}</span>
+        <div class="hero-command-grid" v-loading="loading.overview">
+          <article class="hero-income-card">
+            <div class="income-copy">
+              <span class="income-kicker">平台净收益</span>
+              <div class="income-amount">¥{{ formatMoney(netIncome) }}</div>
+              <div class="income-meta">
+                <span>累计 {{ overviewTransactionCount }} 笔成功流水</span>
+                <span>最近更新 {{ lastTransactionLabel }}</span>
+              </div>
             </div>
-          </div>
-          <div class="income-side">
-            <div class="income-side-item">
-              <span>净流入</span>
-              <strong :class="netIncome >= 0 ? 'positive' : 'negative'">
-                {{ netIncome >= 0 ? '+' : '-' }}¥{{ formatMoney(Math.abs(netIncome)) }}
-              </strong>
+            <div class="income-side">
+              <div class="income-side-item">
+                <span>累计收入</span>
+                <strong>¥{{ formatMoney(platformIncome) }}</strong>
+              </div>
+              <div class="income-side-item">
+                <span>累计支出</span>
+                <strong>¥{{ formatMoney(platformExpense) }}</strong>
+              </div>
+              <div class="income-side-item">
+                <span>收入占比</span>
+                <strong>{{ incomeShare }}%</strong>
+              </div>
             </div>
-            <div class="income-side-item">
-              <span>收入占比</span>
-              <strong>{{ incomeShare }}%</strong>
-            </div>
-            <div class="income-side-item">
-              <span>风险回收率</span>
-              <strong>{{ debtRecoveryRate }}%</strong>
-            </div>
+          </article>
+
+          <div class="hero-command-rail">
+            <article class="aside-card balance-spotlight-card">
+              <div class="aside-head">
+                <span class="aside-label">现金余量</span>
+                <span class="status-pill">Platform</span>
+              </div>
+              <strong>¥{{ formatMoney(systemOverview.account.balance) }}</strong>
+              <small>系统账户余额</small>
+            </article>
+
+            <article class="aside-card risk-spotlight-card">
+              <div class="aside-head">
+                <span class="aside-label">风险回收</span>
+                <span class="aside-note">{{ debtRecoveryRate }}%</span>
+              </div>
+              <div class="risk-summary-row">
+                <div>
+                  <span>在途欠款</span>
+                  <strong>¥{{ formatMoney(systemOverview.debt_summary.active_amount) }}</strong>
+                </div>
+                <div>
+                  <span>活跃笔数</span>
+                  <strong>{{ systemOverview.debt_summary.active_count }}</strong>
+                </div>
+              </div>
+              <small>配送员欠款回收进度</small>
+            </article>
           </div>
         </div>
-      </div>
 
-      <div class="hero-aside">
-        <div class="aside-card overview-aside-card">
-          <div class="aside-head">
-            <span class="aside-label">平台概览</span>
-            <span class="aside-note">首屏只保留关键状态</span>
-          </div>
-          <div class="aside-stat-list">
-            <div class="aside-stat-row">
-              <span>平台可用余额</span>
-              <strong>¥{{ formatMoney(systemOverview.account.balance) }}</strong>
-            </div>
-            <div class="aside-stat-row">
-              <span>累计支出</span>
-              <strong>¥{{ formatMoney(platformExpense) }}</strong>
-            </div>
-            <div class="aside-stat-row">
-              <span>待回收欠款</span>
-              <strong>¥{{ formatMoney(systemOverview.debt_summary.active_amount) }}</strong>
-            </div>
-          </div>
-          <small
-            >{{ systemOverview.debt_summary.active_count }} 条在途欠款，需持续跟进回收进度</small
-          >
+        <div class="hero-kpi-strip">
+          <article class="kpi-tile">
+            <span>最近流水密度</span>
+            <strong>{{ recentTransactionCount }} 条</strong>
+            <p>最近动态</p>
+          </article>
+          <article class="kpi-tile">
+            <span>净流入状态</span>
+            <strong :class="netIncome >= 0 ? 'positive' : 'negative'">
+              {{ netIncome >= 0 ? '+' : '-' }}¥{{ formatMoney(Math.abs(netIncome)) }}
+            </strong>
+            <p>收入减支出</p>
+          </article>
+          <article class="kpi-tile">
+            <span>欠款回收压力</span>
+            <strong>¥{{ formatMoney(systemOverview.debt_summary.active_amount) }}</strong>
+            <p>活跃欠款金额</p>
+          </article>
         </div>
       </div>
     </section>
 
     <section class="insight-grid">
-      <article class="insight-card primary">
+      <article class="insight-card primary insight-card-wide">
         <span class="insight-eyebrow">收入结构</span>
         <div class="insight-value">¥{{ formatMoney(platformIncome) }}</div>
-        <p>平台累计入账金额，作为财务中心首要关注指标。</p>
+        <p>平台累计入账</p>
       </article>
-      <article class="insight-card">
+      <article class="insight-card warning">
         <span class="insight-eyebrow">平台净收益</span>
         <div class="insight-value" :class="netIncome >= 0 ? 'positive' : 'negative'">
           {{ netIncome >= 0 ? '+' : '-' }}¥{{ formatMoney(Math.abs(netIncome)) }}
         </div>
-        <p>由累计收入减去累计支出，直观看当前经营空间。</p>
+        <p>累计收入减累计支出</p>
       </article>
       <article class="insight-card">
         <span class="insight-eyebrow">待回收风险</span>
         <div class="insight-value">
           ¥{{ formatMoney(systemOverview.debt_summary.active_amount) }}
         </div>
-        <p>{{ systemOverview.debt_summary.active_count }} 条活跃欠款，影响实际可兑现收益。</p>
+        <p>{{ systemOverview.debt_summary.active_count }} 条活跃欠款</p>
       </article>
-      <article class="insight-card">
+      <article class="insight-card soft">
         <span class="insight-eyebrow">最近流水</span>
         <div class="insight-value">{{ recentTransactionCount }}</div>
-        <p>概览接口返回的最近流水条数，可快速判断资金波动密度。</p>
+        <p>最近动态记录</p>
       </article>
     </section>
 
-    <section class="analysis-grid">
+    <section class="analysis-stage">
       <el-card shadow="never" class="panel-card analysis-panel">
         <template #header>
           <div class="panel-head">
@@ -116,90 +139,142 @@
           autoresize
         />
       </el-card>
+    </section>
 
-      <div class="side-stack analysis-side-stack">
-        <el-card shadow="never" class="panel-card analysis-summary-panel">
-          <template #header>
-            <div class="panel-head">
-              <div class="panel-title-group">
-                <span class="panel-title">区间收益表现</span>
-                <span class="panel-desc"
-                  >最近 {{ analysisData.range_days }} 天的收入质量与效率</span
-                >
-              </div>
-            </div>
-          </template>
-
-          <div class="metric-list">
-            <div class="metric-row">
-              <span>累计收入</span>
-              <strong>¥{{ formatMoney(analysisData.summary.total_income) }}</strong>
-            </div>
-            <div class="metric-row">
-              <span>累计支出</span>
-              <strong>¥{{ formatMoney(analysisData.summary.total_expense) }}</strong>
-            </div>
-            <div class="metric-row">
-              <span>净收益</span>
-              <strong :class="analysisData.summary.net_income >= 0 ? 'positive' : 'negative'">
-                {{ analysisData.summary.net_income >= 0 ? '+' : '-' }}¥{{
-                  formatMoney(Math.abs(analysisData.summary.net_income || 0))
-                }}
-              </strong>
-            </div>
-            <div class="metric-row">
-              <span>平台收益率</span>
-              <strong>{{ formatPercent(analysisData.summary.profit_margin) }}</strong>
-            </div>
-            <div class="metric-row">
-              <span>日均收入</span>
-              <strong>¥{{ formatMoney(analysisData.summary.avg_daily_income) }}</strong>
-            </div>
-            <div class="metric-row">
-              <span>日均支出</span>
-              <strong>¥{{ formatMoney(analysisData.summary.avg_daily_expense) }}</strong>
+    <section class="analysis-summary-grid">
+      <el-card shadow="never" class="panel-card analysis-summary-panel">
+        <template #header>
+          <div class="panel-head">
+            <div class="panel-title-group">
+              <span class="panel-title">区间收益表现</span>
+              <span class="panel-desc">最近 {{ analysisData.range_days }} 天的收入质量与效率</span>
             </div>
           </div>
-        </el-card>
+        </template>
 
-        <el-card shadow="never" class="panel-card analysis-summary-panel">
-          <template #header>
-            <div class="panel-head">
-              <div class="panel-title-group">
-                <span class="panel-title">区间支出结构</span>
-                <span class="panel-desc">当前支出只统计平台补偿、积分抵扣、平台垫付三部分</span>
-              </div>
-            </div>
-          </template>
+        <div class="metric-list">
+          <div class="metric-row">
+            <span>累计收入</span>
+            <strong>¥{{ formatMoney(analysisData.summary.total_income) }}</strong>
+          </div>
+          <div class="metric-row">
+            <span>累计支出</span>
+            <strong>¥{{ formatMoney(analysisData.summary.total_expense) }}</strong>
+          </div>
+          <div class="metric-row">
+            <span>净收益</span>
+            <strong :class="analysisData.summary.net_income >= 0 ? 'positive' : 'negative'">
+              {{ analysisData.summary.net_income >= 0 ? '+' : '-' }}¥{{
+                formatMoney(Math.abs(analysisData.summary.net_income || 0))
+              }}
+            </strong>
+          </div>
+          <div class="metric-row">
+            <span>平台收益率</span>
+            <strong>{{ formatPercent(analysisData.summary.profit_margin) }}</strong>
+          </div>
+          <div class="metric-row">
+            <span>日均收入</span>
+            <strong>¥{{ formatMoney(analysisData.summary.avg_daily_income) }}</strong>
+          </div>
+          <div class="metric-row">
+            <span>日均支出</span>
+            <strong>¥{{ formatMoney(analysisData.summary.avg_daily_expense) }}</strong>
+          </div>
+        </div>
+      </el-card>
 
-          <div class="insight-list">
-            <div class="insight-row">
-              <span>最高收入日</span>
-              <strong>{{ analysisData.summary.best_income_day?.period || '--' }}</strong>
-            </div>
-            <div class="insight-row">
-              <span>最高收益率日</span>
-              <strong>{{ analysisData.summary.highest_margin_day?.period || '--' }}</strong>
-            </div>
-            <div class="insight-row">
-              <span>区间流水数</span>
-              <strong>{{ analysisData.summary.total_transactions || 0 }} 笔</strong>
+      <el-card shadow="never" class="panel-card analysis-summary-panel">
+        <template #header>
+          <div class="panel-head">
+            <div class="panel-title-group">
+              <span class="panel-title">区间支出结构</span>
+              <span class="panel-desc">平台补偿、积分抵扣、平台垫付</span>
             </div>
           </div>
+        </template>
 
-          <div v-if="analysisExpenseRows.length" class="group-chip-list">
-            <span v-for="item in analysisExpenseRows" :key="item.key" class="group-chip">
-              {{ item.label }} · ¥{{ formatMoney(item.amount) }}
-            </span>
+        <div class="insight-list">
+          <div class="insight-row">
+            <span>最高收入日</span>
+            <strong>{{ analysisData.summary.best_income_day?.period || '--' }}</strong>
           </div>
+          <div class="insight-row">
+            <span>最高收益率日</span>
+            <strong>{{ analysisData.summary.highest_margin_day?.period || '--' }}</strong>
+          </div>
+          <div class="insight-row">
+            <span>区间流水数</span>
+            <strong>{{ analysisData.summary.total_transactions || 0 }} 笔</strong>
+          </div>
+        </div>
 
-          <div v-if="analysisBreakdownPills.length" class="group-chip-list">
-            <span v-for="item in analysisBreakdownPills" :key="`${item.direction}-${item.type}`" class="group-chip">
-              {{ item.label }} · ¥{{ formatMoney(item.amount) }}
-            </span>
+        <div v-if="analysisExpenseRows.length" class="group-chip-list">
+          <span v-for="item in analysisExpenseRows" :key="item.key" class="group-chip">
+            {{ item.label }} · ¥{{ formatMoney(item.amount) }}
+          </span>
+        </div>
+
+        <div v-if="analysisBreakdownPills.length" class="group-chip-list">
+          <span
+            v-for="item in analysisBreakdownPills"
+            :key="`${item.direction}-${item.type}`"
+            class="group-chip"
+          >
+            {{ item.label }} · ¥{{ formatMoney(item.amount) }}
+          </span>
+        </div>
+      </el-card>
+
+      <el-card shadow="never" class="panel-card recent-panel ops-panel">
+        <template #header>
+          <div class="panel-head">
+            <div class="panel-title-group">
+              <span class="panel-title">运营观察席</span>
+              <span class="panel-desc">最近动态与风险摘要</span>
+            </div>
           </div>
-        </el-card>
-      </div>
+        </template>
+
+        <div class="insight-list compact-list">
+          <div class="insight-row">
+            <span>最近入账时间</span>
+            <strong>{{ lastTransactionLabel }}</strong>
+          </div>
+          <div class="insight-row">
+            <span>成功流水总数</span>
+            <strong>{{ overviewTransactionCount }} 笔</strong>
+          </div>
+          <div class="insight-row">
+            <span>最近动态条数</span>
+            <strong>{{ recentTransactionCount }} 条</strong>
+          </div>
+          <div class="insight-row">
+            <span>活跃欠款</span>
+            <strong>¥{{ formatMoney(systemOverview.debt_summary.active_amount) }}</strong>
+          </div>
+        </div>
+
+        <div v-if="recentTransactions.length" class="signal-list">
+          <div
+            v-for="item in recentTransactions.slice(0, 4)"
+            :key="item.id || item.transaction_no"
+            class="signal-item"
+          >
+            <div class="signal-copy">
+              <strong>{{ item.description || item.transaction_no || '--' }}</strong>
+              <span>{{
+                formatDateTime(
+                  item.completed_at || item.completedAt || item.createdAt || item.created_at,
+                )
+              }}</span>
+            </div>
+            <div :class="item.direction === 'in' ? 'amount-in' : 'amount-out'">
+              {{ item.direction === 'in' ? '+' : '-' }}¥{{ formatMoney(item.amount) }}
+            </div>
+          </div>
+        </div>
+      </el-card>
     </section>
 
     <section class="board-grid">
@@ -301,66 +376,6 @@
             <span v-for="item in analysisBreakdownPills" :key="`${item.direction}-${item.type}`" class="group-chip">
               {{ item.label }} · ¥{{ formatMoney(item.amount) }}
             </span>
-          </div>
-        </el-card>
-
-        <el-card shadow="never" class="panel-card recent-panel">
-          <template #header>
-            <div class="panel-head">
-              <div class="panel-title-group">
-                <span class="panel-title">收入洞察</span>
-                <span class="panel-desc">补充展示收入节奏和风险状态，不再重复明细流水</span>
-              </div>
-            </div>
-          </template>
-
-          <div class="insight-list">
-            <div class="insight-row">
-              <span>最近入账时间</span>
-              <strong>{{ lastTransactionLabel }}</strong>
-            </div>
-            <div class="insight-row">
-              <span>成功流水总数</span>
-              <strong>{{ overviewTransactionCount }} 笔</strong>
-            </div>
-            <div class="insight-row">
-              <span>最近动态条数</span>
-              <strong>{{ recentTransactionCount }} 条</strong>
-            </div>
-            <div class="insight-row">
-              <span>收入占比</span>
-              <strong>{{ incomeShare }}%</strong>
-            </div>
-            <div class="insight-row">
-              <span>净收益</span>
-              <strong :class="netIncome >= 0 ? 'positive' : 'negative'">
-                {{ netIncome >= 0 ? '+' : '-' }}¥{{ formatMoney(Math.abs(netIncome)) }}
-              </strong>
-            </div>
-            <div class="insight-row">
-              <span>活跃欠款</span>
-              <strong>¥{{ formatMoney(systemOverview.debt_summary.active_amount) }}</strong>
-            </div>
-          </div>
-
-          <div v-if="recentTransactions.length" class="signal-list">
-            <div
-              v-for="item in recentTransactions.slice(0, 3)"
-              :key="item.id || item.transaction_no"
-              class="signal-item"
-            >
-              <div class="signal-copy">
-                <strong>{{ item.description || item.transaction_no || '--' }}</strong>
-                <span>{{
-                  formatDateTime(
-                    item.completed_at || item.completedAt || item.createdAt || item.created_at,
-                  )
-                }}</span>
-              </div>
-              <div :class="item.direction === 'in' ? 'amount-in' : 'amount-out'">
-                {{ item.direction === 'in' ? '+' : '-' }}¥{{ formatMoney(item.amount) }}
-              </div>
-            </div>
           </div>
         </el-card>
       </div>
@@ -873,29 +888,30 @@ onMounted(() => {
 <style scoped>
 .finance-management {
   --finance-bg:
-    radial-gradient(circle at top left, rgba(99, 102, 241, 0.16), transparent 30%),
-    radial-gradient(circle at top right, rgba(14, 165, 233, 0.16), transparent 24%),
-    linear-gradient(180deg, #f8fbff 0%, #f5f7fb 100%);
+    radial-gradient(circle at top left, rgba(15, 23, 42, 0.08), transparent 24%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 24%),
+    linear-gradient(180deg, #f4f7fb 0%, #eef3f9 100%);
   max-width: 1600px;
   margin: 0 auto;
-  padding: 8px 0 24px;
+  padding: 12px 0 28px;
 }
 
 .finance-page {
   display: grid;
-  gap: 20px;
+  gap: 22px;
 }
 
 .finance-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
-  gap: 20px;
-  padding: 24px;
-  border: 1px solid rgba(129, 140, 248, 0.18);
-  border-radius: 28px;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 30px;
   background: var(--finance-bg);
   overflow: hidden;
   position: relative;
+  box-shadow: 0 20px 50px rgba(148, 163, 184, 0.14);
 }
 
 .finance-hero::after {
@@ -909,15 +925,14 @@ onMounted(() => {
   filter: blur(10px);
 }
 
-.hero-main,
-.hero-aside {
+.hero-main {
   position: relative;
   z-index: 1;
 }
 
 .hero-main {
   display: grid;
-  gap: 18px;
+  gap: 22px;
 }
 
 .hero-topline {
@@ -960,17 +975,26 @@ onMounted(() => {
   min-width: 104px;
 }
 
+.hero-command-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(340px, 0.72fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
 .hero-income-card {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.9fr);
-  gap: 18px;
-  padding: 24px;
-  border-radius: 24px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(250px, 0.85fr);
+  gap: 22px;
+  padding: 30px;
+  border-radius: 28px;
   background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)),
-    linear-gradient(135deg, rgba(99, 102, 241, 0.28), rgba(14, 165, 233, 0.18));
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.16), transparent 24%),
+    radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.18), transparent 28%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.99), rgba(30, 41, 59, 0.96) 52%, rgba(51, 65, 85, 0.95));
   color: #fff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 34px 80px rgba(15, 23, 42, 0.2);
+  min-height: 272px;
 }
 
 .income-copy {
@@ -979,16 +1003,16 @@ onMounted(() => {
 }
 
 .income-kicker {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 13px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .income-amount {
-  font-size: clamp(2.6rem, 4vw, 4rem);
-  line-height: 0.95;
+  font-size: clamp(3rem, 4.2vw, 4.4rem);
+  line-height: 0.9;
   font-weight: 800;
   letter-spacing: -0.05em;
 }
@@ -996,23 +1020,24 @@ onMounted(() => {
 .income-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
-  color: rgba(255, 255, 255, 0.74);
-  font-size: 13px;
+  gap: 10px 18px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
 }
 
 .income-side {
   display: grid;
   gap: 12px;
+  align-content: start;
 }
 
 .income-side-item {
   display: grid;
   gap: 6px;
-  padding: 14px 16px;
+  padding: 16px 16px 15px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
 }
 
 .income-side-item span {
@@ -1030,14 +1055,21 @@ onMounted(() => {
   gap: 14px;
 }
 
+.hero-command-rail {
+  display: grid;
+  gap: 18px;
+  align-content: stretch;
+}
+
 .aside-card {
   display: grid;
-  gap: 8px;
-  padding: 18px 18px 16px;
-  border-radius: 22px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
+  gap: 10px;
+  padding: 22px 22px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(203, 213, 225, 0.75);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .aside-card strong {
@@ -1061,6 +1093,18 @@ onMounted(() => {
   align-content: start;
 }
 
+.balance-spotlight-card {
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.94));
+}
+
+.risk-spotlight-card {
+  background:
+    radial-gradient(circle at top right, rgba(248, 113, 113, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 247, 237, 0.88));
+}
+
 .aside-head {
   display: flex;
   align-items: center;
@@ -1071,6 +1115,43 @@ onMounted(() => {
 .aside-note {
   color: #94a3b8;
   font-size: 12px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.risk-summary-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.risk-summary-row div {
+  display: grid;
+  gap: 8px;
+  padding: 14px 14px 12px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid #e2e8f0;
+}
+
+.risk-summary-row span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.risk-summary-row strong {
+  font-size: 1.2rem;
 }
 
 .aside-stat-list {
@@ -1108,20 +1189,86 @@ onMounted(() => {
 
 .insight-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 18px;
+}
+
+.hero-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.kpi-tile {
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.84));
+  border: 1px solid rgba(203, 213, 225, 0.72);
+}
+
+.kpi-tile span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.kpi-tile strong {
+  color: #0f172a;
+  font-size: 1.6rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.kpi-tile p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.65;
 }
 
 .insight-card {
-  padding: 20px 20px 18px;
-  border-radius: 22px;
-  border: 1px solid var(--border-color, #e2e8f0);
-  background: #fff;
+  padding: 22px 22px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(203, 213, 225, 0.72);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.92));
+  box-shadow: 0 10px 24px rgba(148, 163, 184, 0.08);
 }
 
 .insight-card.primary {
-  background: linear-gradient(135deg, #eef2ff, #f8fbff);
-  border-color: rgba(99, 102, 241, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 32%),
+    linear-gradient(135deg, #eef4ff, #f8fbff);
+  border-color: rgba(96, 165, 250, 0.34);
+}
+
+.insight-card.warning {
+  background:
+    radial-gradient(circle at top right, rgba(239, 68, 68, 0.1), transparent 32%),
+    linear-gradient(135deg, #fff9f8, #ffffff);
+}
+
+.insight-card.soft {
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.12), transparent 32%),
+    linear-gradient(135deg, #f5fffd, #ffffff);
+}
+
+.insight-card-wide {
+  position: relative;
+  overflow: hidden;
+}
+
+.insight-card-wide::after {
+  content: '';
+  position: absolute;
+  right: -28px;
+  bottom: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .insight-eyebrow {
@@ -1136,7 +1283,7 @@ onMounted(() => {
 .insight-value {
   margin-bottom: 8px;
   color: #0f172a;
-  font-size: 2rem;
+  font-size: 2.15rem;
   line-height: 1;
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -1148,15 +1295,22 @@ onMounted(() => {
   line-height: 1.7;
 }
 
-.analysis-grid {
+.analysis-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
-  gap: 20px;
+}
+
+.analysis-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
   align-items: start;
 }
 
-.analysis-side-stack {
-  gap: 20px;
+.ops-panel {
+  border-style: dashed;
+  background:
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.08), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
 }
 
 .analysis-chart {
@@ -1165,8 +1319,8 @@ onMounted(() => {
 
 .board-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.8fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.58fr) minmax(300px, 0.72fr);
+  gap: 22px;
   align-items: start;
 }
 
@@ -1181,13 +1335,14 @@ onMounted(() => {
 }
 
 .panel-card {
-  border-radius: 24px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: #fff;
+  border-radius: 26px;
+  border: 1px solid rgba(203, 213, 225, 0.72);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  box-shadow: 0 14px 30px rgba(148, 163, 184, 0.08);
 }
 
 .featured-panel {
-  border-color: rgba(99, 102, 241, 0.16);
+  border-color: rgba(96, 165, 250, 0.28);
   height: auto;
 }
 
@@ -1196,12 +1351,12 @@ onMounted(() => {
 }
 
 .panel-card :deep(.el-card__header) {
-  padding: 20px 22px;
+  padding: 22px 24px;
   border-bottom: 1px solid #eef2f7;
 }
 
 .panel-card :deep(.el-card__body) {
-  padding: 22px;
+  padding: 24px;
 }
 
 .panel-head {
@@ -1463,9 +1618,12 @@ onMounted(() => {
 }
 
 @media (max-width: 1280px) {
-  .finance-hero,
-  .analysis-grid,
+  .analysis-summary-grid,
   .board-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-command-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1475,6 +1633,7 @@ onMounted(() => {
 }
 
 @media (max-width: 960px) {
+  .hero-kpi-strip,
   .hero-income-card {
     grid-template-columns: 1fr;
   }
@@ -1507,6 +1666,11 @@ onMounted(() => {
   }
 
   .insight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-kpi-strip,
+  .risk-summary-row {
     grid-template-columns: 1fr;
   }
 
