@@ -85,7 +85,7 @@ const getConversationMeta = (conversation: any) => {
 
     if (otherParty.role === '客服') {
         const code = otherParty.staffCode ? ` · ${otherParty.staffCode}` : '';
-        return `当前接待客服${code}`;
+        return `当前接待：${otherParty.name}${code}`;
     }
 
     return otherParty.role;

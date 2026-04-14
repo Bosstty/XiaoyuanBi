@@ -161,6 +161,15 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="处理客服" align="center" width="140">
+          <template #default="{ row }">
+            <el-tag v-if="row.service?.id" type="info" size="small">
+              {{ row.service?.name || row.service?.username || `客服#${row.service?.id}` }}
+            </el-tag>
+            <span v-else class="unassigned-service">未领取</span>
+          </template>
+        </el-table-column>
+
         <el-table-column prop="created_at" label="创建时间" align="center" width="160">
           <template #default="{ row }">
             {{ formatDateTime(row.created_at) }}
@@ -182,6 +191,12 @@
                     <el-dropdown-item command="process" v-if="row.status === 'pending'">
                       <el-icon><Clock /></el-icon>
                       开始处理
+                    </el-dropdown-item>
+                    <el-dropdown-item command="release" v-if="row.status === 'processing' && row.service_id">
+                      释放工单
+                    </el-dropdown-item>
+                    <el-dropdown-item command="edit-type">
+                      修改类型
                     </el-dropdown-item>
                     <el-dropdown-item command="resolve">
                       <el-icon><CircleCheck /></el-icon>
@@ -449,6 +464,25 @@
         </div>
       </template>
     </el-drawer>
+
+    <el-dialog v-model="typeDialog.visible" title="修改工单类型" width="420px">
+      <el-form label-position="top">
+        <el-form-item label="新工单类型">
+          <el-select v-model="typeDialog.type" style="width: 100%">
+            <el-option
+              v-for="item in getTransferableTicketTypes()"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="typeDialog.visible = false">取消</el-button>
+        <el-button type="primary" :loading="typeDialog.submitting" @click="submitTypeChange">确认修改</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -468,11 +502,13 @@ import {
   Close,
 } from '@element-plus/icons-vue'
 import { serviceChatApi, serviceOrderApi, serviceTicketApi } from '@/api'
+import { useAdminStore } from '@/stores/admin'
 import { dateUtils } from '@/utils'
 import { exportCsvFile, normalizeExportValue } from '@/utils/export'
 import DashboardFilterHeader from '../dashboard/components/DashboardFilterHeader.vue'
 
 const router = useRouter()
+const adminStore = useAdminStore()
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '')
 const loading = ref(false)
@@ -502,6 +538,26 @@ const detailDrawer = reactive({
   visible: false,
   data: null,
 })
+
+const typeDialog = reactive({
+  visible: false,
+  submitting: false,
+  ticketId: null,
+  type: '',
+})
+
+const ticketTypeOptions = [
+  { label: '投诉', value: 'complaint' },
+  { label: '退款', value: 'refund' },
+  { label: '争议', value: 'dispute' },
+  { label: '建议', value: 'suggestion' },
+  { label: '其他', value: 'other' },
+]
+
+const getTransferableTicketTypes = () => {
+  const ownTypes = Array.isArray(adminStore.admin?.ticket_types) ? adminStore.admin.ticket_types : []
+  return ticketTypeOptions.filter((item) => !ownTypes.includes(item.value))
+}
 
 const handleForm = reactive({
   solution: '',
@@ -722,15 +778,7 @@ const contactAfterSalesDeliverer = async (ticket) => {
 const moderateTicket = async (command, ticket) => {
   if (command === 'process') {
     try {
-      const { value } = await ElMessageBox.prompt('请输入处理备注', '开始处理', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-      })
-
-      const response = await serviceTicketApi.updateTicketStatus(ticket.id, {
-        status: 'processing',
-        solution: value,
-      })
+      const response = await serviceTicketApi.claimTicket(ticket.id)
 
       if (response.success) {
         ElMessage.success('已开始处理')
@@ -783,6 +831,25 @@ const moderateTicket = async (command, ticket) => {
         ElMessage.error('操作失败')
       }
     }
+  } else if (command === 'release') {
+    try {
+      const response = await serviceTicketApi.releaseTicket(ticket.id)
+      if (response.success) {
+        ElMessage.success('工单已释放')
+        await refreshPageData()
+        await refreshDetailDrawer(ticket.id)
+      }
+    } catch (error) {
+      ElMessage.error(error.message || '释放工单失败')
+    }
+  } else if (command === 'edit-type') {
+    if (!getTransferableTicketTypes().length) {
+      ElMessage.warning('当前客服没有可转出的目标工单类型')
+      return
+    }
+    typeDialog.ticketId = ticket.id
+    typeDialog.type = getTransferableTicketTypes()[0]?.value || ''
+    typeDialog.visible = true
   }
 }
 
@@ -815,6 +882,28 @@ const submitHandle = async () => {
     ElMessage.error('处理失败')
   } finally {
     handleForm.loading = false
+  }
+}
+
+const submitTypeChange = async () => {
+  if (!typeDialog.ticketId || !typeDialog.type) {
+    ElMessage.warning('请选择工单类型')
+    return
+  }
+
+  typeDialog.submitting = true
+  try {
+    const response = await serviceTicketApi.updateTicketType(typeDialog.ticketId, typeDialog.type)
+    if (!response.success) throw new Error(response.message || '修改工单类型失败')
+
+    ElMessage.success('工单类型已更新，已重新进入待处理队列')
+    typeDialog.visible = false
+    detailDrawer.visible = false
+    await refreshPageData()
+  } catch (error) {
+    ElMessage.error(error.message || '修改工单类型失败')
+  } finally {
+    typeDialog.submitting = false
   }
 }
 
@@ -1156,6 +1245,10 @@ onMounted(() => {
   font-size: 1.8rem;
   font-weight: 600;
   color: #2c3e50;
+}
+
+.unassigned-service {
+  color: #9ca3af;
 }
 
 .stat-label {

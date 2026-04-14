@@ -108,6 +108,9 @@ adminRoutes.use(
     require('./admin/users')
 );
 
+// 客服管理 - /api/admin/services/*
+adminRoutes.use('/services', adminAuthMiddleware, require('./admin/services'));
+
 // 订单管理 - /api/admin/orders/*
 adminRoutes.use(
     '/orders',

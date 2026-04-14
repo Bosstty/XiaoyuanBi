@@ -127,7 +127,10 @@
           <el-dropdown @command="handleUserCommand" trigger="click">
             <div class="user-menu">
               <el-avatar :size="36" class="user-avatar">
-                {{ displayUserName.charAt(0) || 'A' }}
+                <img v-if="displayUserAvatar" :src="displayUserAvatar" alt="avatar" />
+                <template v-else>
+                  {{ displayUserName.charAt(0) || 'A' }}
+                </template>
               </el-avatar>
               <div class="user-info">
                 <span class="user-name">{{ displayUserName }}</span>
@@ -141,9 +144,9 @@
                   <el-icon><User /></el-icon>
                   个人资料
                 </el-dropdown-item>
-                <el-dropdown-item command="settings">
+                <el-dropdown-item command="password">
                   <el-icon><Setting /></el-icon>
-                  偏好设置
+                  修改密码
                 </el-dropdown-item>
                 <el-dropdown-item command="logout" divided>
                   <el-icon><SwitchButton /></el-icon>
@@ -169,6 +172,61 @@
         </router-view>
       </el-main>
     </el-container>
+
+    <el-dialog v-model="profileDialog.visible" title="编辑个人资料" width="420px">
+      <el-form label-position="top">
+        <el-form-item label="头像">
+          <div class="profile-avatar-field">
+            <el-avatar :size="64" :src="profileDialog.form.avatar || displayUserAvatar || undefined">
+              {{ profileDialog.form.name?.charAt(0) || displayUserName.charAt(0) || 'A' }}
+            </el-avatar>
+            <input
+              ref="avatarInputRef"
+              type="file"
+              accept="image/*"
+              class="hidden-avatar-input"
+              @change="handleAvatarSelected"
+            />
+            <el-button :loading="profileDialog.uploading" @click="triggerAvatarUpload">上传头像</el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="姓名">
+          <el-input v-model="profileDialog.form.name" />
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input v-model="profileDialog.form.phone" />
+        </el-form-item>
+        <el-form-item label="邮箱">
+          <el-input v-model="profileDialog.form.email" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="profileDialog.visible = false">取消</el-button>
+        <el-button type="primary" :loading="profileDialog.submitting" @click="submitProfileDialog">
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="passwordDialog.visible" title="修改密码" width="420px">
+      <el-form label-position="top">
+        <el-form-item label="原密码">
+          <el-input v-model="passwordDialog.form.old_password" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="passwordDialog.form.new_password" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="确认新密码">
+          <el-input v-model="passwordDialog.form.confirm_password" type="password" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="passwordDialog.visible = false">取消</el-button>
+        <el-button type="primary" :loading="passwordDialog.submitting" @click="submitPasswordDialog">
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
   </el-container>
 </template>
 
@@ -205,7 +263,7 @@ import {
   Check,
 } from '@element-plus/icons-vue'
 import { useAdminStore } from '@/stores/admin'
-import { serviceChatApi } from '@/api'
+import { authApi, publicApi, serviceAuthApi, serviceChatApi } from '@/api'
 import { createChatSocket } from '@/utils/chatSocket'
 
 const route = useRoute()
@@ -217,6 +275,27 @@ const globalRefreshing = ref(false)
 const pageReady = ref(true)
 const chatUnreadCount = ref(0)
 const chatSocket = ref(null)
+const avatarInputRef = ref(null)
+const profileDialog = ref({
+  visible: false,
+  submitting: false,
+  uploading: false,
+  form: {
+    name: '',
+    phone: '',
+    email: '',
+    avatar: '',
+  },
+})
+const passwordDialog = ref({
+  visible: false,
+  submitting: false,
+  form: {
+    old_password: '',
+    new_password: '',
+    confirm_password: '',
+  },
+})
 let handleChatSocketConnect = null
 let handleChatSocketMessageNew = null
 let handleChatSocketConversationUpdated = null
@@ -260,6 +339,7 @@ const iconMap = {
 const menuConfig = [
   { index: '/dashboard', title: '数据看板', icon: markRaw(DataBoard), roles: ['admin', 'service'] },
   { index: '/users', title: '用户管理', icon: markRaw(User), roles: ['admin'] },
+  { index: '/services', title: '客服管理', icon: markRaw(Service), roles: ['admin'] },
   {
     index: '/deliverers',
     title: '配送员管理',
@@ -297,6 +377,7 @@ const breadcrumbs = computed(() => {
   const routeMap = {
     dashboard: '数据看板',
     users: '用户管理',
+    services: '客服管理',
     deliverers: '配送员管理',
     orders: '订单管理',
     tasks: '任务管理',
@@ -327,9 +408,14 @@ const visibleMenus = computed(() =>
 const displayUserName = computed(
   () => adminStore.admin?.name || adminStore.admin?.username || '管理员',
 )
+const displayUserAvatar = computed(() => adminStore.admin?.avatar || '')
 
 const userRoleLabel = computed(() =>
   adminStore.userType === 'service' ? '客服专员' : '超级管理员',
+)
+
+const currentAuthApi = computed(() =>
+  adminStore.userType === 'service' ? serviceAuthApi : authApi,
 )
 
 function toggleSidebar() {
@@ -381,15 +467,127 @@ function markAllRead() {
 function handleUserCommand(command) {
   switch (command) {
     case 'profile':
-      ElMessage.info('个人资料功能开发中')
+      openProfileDialog()
       break
-    case 'settings':
-      router.push('/system')
+    case 'password':
+      openPasswordDialog()
       break
     case 'logout':
       adminStore.logout()
       router.push('/login')
       break
+  }
+}
+
+function openProfileDialog() {
+  profileDialog.value.form.name = adminStore.admin?.name || adminStore.admin?.real_name || ''
+  profileDialog.value.form.phone = adminStore.admin?.phone || ''
+  profileDialog.value.form.email = adminStore.admin?.email || ''
+  profileDialog.value.form.avatar = adminStore.admin?.avatar || ''
+  profileDialog.value.visible = true
+}
+
+function triggerAvatarUpload() {
+  avatarInputRef.value?.click()
+}
+
+async function handleAvatarSelected(event) {
+  const target = event.target
+  const file = target?.files?.[0]
+  if (!file) return
+
+  profileDialog.value.uploading = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await publicApi.uploadFile(formData)
+    const avatarPath = response?.data?.path || response?.data?.url
+    if (!avatarPath) {
+      throw new Error('头像上传失败')
+    }
+    profileDialog.value.form.avatar = avatarPath
+    ElMessage.success('头像上传成功')
+  } catch (error) {
+    ElMessage.error(error.message || '头像上传失败')
+  } finally {
+    profileDialog.value.uploading = false
+    if (target) target.value = ''
+  }
+}
+
+function openPasswordDialog() {
+  passwordDialog.value.form.old_password = ''
+  passwordDialog.value.form.new_password = ''
+  passwordDialog.value.form.confirm_password = ''
+  passwordDialog.value.visible = true
+}
+
+async function refreshCurrentProfile() {
+  const response = await currentAuthApi.value.getProfile()
+  if (response?.success && response.data) {
+    adminStore.setAdmin(response.data)
+  }
+}
+
+async function submitProfileDialog() {
+  profileDialog.value.submitting = true
+  try {
+    const payload =
+      adminStore.userType === 'service'
+        ? {
+            name: profileDialog.value.form.name,
+            phone: profileDialog.value.form.phone,
+            email: profileDialog.value.form.email,
+            avatar: profileDialog.value.form.avatar,
+          }
+        : {
+            real_name: profileDialog.value.form.name,
+            phone: profileDialog.value.form.phone,
+            email: profileDialog.value.form.email,
+          }
+
+    const response = await currentAuthApi.value.updateProfile(payload)
+    if (!response?.success) {
+      throw new Error(response?.message || '更新失败')
+    }
+
+    await refreshCurrentProfile()
+    profileDialog.value.visible = false
+    ElMessage.success('个人资料已更新')
+  } catch (error) {
+    ElMessage.error(error.message || '更新失败')
+  } finally {
+    profileDialog.value.submitting = false
+  }
+}
+
+async function submitPasswordDialog() {
+  const { old_password, new_password, confirm_password } = passwordDialog.value.form
+  if (!old_password || !new_password) {
+    ElMessage.warning('请填写完整密码信息')
+    return
+  }
+  if (new_password !== confirm_password) {
+    ElMessage.warning('两次输入的新密码不一致')
+    return
+  }
+
+  passwordDialog.value.submitting = true
+  try {
+    const response = await currentAuthApi.value.changePassword({
+      old_password,
+      new_password,
+    })
+    if (!response?.success) {
+      throw new Error(response?.message || '修改密码失败')
+    }
+
+    passwordDialog.value.visible = false
+    ElMessage.success('密码修改成功')
+  } catch (error) {
+    ElMessage.error(error.message || '修改密码失败')
+  } finally {
+    passwordDialog.value.submitting = false
   }
 }
 
@@ -760,6 +958,22 @@ onUnmounted(() => {
 .user-avatar {
   background: #4a9feb;
   font-weight: 600;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-avatar-field {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.hidden-avatar-input {
+  display: none;
 }
 
 .user-info {

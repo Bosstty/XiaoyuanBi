@@ -14,6 +14,12 @@ router.get('/my/conversations', ServiceChatController.getMyConversations);
 // 获取会话详情
 router.get('/conversations/:id', ServiceChatController.getConversationDetail);
 
+// 获取可转接客服列表
+router.get('/services', ServiceChatController.getAvailableServices);
+
+// 转接会话
+router.post('/conversations/:id/transfer', ServiceChatController.transferConversation);
+
 // 获取消息列表
 router.get('/messages', ServiceChatController.getMessages);
 

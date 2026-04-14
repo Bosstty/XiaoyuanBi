@@ -76,11 +76,36 @@
               </el-avatar>
               <div class="chat-partner-copy">
                 <div class="chat-partner-name">{{ currentPartner.name }}</div>
-                <div class="chat-partner-role">{{ currentPartner.role }}</div>
+                <div class="chat-partner-role">
+                  {{ currentPartner.role }}
+                  <span v-if="currentServiceName"> · 当前负责人：{{ currentServiceName }}</span>
+                </div>
               </div>
+              <el-button
+                v-if="currentPartner.role === '用户'"
+                class="pending-ticket-shortcut"
+                size="small"
+                plain
+                @click="openPendingTicketListFromShortcut"
+              >
+                未处理工单
+                <el-badge
+                  :value="userPendingTicketCount"
+                  :hidden="userPendingTicketCount <= 0"
+                  class="pending-ticket-shortcut__badge"
+                />
+              </el-button>
             </div>
 
             <div class="chat-actions">
+              <el-button
+                size="small"
+                @click="openTransferDialog"
+                :disabled="!canTransferConversation"
+              >
+                <el-icon><Service /></el-icon>
+                转接客服
+              </el-button>
               <el-button
                 v-if="currentPartner.role === '用户'"
                 size="small"
@@ -262,8 +287,178 @@
             ¥{{ userDrawer.data.total_spent || 0 }}
           </el-descriptions-item>
         </el-descriptions>
+
+        <el-divider />
+
+        <div class="section-title">未处理工单</div>
+        <div class="pending-ticket-card">
+          <div class="pending-ticket-copy">
+            <div class="pending-ticket-count">
+              {{ userDrawer.data.unresolved_ticket_count || 0 }}
+            </div>
+            <div class="pending-ticket-meta">
+              <el-tag
+                :type="Number(userDrawer.data.unresolved_ticket_count || 0) > 0 ? 'warning' : 'success'"
+                size="small"
+              >
+                {{ Number(userDrawer.data.unresolved_ticket_count || 0) > 0 ? '有未处理工单' : '暂无未处理工单' }}
+              </el-tag>
+            </div>
+          </div>
+          <el-button
+            type="primary"
+            plain
+            :disabled="Number(userDrawer.data.unresolved_ticket_count || 0) <= 0"
+            @click="openPendingTicketList"
+          >
+            查看工单
+          </el-button>
+        </div>
       </template>
     </el-drawer>
+
+    <el-dialog v-model="ticketListDialog.visible" title="未处理工单" width="860px">
+      <el-table v-loading="ticketListDialog.loading" :data="ticketListDialog.tickets" stripe>
+        <el-table-column prop="ticket_no" label="工单编号" min-width="180" />
+        <el-table-column prop="title" label="标题" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="type" label="类型" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getTypeTagType(row.type)" size="small">{{ getTypeText(row.type) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="priority" label="优先级" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getPriorityTagType(row.priority)" size="small">
+              {{ getPriorityText(row.priority) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getStatusTagType(row.status)" size="small">
+              {{ getStatusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="110" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" text @click="viewPendingTicketDetail(row)">详情</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+
+    <el-drawer v-model="ticketDetailDrawer.visible" title="工单详情" size="620px">
+      <template v-if="ticketDetailDrawer.data">
+        <div class="ticket-header">
+          <div class="ticket-info">
+            <el-tag :type="getTypeTagType(ticketDetailDrawer.data.type)" size="large">
+              {{ getTypeText(ticketDetailDrawer.data.type) }}
+            </el-tag>
+            <el-tag :type="getPriorityTagType(ticketDetailDrawer.data.priority)" size="large">
+              {{ getPriorityText(ticketDetailDrawer.data.priority) }}
+            </el-tag>
+            <el-tag :type="getStatusTagType(ticketDetailDrawer.data.status)" size="large">
+              {{ getStatusText(ticketDetailDrawer.data.status) }}
+            </el-tag>
+          </div>
+          <h3>{{ ticketDetailDrawer.data.title }}</h3>
+          <p class="ticket-meta">
+            <span>{{ ticketDetailDrawer.data.ticket_no }}</span>
+            <span>创建于 {{ formatDateTime(ticketDetailDrawer.data.created_at) }}</span>
+          </p>
+        </div>
+
+        <el-divider />
+
+        <div class="section">
+          <h4>工单详情</h4>
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="问题描述">
+              {{ ticketDetailDrawer.data.description || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="关联订单" v-if="ticketDetailDrawer.data.order_id">
+              {{ ticketDetailDrawer.data.order_id }}
+            </el-descriptions-item>
+            <el-descriptions-item label="处理时间" v-if="ticketDetailDrawer.data.resolved_at">
+              {{ formatDateTime(ticketDetailDrawer.data.resolved_at) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="解决方案" v-if="ticketDetailDrawer.data.solution">
+              {{ ticketDetailDrawer.data.solution }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <div
+          class="section action-section"
+          v-if="ticketDetailDrawer.data.status !== 'resolved' && ticketDetailDrawer.data.status !== 'closed'"
+        >
+          <h4>快速处理</h4>
+          <el-form :model="ticketHandleForm" label-width="100px">
+            <el-form-item label="解决方案">
+              <el-input
+                v-model="ticketHandleForm.solution"
+                type="textarea"
+                :rows="3"
+                placeholder="请输入处理备注或解决方案"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="submitPendingTicketHandle" :loading="ticketHandleForm.loading">
+                标记已解决
+              </el-button>
+              <el-button @click="startPendingTicketProcess" :loading="ticketHandleForm.loading">
+                开始处理
+              </el-button>
+              <el-button type="danger" @click="closePendingTicket" :loading="ticketHandleForm.loading">
+                关闭工单
+              </el-button>
+            </el-form-item>
+            <el-form-item v-if="ticketDetailDrawer.data.order_id">
+              <el-button v-if="ticketDetailDrawer.data.type === 'refund'" type="warning" @click="handlePendingTicketRefund">
+                退款
+              </el-button>
+              <el-button v-else-if="ticketDetailDrawer.data.type === 'complaint'" type="danger" @click="handlePendingTicketCompensation">
+                赔偿
+              </el-button>
+              <template v-else-if="ticketDetailDrawer.data.type === 'dispute'">
+                <el-button type="warning" @click="handlePendingTicketRefund">退款</el-button>
+                <el-button type="danger" @click="handlePendingTicketCompensate">赔付</el-button>
+              </template>
+            </el-form-item>
+          </el-form>
+        </div>
+      </template>
+    </el-drawer>
+
+    <el-dialog v-model="transferDialog.visible" title="转接客服" width="420px">
+      <el-form label-position="top">
+        <el-form-item label="目标客服">
+          <el-select
+            v-model="transferDialog.form.targetServiceId"
+            placeholder="请选择要转接的客服"
+            filterable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in transferDialog.services"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="通知用户">
+          <el-switch v-model="transferDialog.form.notifyUser" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="transferDialog.visible = false">取消</el-button>
+        <el-button type="primary" :loading="transferDialog.submitting" @click="submitTransfer">
+          确认转接
+        </el-button>
+      </template>
+    </el-dialog>
 
     <div v-if="previewImage" class="image-preview" @click="closeImagePreview">
       <button type="button" class="preview-close" @click.stop="closeImagePreview">×</button>
@@ -274,15 +469,16 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ChatDotRound, Promotion, Refresh, Search, Service, User } from '@element-plus/icons-vue'
-import { publicApi, serviceChatApi } from '@/api'
+import { publicApi, serviceChatApi, serviceOrderApi, serviceTicketApi } from '@/api'
 import { createChatSocket } from '@/utils/chatSocket'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '')
 const route = useRoute()
+const router = useRouter()
 
 const searchKeyword = ref('')
 const messageInput = ref('')
@@ -308,6 +504,32 @@ const messages = ref([])
 const userDrawer = reactive({
   visible: false,
   data: null,
+})
+
+const ticketListDialog = reactive({
+  visible: false,
+  loading: false,
+  tickets: [],
+})
+
+const ticketDetailDrawer = reactive({
+  visible: false,
+  data: null,
+})
+
+const ticketHandleForm = reactive({
+  solution: '',
+  loading: false,
+})
+
+const transferDialog = reactive({
+  visible: false,
+  submitting: false,
+  services: [],
+  form: {
+    targetServiceId: null,
+    notifyUser: true,
+  },
 })
 
 const quickReplies = [
@@ -347,6 +569,11 @@ const getPartner = (conversation) => {
 }
 
 const currentPartner = computed(() => getPartner(currentConversation.value))
+const currentServiceName = computed(
+  () => currentConversation.value?.service?.name || currentConversation.value?.service?.username || '',
+)
+const canTransferConversation = computed(() => Boolean(currentConversation.value?.id))
+const userPendingTicketCount = computed(() => Number(userDrawer.data?.unresolved_ticket_count || 0))
 
 const filteredConversations = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase()
@@ -409,6 +636,8 @@ const formatDateTime = (value) => {
   if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString('zh-CN')
 }
+
+const isDialogCancel = (error) => error === 'cancel' || error === 'close'
 
 const sortConversations = (list) =>
   [...list].sort((left, right) => {
@@ -581,6 +810,74 @@ const refreshCurrentConversation = async () => {
   await loadConversationDetail(currentConversation.value.id, true)
 }
 
+const loadAvailableServices = async () => {
+  const response = await serviceChatApi.getAvailableServices()
+  if (!response.success) {
+    throw new Error(response.message || '获取客服列表失败')
+  }
+
+  const currentServiceId = Number(currentConversation.value?.service?.id || 0)
+  transferDialog.services = Array.isArray(response.data)
+    ? response.data.filter((item) => Number(item.id) !== currentServiceId)
+    : []
+}
+
+const openTransferDialog = async () => {
+  if (!currentConversation.value?.id) return
+
+  try {
+    await loadAvailableServices()
+    if (!transferDialog.services.length) {
+      ElMessage.warning('暂无可转接的客服')
+      return
+    }
+
+    transferDialog.form.targetServiceId = transferDialog.services[0]?.id || null
+    transferDialog.form.notifyUser = true
+    transferDialog.visible = true
+  } catch (error) {
+    console.error('获取客服列表失败:', error)
+    ElMessage.error(error.message || '获取客服列表失败')
+  }
+}
+
+const submitTransfer = async () => {
+  if (!currentConversation.value?.id) return
+  if (!transferDialog.form.targetServiceId) {
+    ElMessage.warning('请选择要转接的客服')
+    return
+  }
+
+  transferDialog.submitting = true
+  try {
+    const response = await serviceChatApi.transferConversation(currentConversation.value.id, {
+      target_service_id: transferDialog.form.targetServiceId,
+      notify_user: transferDialog.form.notifyUser,
+    })
+
+    if (!response.success) {
+      throw new Error(response.message || '转接会话失败')
+    }
+
+    transferDialog.visible = false
+    conversations.value = conversations.value.filter(
+      (item) => Number(item.id) !== Number(currentConversation.value?.id || 0),
+    )
+    currentConversation.value = null
+    messages.value = []
+    if (route.query.conversationId) {
+      await router.replace({ path: '/service/chat' })
+    }
+    ElMessage.success('会话已转接')
+    await fetchConversations()
+  } catch (error) {
+    console.error('转接会话失败:', error)
+    ElMessage.error(error.message || '转接会话失败')
+  } finally {
+    transferDialog.submitting = false
+  }
+}
+
 const sendMessage = async () => {
   if (!currentConversation.value?.id || !messageInput.value.trim() || sending.value) return
 
@@ -692,6 +989,307 @@ const viewUserDetail = async () => {
     console.error('获取用户信息失败:', error)
     ElMessage.error(error.message || '获取用户信息失败')
   }
+}
+
+const openPendingTicketListFromShortcut = async () => {
+  try {
+    await refreshUserStats()
+    await openPendingTicketList()
+  } catch (error) {
+    console.error('打开未处理工单失败:', error)
+    ElMessage.error(error.message || '打开未处理工单失败')
+  }
+}
+
+const getPendingTicketUserId = () => Number(userDrawer.data?.id || currentConversation.value?.partner?.id || 0)
+
+const refreshUserStats = async () => {
+  const userId = getPendingTicketUserId()
+  if (!userId) return
+
+  const response = await serviceChatApi.getUserStats(userId)
+  if (response.success) {
+    userDrawer.data = response.data
+  }
+}
+
+const fetchPendingTickets = async () => {
+  const userId = getPendingTicketUserId()
+  if (!userId) {
+    throw new Error('未找到用户信息')
+  }
+
+  ticketListDialog.loading = true
+  try {
+    const response = await serviceTicketApi.getTickets({
+      user_id: userId,
+      unresolved_only: true,
+      include_all_user_tickets: true,
+      page: 1,
+      limit: 50,
+    })
+    if (!response.success) {
+      throw new Error(response.message || '获取工单列表失败')
+    }
+
+    ticketListDialog.tickets = Array.isArray(response.data) ? response.data : []
+  } finally {
+    ticketListDialog.loading = false
+  }
+}
+
+const openPendingTicketList = async () => {
+  try {
+    await fetchPendingTickets()
+    ticketListDialog.visible = true
+  } catch (error) {
+    console.error('获取未处理工单失败:', error)
+    ElMessage.error(error.message || '获取未处理工单失败')
+  }
+}
+
+const refreshPendingTicketContext = async (ticketId) => {
+  await Promise.all([fetchPendingTickets(), refreshUserStats()])
+
+  if (!ticketDetailDrawer.visible || !ticketId) return
+
+  const response = await serviceTicketApi.getTicketById(ticketId)
+  if (response.success && response.data) {
+    ticketDetailDrawer.data = response.data
+  }
+}
+
+const viewPendingTicketDetail = async (row) => {
+  ticketHandleForm.solution = ''
+  try {
+    const response = await serviceTicketApi.getTicketById(row.id)
+    ticketDetailDrawer.data = response.success && response.data ? response.data : row
+    ticketDetailDrawer.visible = true
+  } catch (error) {
+    ticketDetailDrawer.data = row
+    ticketDetailDrawer.visible = true
+  }
+}
+
+const updatePendingTicketStatus = async (status, fallbackSolution = '') => {
+  if (!ticketDetailDrawer.data?.id) return
+
+  const solution = String(ticketHandleForm.solution || fallbackSolution).trim()
+  if (!solution) {
+    ElMessage.warning('请输入处理备注')
+    return
+  }
+
+  ticketHandleForm.loading = true
+  try {
+    const response = await serviceTicketApi.updateTicketStatus(ticketDetailDrawer.data.id, {
+      status,
+      solution,
+    })
+
+    if (!response.success) {
+      throw new Error(response.message || '工单处理失败')
+    }
+
+    ElMessage.success('工单处理成功')
+    if (status === 'resolved' || status === 'closed') {
+      ticketDetailDrawer.visible = false
+    }
+    await refreshPendingTicketContext(ticketDetailDrawer.data.id)
+  } catch (error) {
+    console.error('工单处理失败:', error)
+    ElMessage.error(error.message || '工单处理失败')
+  } finally {
+    ticketHandleForm.loading = false
+  }
+}
+
+const submitPendingTicketHandle = async () => {
+  await updatePendingTicketStatus('resolved')
+}
+
+const startPendingTicketProcess = async () => {
+  ticketHandleForm.loading = true
+  try {
+    const response = await serviceTicketApi.claimTicket(ticketDetailDrawer.data.id)
+    if (!response.success) {
+      throw new Error(response.message || '开始处理失败')
+    }
+
+    ElMessage.success('已开始处理工单')
+    await refreshPendingTicketContext(ticketDetailDrawer.data.id)
+  } catch (error) {
+    ElMessage.error(error.message || '开始处理失败')
+  } finally {
+    ticketHandleForm.loading = false
+  }
+}
+
+const closePendingTicket = async () => {
+  await updatePendingTicketStatus('closed', '工单已关闭')
+}
+
+const handlePendingTicketRefund = async () => {
+  if (!ticketDetailDrawer.data?.order_id) {
+    ElMessage.warning('该工单没有关联订单')
+    return
+  }
+
+  try {
+    const { value } = await ElMessageBox.prompt('请输入退款原因', '退款处理', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputValidator: (inputValue) => (inputValue && inputValue.trim() ? true : '请填写退款原因'),
+    })
+
+    const response = await serviceOrderApi.processRefund(ticketDetailDrawer.data.order_id, {
+      reason: value.trim(),
+      ticket_id: ticketDetailDrawer.data.id,
+    })
+
+    if (!response.success) {
+      throw new Error(response.message || '退款处理失败')
+    }
+
+    ElMessage.success('退款处理成功')
+    await refreshPendingTicketContext(ticketDetailDrawer.data.id)
+  } catch (error) {
+    if (!isDialogCancel(error)) {
+      ElMessage.error(error.message || '退款处理失败')
+    }
+  }
+}
+
+const handlePendingTicketCompensation = async () => {
+  if (!ticketDetailDrawer.data?.order_id) {
+    ElMessage.warning('该工单没有关联订单')
+    return
+  }
+
+  try {
+    const { value } = await ElMessageBox.prompt('请输入赔偿金额和原因（格式：金额|原因）', '投诉赔偿处理', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPattern: /^\d+(\.\d+)?\|.+$/,
+      inputErrorMessage: '格式错误，请输入：金额|原因',
+    })
+
+    const [amount, reason] = value.split('|')
+    const response = await serviceOrderApi.processCompensation(ticketDetailDrawer.data.order_id, {
+      amount: parseFloat(amount),
+      reason: reason.trim(),
+      ticket_id: ticketDetailDrawer.data.id,
+    })
+
+    if (!response.success) {
+      throw new Error(response.message || '赔偿处理失败')
+    }
+
+    ElMessage.success('赔偿处理成功')
+    await refreshPendingTicketContext(ticketDetailDrawer.data.id)
+  } catch (error) {
+    if (!isDialogCancel(error)) {
+      ElMessage.error(error.message || '赔偿处理失败')
+    }
+  }
+}
+
+const handlePendingTicketCompensate = async () => {
+  if (!ticketDetailDrawer.data?.order_id) {
+    ElMessage.warning('该工单没有关联订单')
+    return
+  }
+
+  try {
+    const { value } = await ElMessageBox.prompt('请输入额外赔付金额和原因（格式：金额|原因）', '损坏赔付处理', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputPattern: /^\d+(\.\d+)?\|.+$/,
+      inputErrorMessage: '格式错误，请输入：金额|原因',
+    })
+
+    const [amount, reason] = value.split('|')
+    const response = await serviceOrderApi.processCompensate(ticketDetailDrawer.data.order_id, {
+      amount: parseFloat(amount),
+      reason: reason.trim(),
+      ticket_id: ticketDetailDrawer.data.id,
+    })
+
+    if (!response.success) {
+      throw new Error(response.message || '赔付处理失败')
+    }
+
+    ElMessage.success('赔付处理成功')
+    await refreshPendingTicketContext(ticketDetailDrawer.data.id)
+  } catch (error) {
+    if (!isDialogCancel(error)) {
+      ElMessage.error(error.message || '赔付处理失败')
+    }
+  }
+}
+
+const getTypeText = (type) => {
+  const texts = {
+    complaint: '投诉',
+    refund: '退款',
+    dispute: '争议',
+    suggestion: '建议',
+    other: '其他',
+  }
+  return texts[type] || type || '其他'
+}
+
+const getTypeTagType = (type) => {
+  const types = {
+    complaint: 'danger',
+    refund: 'warning',
+    dispute: 'info',
+    suggestion: 'success',
+    other: 'info',
+  }
+  return types[type] || 'info'
+}
+
+const getPriorityText = (priority) => {
+  const texts = {
+    urgent: '紧急',
+    high: '高',
+    medium: '中',
+    normal: '普通',
+    low: '低',
+  }
+  return texts[priority] || priority || '中'
+}
+
+const getPriorityTagType = (priority) => {
+  const types = {
+    urgent: 'danger',
+    high: 'warning',
+    medium: '',
+    normal: '',
+    low: 'info',
+  }
+  return types[priority] || 'info'
+}
+
+const getStatusText = (status) => {
+  const texts = {
+    pending: '待处理',
+    processing: '处理中',
+    resolved: '已解决',
+    closed: '已关闭',
+  }
+  return texts[status] || status
+}
+
+const getStatusTagType = (status) => {
+  const types = {
+    pending: 'warning',
+    processing: 'primary',
+    resolved: 'success',
+    closed: 'info',
+  }
+  return types[status] || ''
 }
 
 const leaveConversationRoom = () => {
@@ -1009,6 +1607,7 @@ watch(
 .chat-partner {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -1031,6 +1630,14 @@ watch(
 .chat-actions {
   display: flex;
   gap: 8px;
+}
+
+.pending-ticket-shortcut {
+  margin-left: 4px;
+}
+
+.pending-ticket-shortcut__badge {
+  margin-left: 6px;
 }
 
 .messages-container {
@@ -1224,6 +1831,77 @@ watch(
   font-size: 16px;
   font-weight: 600;
   color: #303133;
+}
+
+.pending-ticket-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f6f8fb;
+  border: 1px solid #e4eaf2;
+}
+
+.pending-ticket-copy {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pending-ticket-count {
+  min-width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #e4eaf2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: #24364b;
+}
+
+.pending-ticket-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ticket-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ticket-info {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ticket-meta {
+  margin: 0;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.section {
+  margin-top: 20px;
+}
+
+.section h4 {
+  margin: 0 0 12px;
+  color: #303133;
+}
+
+.action-section {
+  padding-top: 4px;
 }
 
 :deep(.el-drawer__body) {

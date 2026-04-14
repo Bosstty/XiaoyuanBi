@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { ChatConversation, ChatMessage, User, Deliverer, PickupOrder, Service } = require('../../models');
+const { ChatConversation, ChatMessage, User, Deliverer, PickupOrder, Service, ServiceTicket } = require('../../models');
 const { emitConversationEvent } = require('../../../config/socket');
 
 const DIRECT_CHAT_TYPE = 'user_deliverer';
@@ -85,6 +85,9 @@ const loadServiceProfile = async serviceId => {
         staff_code: `KF-${String(service.id).padStart(3, '0')}`,
     };
 };
+
+const getServiceDisplayName = service =>
+    service?.name || service?.username || (service?.id ? `客服 #${service.id}` : '在线客服');
 
 const resolvePartnerInfo = async (conversation, currentUserId, currentUserRole = 'user') => {
     if (currentUserRole === 'service') {
@@ -556,6 +559,46 @@ class ServiceChatController {
         }
     }
 
+    async getAvailableServices(req, res) {
+        try {
+            if (getCurrentRole(req) !== 'service') {
+                return res.status(403).json({
+                    success: false,
+                    message: '无权限获取客服列表',
+                });
+            }
+
+            const services = await Service.findAll({
+                where: { status: 'active' },
+                attributes: ['id', 'username', 'name', 'avatar', 'role', 'status'],
+                order: [
+                    ['last_login_at', 'DESC'],
+                    ['id', 'ASC'],
+                ],
+            });
+
+            res.json({
+                success: true,
+                data: services.map(service => ({
+                    id: service.id,
+                    username: service.username,
+                    name: getServiceDisplayName(service),
+                    avatar: service.avatar || null,
+                    role: service.role,
+                    status: service.status,
+                    staff_code: `KF-${String(service.id).padStart(3, '0')}`,
+                })),
+            });
+        } catch (error) {
+            console.error('获取客服列表失败:', error);
+            res.status(500).json({
+                success: false,
+                message: '获取客服列表失败',
+                error: error.message,
+            });
+        }
+    }
+
     async getMessages(req, res) {
         try {
             const { conversation_id, page = 1, limit = 50 } = req.query;
@@ -679,6 +722,144 @@ class ServiceChatController {
             res.status(500).json({
                 success: false,
                 message: '发送消息失败',
+                error: error.message,
+            });
+        }
+    }
+
+    async transferConversation(req, res) {
+        try {
+            const currentUserId = Number(req.user?.id || 0);
+            const currentRole = getCurrentRole(req);
+            const conversationId = Number(req.params.id || 0);
+            const targetServiceId = Number(req.body.target_service_id || req.body.service_id || 0);
+            const notifyUser = req.body.notify_user !== false;
+
+            if (currentRole !== 'service' || !currentUserId) {
+                return res.status(403).json({
+                    success: false,
+                    message: '无权限转接会话',
+                });
+            }
+
+            if (!conversationId) {
+                return res.status(400).json({
+                    success: false,
+                    message: '会话ID不正确',
+                });
+            }
+
+            if (!targetServiceId) {
+                return res.status(400).json({
+                    success: false,
+                    message: '请选择转接客服',
+                });
+            }
+
+            const conversation = await ChatConversation.findByPk(conversationId);
+
+            if (!conversation) {
+                return res.status(404).json({
+                    success: false,
+                    message: '会话不存在',
+                });
+            }
+
+            if (!hasConversationAccess(conversation, currentUserId, currentRole)) {
+                return res.status(403).json({
+                    success: false,
+                    message: '无权限操作该会话',
+                });
+            }
+
+            if (
+                conversation.type !== 'user_service' &&
+                conversation.type !== 'deliverer_service'
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: '当前会话类型不支持转接',
+                });
+            }
+
+            if (Number(conversation.service_id || 0) !== Number(currentUserId)) {
+                return res.status(403).json({
+                    success: false,
+                    message: '只有当前负责人可以转接会话',
+                });
+            }
+
+            if (Number(conversation.service_id || 0) === targetServiceId) {
+                return res.status(400).json({
+                    success: false,
+                    message: '目标客服不能与当前负责人相同',
+                });
+            }
+
+            const [fromService, targetService] = await Promise.all([
+                Service.findByPk(currentUserId, {
+                    attributes: ['id', 'username', 'name'],
+                }),
+                Service.findOne({
+                    where: { id: targetServiceId, status: 'active' },
+                    attributes: ['id', 'username', 'name', 'avatar', 'role', 'status'],
+                }),
+            ]);
+
+            if (!targetService) {
+                return res.status(404).json({
+                    success: false,
+                    message: '目标客服不存在或已停用',
+                });
+            }
+
+            const fromName = getServiceDisplayName(fromService);
+            const targetName = getServiceDisplayName(targetService);
+            const systemMessageText = notifyUser
+                ? `当前会话已由${fromName}转交给${targetName}，接下来由${targetName}继续为您服务。`
+                : `当前会话已由${fromName}转交给${targetName}。`;
+
+            await conversation.update({
+                service_id: targetService.id,
+                last_message: systemMessageText,
+                last_message_at: new Date(),
+            });
+
+            const systemMessage = await ChatMessage.create({
+                conversation_id: conversation.id,
+                sender_id: targetService.id,
+                sender_type: 'service',
+                receiver_type: conversation.type === 'deliverer_service' ? 'deliverer' : 'user',
+                content: systemMessageText,
+                type: 'system',
+                is_read: false,
+            });
+
+            const decoratedConversation = await decorateConversation(
+                conversation,
+                currentUserId,
+                currentRole
+            );
+
+            emitConversationEvent(conversation, 'chat:message:new', {
+                conversation_id: conversation.id,
+                message: systemMessage.toJSON(),
+            });
+            emitConversationEvent(conversation, 'chat:conversation:updated', {
+                conversation_id: conversation.id,
+                conversation: decoratedConversation,
+            });
+
+            res.json({
+                success: true,
+                message: '会话转接成功',
+                data: decoratedConversation,
+            });
+        } catch (error) {
+            console.error('转接会话失败:', error);
+            res.status(500).json({
+                success: false,
+                message: '转接会话失败',
                 error: error.message,
             });
         }
@@ -829,6 +1010,14 @@ class ServiceChatController {
                     ],
                 },
             });
+            const unresolvedTickets = await ServiceTicket.count({
+                where: {
+                    user_id: userId,
+                    status: {
+                        [Op.in]: ['pending', 'processing'],
+                    },
+                },
+            });
 
             res.json({
                 success: true,
@@ -837,6 +1026,7 @@ class ServiceChatController {
                     total_orders: totalOrders,
                     complaint_count: 0,
                     history_chats_count: historyChats,
+                    unresolved_ticket_count: unresolvedTickets,
                 },
             });
         } catch (error) {

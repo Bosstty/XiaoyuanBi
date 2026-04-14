@@ -231,6 +231,13 @@ export const userManagementApi = {
   getUserActivityLog: (id, params) => apiClient.get(`/admin/users/${id}/activity-log`, params),
 }
 
+export const adminServiceApi = {
+  getServices: () => apiClient.get('/admin/services'),
+  createService: (data) => apiClient.post('/admin/services', data),
+  updateService: (id, data) => apiClient.put(`/admin/services/${id}`, data),
+  updateServiceStatus: (id, status) => apiClient.patch(`/admin/services/${id}/status`, { status }),
+}
+
 // =========================================
 // 订单管理 API (/api/admin/orders/*)
 // =========================================
@@ -333,6 +340,7 @@ export const serviceAuthApi = {
   logout: () => apiClient.post('/service/auth/logout'),
   getProfile: () => apiClient.get('/service/auth/profile'),
   updateProfile: (data) => apiClient.put('/service/auth/profile', data),
+  changePassword: (data) => apiClient.post('/service/auth/change-password', data),
 }
 
 // 客服工单 API (/api/service/tickets/*)
@@ -345,6 +353,12 @@ export const serviceTicketApi = {
   createTicket: (data) => apiClient.post('/service/tickets', data),
   // 更新工单状态
   updateTicketStatus: (id, data) => apiClient.patch(`/service/tickets/${id}/status`, data),
+  // 开始处理工单
+  claimTicket: (id) => apiClient.post(`/service/tickets/${id}/claim`),
+  // 释放工单
+  releaseTicket: (id) => apiClient.post(`/service/tickets/${id}/release`),
+  // 修改工单类型
+  updateTicketType: (id, type) => apiClient.patch(`/service/tickets/${id}/type`, { type }),
   // 分配工单
   assignTicket: (id, data) => apiClient.post(`/service/tickets/${id}/assign`, data),
 }
@@ -357,6 +371,10 @@ export const serviceChatApi = {
   getConversations: (params) => apiClient.get('/service/chat/conversations', params),
   // 获取会话详情
   getConversationDetail: (id) => apiClient.get(`/service/chat/conversations/${id}`),
+  // 获取可转接客服列表
+  getAvailableServices: () => apiClient.get('/service/chat/services'),
+  // 转接会话
+  transferConversation: (id, data) => apiClient.post(`/service/chat/conversations/${id}/transfer`, data),
   // 获取消息列表
   getMessages: (params) => apiClient.get('/service/chat/messages', params),
   // 发送消息

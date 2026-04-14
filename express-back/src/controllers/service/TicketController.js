@@ -14,6 +14,16 @@ const PickupSettlementService = require('../../services/PickupSettlementService'
 const DamageCompensationService = require('../../services/DamageCompensationService');
 const { emitConversationEvent } = require('../../../config/socket');
 
+const ALLOWED_TICKET_TYPES = ['complaint', 'refund', 'dispute', 'suggestion', 'other'];
+
+const normalizeTicketTypes = value =>
+    Array.isArray(value) ? value.filter(item => ALLOWED_TICKET_TYPES.includes(item)) : [];
+
+const canServiceHandleType = (service, ticketType) => {
+    if (!service) return false;
+    return normalizeTicketTypes(service.ticket_types).includes(ticketType);
+};
+
 async function ensureOrderReadyForCompensation(order, transaction) {
     if (!['accepted', 'picking', 'delivering', 'completed'].includes(order.status)) {
         throw new Error('当前订单状态不支持直接处理赔付');
@@ -182,6 +192,12 @@ class ServiceTicketController {
                 status,
                 type,
                 priority,
+                user_id,
+                userId,
+                include_all_user_tickets,
+                includeAllUserTickets: includeAllUserTicketsQuery,
+                unresolved_only,
+                unresolvedOnly,
                 page = 1,
                 limit = 10,
                 pageSize,
@@ -203,7 +219,62 @@ class ServiceTicketController {
                 where.priority = priority;
             }
 
-            if (req.userRole === 'service' && req.user?.id) {
+            const targetUserId = Number(user_id || userId || 0);
+            if (targetUserId) {
+                where.user_id = targetUserId;
+            }
+
+            const unresolvedOnlyEnabled =
+                unresolved_only === '1' ||
+                unresolved_only === 'true' ||
+                unresolvedOnly === '1' ||
+                unresolvedOnly === 'true';
+
+            if (unresolvedOnlyEnabled) {
+                where.status = {
+                    [Op.in]: ['pending', 'processing'],
+                };
+            }
+
+            const includeAllUserTickets =
+                include_all_user_tickets === '1' ||
+                include_all_user_tickets === 'true' ||
+                includeAllUserTicketsQuery === '1' ||
+                includeAllUserTicketsQuery === 'true';
+
+            if (req.userRole === 'service' && req.user?.id && !includeAllUserTickets) {
+                const availableTicketTypes = normalizeTicketTypes(req.user.ticket_types);
+                if (!availableTicketTypes.length) {
+                    return res.json({
+                        success: true,
+                        data: [],
+                        pagination: {
+                            current_page: parseInt(page),
+                            per_page: parseInt(actualLimit),
+                            total: 0,
+                            total_pages: 0,
+                        },
+                    });
+                }
+
+                if (type && !availableTicketTypes.includes(type)) {
+                    return res.json({
+                        success: true,
+                        data: [],
+                        pagination: {
+                            current_page: parseInt(page),
+                            per_page: parseInt(actualLimit),
+                            total: 0,
+                            total_pages: 0,
+                        },
+                    });
+                }
+
+                where.type = type
+                    ? type
+                    : {
+                          [Op.in]: availableTicketTypes,
+                      };
                 where[Op.or] = [{ service_id: null }, { service_id: req.user.id }];
             }
 
@@ -215,7 +286,15 @@ class ServiceTicketController {
 
             const { count, rows } = await ServiceTicket.findAndCountAll({
                 where,
-                include: [{ model: User, as: 'user', attributes: ['id', 'username', 'phone'] }],
+                include: [
+                    { model: User, as: 'user', attributes: ['id', 'username', 'phone'] },
+                    {
+                        model: Service,
+                        as: 'service',
+                        attributes: ['id', 'username', 'name'],
+                        required: false,
+                    },
+                ],
                 order: [['created_at', 'DESC']],
                 limit: parseInt(actualLimit),
                 offset: (page - 1) * actualLimit,
@@ -294,6 +373,17 @@ class ServiceTicketController {
                 });
             }
 
+            if (
+                req.userRole === 'service' &&
+                !canServiceHandleType(req.user, ticket.type) &&
+                Number(ticket.service_id || 0) !== Number(req.user?.id || 0)
+            ) {
+                return res.status(403).json({
+                    success: false,
+                    message: '当前客服无权查看该类型工单',
+                });
+            }
+
             res.json({
                 success: true,
                 data: ticket,
@@ -348,9 +438,30 @@ class ServiceTicketController {
                     return null;
                 }
 
+                if (req.userRole === 'service') {
+                    if (
+                        !canServiceHandleType(req.user, ticket.type) &&
+                        Number(ticket.service_id || 0) !== Number(req.user?.id || 0)
+                    ) {
+                        throw new Error('当前客服无权处理该类型工单');
+                    }
+
+                    if (status === 'processing' && Number(ticket.service_id || 0) !== Number(req.user.id)) {
+                        throw new Error('请使用开始处理功能领取工单');
+                    }
+
+                    if (['resolved', 'closed'].includes(status)) {
+                        if (!ticket.service_id || Number(ticket.service_id || 0) !== Number(req.user.id)) {
+                            throw new Error('请先点击开始处理，锁定工单后再继续操作');
+                        }
+                    }
+                }
+
                 ticket.status = status;
                 ticket.solution = solution;
-                ticket.service_id = req.user.id;
+                if (req.userRole === 'service') {
+                    ticket.service_id = req.user.id;
+                }
                 ticket.resolved_at = status === 'resolved' ? new Date() : null;
                 await ticket.save();
 
@@ -393,6 +504,149 @@ class ServiceTicketController {
         }
     }
 
+    async claimTicket(req, res) {
+        try {
+            const ticket = await ServiceTicket.findByPk(req.params.id);
+
+            if (!ticket) {
+                return res.status(404).json({
+                    success: false,
+                    message: '工单不存在',
+                });
+            }
+
+            if (!canServiceHandleType(req.user, ticket.type)) {
+                return res.status(403).json({
+                    success: false,
+                    message: '当前客服不能处理该类型工单',
+                });
+            }
+
+            if (ticket.service_id && Number(ticket.service_id || 0) !== Number(req.user.id)) {
+                return res.status(409).json({
+                    success: false,
+                    message: '工单已被其他客服领取',
+                });
+            }
+
+            ticket.service_id = req.user.id;
+            ticket.status = 'processing';
+            await ticket.save();
+
+            res.json({
+                success: true,
+                message: '已开始处理工单',
+                data: ticket,
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message || '开始处理失败',
+            });
+        }
+    }
+
+    async releaseTicket(req, res) {
+        try {
+            const ticket = await ServiceTicket.findByPk(req.params.id);
+
+            if (!ticket) {
+                return res.status(404).json({
+                    success: false,
+                    message: '工单不存在',
+                });
+            }
+
+            if (Number(ticket.service_id || 0) !== Number(req.user.id)) {
+                return res.status(403).json({
+                    success: false,
+                    message: '只能释放自己领取的工单',
+                });
+            }
+
+            ticket.service_id = null;
+            ticket.status = 'pending';
+            await ticket.save();
+
+            res.json({
+                success: true,
+                message: '工单已释放',
+                data: ticket,
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message || '释放工单失败',
+            });
+        }
+    }
+
+    async updateTicketType(req, res) {
+        try {
+            const ticket = await ServiceTicket.findByPk(req.params.id);
+            const nextType = String(req.body.type || '').trim();
+
+            if (!ticket) {
+                return res.status(404).json({
+                    success: false,
+                    message: '工单不存在',
+                });
+            }
+
+            if (!ALLOWED_TICKET_TYPES.includes(nextType)) {
+                return res.status(400).json({
+                    success: false,
+                    message: '工单类型不正确',
+                });
+            }
+
+            if (req.userRole === 'service') {
+                if (
+                    ticket.service_id &&
+                    Number(ticket.service_id || 0) !== Number(req.user.id)
+                ) {
+                    return res.status(403).json({
+                        success: false,
+                        message: '当前工单已由其他客服处理，无法修改类型',
+                    });
+                }
+
+                if (
+                    !canServiceHandleType(req.user, ticket.type) &&
+                    Number(ticket.service_id || 0) !== Number(req.user.id)
+                ) {
+                    return res.status(403).json({
+                        success: false,
+                        message: '当前客服无权修改该类型工单',
+                    });
+                }
+
+                if (canServiceHandleType(req.user, nextType)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: '只能改成自己负责范围外的工单类型',
+                    });
+                }
+            }
+
+            ticket.type = nextType;
+            ticket.service_id = null;
+            ticket.status = 'pending';
+            await ticket.save();
+
+            res.json({
+                success: true,
+                message: '工单类型已更新，等待对应客服处理',
+                data: ticket,
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message || '修改工单类型失败',
+            });
+        }
+    }
+
     // 分配工单
     async assignTicket(req, res) {
         try {
@@ -415,7 +669,7 @@ class ServiceTicketController {
 
             const service = await Service.findOne({
                 where: { id: serviceId, status: 'active' },
-                attributes: ['id'],
+                attributes: ['id', 'ticket_types'],
             });
 
             if (!service) {
@@ -425,9 +679,16 @@ class ServiceTicketController {
                 });
             }
 
+            if (!canServiceHandleType(service, ticket.type)) {
+                return res.status(400).json({
+                    success: false,
+                    message: '目标客服不能处理该类型工单',
+                });
+            }
+
             const previousServiceId = ticket.service_id;
             ticket.service_id = service.id;
-            ticket.status = 'processing';
+            ticket.status = 'pending';
             await ticket.save();
 
             await transferTicketConversations(ticket, previousServiceId, service.id);

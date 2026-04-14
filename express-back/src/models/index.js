@@ -131,6 +131,15 @@ Task.hasMany(ServiceTicket, {
     as: 'serviceTickets',
 });
 
+Service.hasMany(ServiceTicket, {
+    foreignKey: 'service_id',
+    as: 'tickets',
+});
+ServiceTicket.belongsTo(Service, {
+    foreignKey: 'service_id',
+    as: 'service',
+});
+
 // 用户与论坛帖子的关系
 User.hasMany(ForumPost, {
     foreignKey: 'author_id',

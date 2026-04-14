@@ -38,6 +38,11 @@ const Service = sequelize.define('Service', {
         type: DataTypes.ENUM('active', 'inactive', 'banned'),
         defaultValue: 'active'
     },
+    ticket_types: {
+        type: DataTypes.JSON,
+        allowNull: false,
+        defaultValue: []
+    },
     last_login_at: {
         type: DataTypes.DATE
     }
