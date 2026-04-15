@@ -185,6 +185,127 @@ async function transferTicketConversations(ticket, fromServiceId, toServiceId) {
 }
 
 class ServiceTicketController {
+    async getOrderDetail(req, res) {
+        try {
+            const { id } = req.params;
+
+            if (!id) {
+                return res.status(400).json({
+                    success: false,
+                    message: '订单ID不能为空',
+                });
+            }
+
+            const order = await PickupOrder.findByPk(id, {
+                include: [
+                    {
+                        model: User,
+                        as: 'user',
+                        attributes: ['id', 'username', 'real_name', 'avatar', 'phone', 'student_id'],
+                    },
+                    {
+                        model: Deliverer,
+                        as: 'delivererInfo',
+                        attributes: ['id', 'real_name', 'phone', 'rating', 'status'],
+                    },
+                    {
+                        model: PickupOrderItem,
+                        as: 'items',
+                    },
+                ],
+            });
+
+            if (!order) {
+                return res.status(404).json({
+                    success: false,
+                    message: '订单不存在',
+                });
+            }
+
+            return res.json({
+                success: true,
+                message: '获取订单详情成功',
+                data: order,
+            });
+        } catch (error) {
+            console.error('获取客服订单详情失败:', error);
+            return res.status(500).json({
+                success: false,
+                message: '获取订单详情失败',
+                error: error.message,
+            });
+        }
+    }
+
+    async updateOrderStatus(req, res) {
+        try {
+            const { id } = req.params;
+            const { status, reason } = req.body || {};
+
+            if (!id || !status) {
+                return res.status(400).json({
+                    success: false,
+                    message: '订单ID和状态不能为空',
+                });
+            }
+
+            const order = await PickupOrder.findByPk(id);
+
+            if (!order) {
+                return res.status(404).json({
+                    success: false,
+                    message: '订单不存在',
+                });
+            }
+
+            const allowedTransitions = {
+                pending: ['accepted', 'cancelled'],
+                accepted: ['picking', 'cancelled'],
+                picking: ['delivering', 'cancelled'],
+                delivering: ['completed', 'cancelled'],
+                completed: [],
+                cancelled: [],
+            };
+
+            if (!allowedTransitions[order.status]?.includes(status)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `订单状态不能从 ${order.status} 转换为 ${status}`,
+                });
+            }
+
+            order.status = status;
+            if (reason) {
+                order.cancel_reason = reason;
+            }
+
+            if (status === 'cancelled') {
+                order.cancel_time = new Date();
+            } else if (status === 'accepted') {
+                order.accept_time = new Date();
+            } else if (status === 'picking') {
+                order.pickup_complete_time = new Date();
+            } else if (status === 'completed') {
+                order.delivery_complete_time = new Date();
+            }
+
+            await order.save();
+
+            return res.json({
+                success: true,
+                message: '订单状态更新成功',
+                data: order,
+            });
+        } catch (error) {
+            console.error('客服更新订单状态失败:', error);
+            return res.status(500).json({
+                success: false,
+                message: '更新订单状态失败',
+                error: error.message,
+            });
+        }
+    }
+
     // 获取工单列表
     async getTickets(req, res) {
         try {

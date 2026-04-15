@@ -14,6 +14,7 @@ export const chatApi = {
         order_id?: number;
         task_id?: number;
         type?: string;
+        ticket_type?: 'complaint' | 'refund' | 'dispute' | 'suggestion' | 'other';
         initial_message?: string;
     }) => apiClient.post('/chat/conversations', data),
 

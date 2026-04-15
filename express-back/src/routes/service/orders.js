@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const ServiceTicketController = require('../../controllers/service/TicketController');
 
+router.get('/:id', ServiceTicketController.getOrderDetail);
+router.patch('/:id/status', ServiceTicketController.updateOrderStatus);
+
 // 申请退款
 router.post('/:id/refund', ServiceTicketController.processRefund);
 

@@ -487,8 +487,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Download,
@@ -507,6 +507,7 @@ import { dateUtils } from '@/utils'
 import { exportCsvFile, normalizeExportValue } from '@/utils/export'
 import DashboardFilterHeader from '../dashboard/components/DashboardFilterHeader.vue'
 
+const route = useRoute()
 const router = useRouter()
 const adminStore = useAdminStore()
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
@@ -715,6 +716,22 @@ const viewDetail = async (row) => {
   } catch {
     detailDrawer.data = row
     detailDrawer.visible = true
+  }
+}
+
+const openTicketFromRoute = async (ticketIdValue) => {
+  const ticketId = Number(ticketIdValue || 0)
+  if (!ticketId) return
+
+  handleForm.solution = ''
+  try {
+    const response = await serviceTicketApi.getTicketById(ticketId)
+    if (response.success && response.data) {
+      detailDrawer.data = response.data
+      detailDrawer.visible = true
+    }
+  } catch (error) {
+    console.error('根据路由打开工单详情失败:', error)
   }
 }
 
@@ -1177,7 +1194,15 @@ onMounted(() => {
   start.setDate(start.getDate() - 30)
   dateRange.value = [dateUtils.formatDate(start), dateUtils.formatDate(end)]
   refreshPageData()
+  openTicketFromRoute(route.query.ticketId)
 })
+
+watch(
+  () => route.query.ticketId,
+  (value) => {
+    openTicketFromRoute(value)
+  },
+)
 </script>
 
 <style scoped>

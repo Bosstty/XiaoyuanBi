@@ -3,16 +3,107 @@
     <!-- Header -->
     <DashboardFilterHeader
       v-model="dateRange"
-      title="数据看板"
-      subtitle="运营首页 · 实时总览 · 快速进入分析与处理"
+      :title="isService ? '客服工作看板' : '数据看板'"
+      :subtitle="
+        isService
+          ? '客服首页 · 会话状态 · 工单处理与今日工作节奏'
+          : '运营首页 · 实时总览 · 快速进入分析与处理'
+      "
       filter-label="统计范围"
-      filter-hint="默认展示最近30天，可按需调整"
+      :filter-hint="isService ? '默认统计最近30天工单数据' : '默认展示最近30天，可按需调整'"
       :action-icon="Download"
-      action-label="导出总览"
+      :action-label="isService ? '导出客服概览' : '导出总览'"
       @change="handleDateRangeChange"
       @action="handleExportOverview"
     />
 
+    <template v-if="isService">
+      <div class="stats-grid">
+        <div v-for="card in serviceStatCards" :key="card.key" class="stat-card" :class="card.theme">
+          <div class="stat-icon">
+            <el-icon :size="20"><component :is="card.icon" /></el-icon>
+          </div>
+          <div class="stat-body">
+            <span class="stat-label">{{ card.label }}</span>
+            <div class="stat-value-row">
+              <span class="stat-value">{{ card.prefix }}{{ formatNumber(card.value) }}</span>
+              <el-tag :type="card.tagType" size="small" effect="dark" round>{{ card.tag }}</el-tag>
+            </div>
+            <div class="stat-meta">{{ card.meta }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-grid">
+        <el-card shadow="never">
+          <template #header>
+            <div class="card-header">
+              <h3 class="card-title">快捷入口</h3>
+            </div>
+          </template>
+          <div class="quick-grid">
+            <router-link
+              v-for="entry in serviceQuickEntries"
+              :key="entry.to"
+              :to="entry.to"
+              class="quick-item"
+            >
+              <div class="quick-icon" :class="entry.theme">
+                <el-icon :size="22"><component :is="entry.icon" /></el-icon>
+              </div>
+              <span>{{ entry.label }}</span>
+            </router-link>
+          </div>
+        </el-card>
+
+        <el-card shadow="never">
+          <template #header>
+            <div class="card-header">
+              <h3 class="card-title">待处理事项</h3>
+              <el-badge :value="servicePendingItems.length" type="danger" />
+            </div>
+          </template>
+          <div class="list-wrap">
+            <div
+              v-for="item in servicePendingItems"
+              :key="item.id"
+              class="list-item pending-item"
+              :class="'p-' + item.priority"
+            >
+              <div class="dot priority-dot"></div>
+              <div class="flex-1">
+                <div class="item-title">{{ item.title }}</div>
+                <div class="item-desc">{{ item.description }}</div>
+              </div>
+              <router-link class="text-link" :to="item.to">处理</router-link>
+            </div>
+          </div>
+        </el-card>
+
+        <el-card shadow="never">
+          <template #header>
+            <div class="card-header">
+              <h3 class="card-title">最近工单</h3>
+              <router-link to="/service/after-sales" class="text-link">查看全部</router-link>
+            </div>
+          </template>
+          <div class="list-wrap">
+            <div v-for="item in serviceRecentTickets" :key="item.id" class="list-item">
+              <div class="dot" :class="item.status === 'pending' ? 'warning' : item.status === 'processing' ? 'primary' : 'success'"></div>
+              <div>
+                <div class="item-title">{{ item.title || item.ticket_no }}</div>
+                <div class="item-desc">
+                  {{ getTicketTypeText(item.type) }} · {{ getTicketStatusText(item.status) }} · {{ formatListDate(item.created_at) }}
+                </div>
+              </div>
+            </div>
+            <el-empty v-if="!serviceRecentTickets.length" description="暂无工单" />
+          </div>
+        </el-card>
+      </div>
+    </template>
+
+    <template v-else>
     <!-- Stats Grid -->
     <div class="stats-grid">
       <div v-for="card in statCards" :key="card.key" class="stat-card" :class="card.theme">
@@ -164,6 +255,7 @@
         </div>
       </el-card>
     </div>
+    </template>
   </div>
 </template>
 
@@ -180,8 +272,9 @@ import {
   GridComponent,
 } from 'echarts/components'
 import { ElMessage } from 'element-plus'
-import { analyticsApi } from '@/api'
+import { analyticsApi, serviceChatApi, serviceTicketApi } from '@/api'
 import { exportCsvFile } from '@/utils/export'
+import { useAdminStore } from '@/stores/admin'
 import DashboardFilterHeader from './components/DashboardFilterHeader.vue'
 import {
   User,
@@ -192,6 +285,9 @@ import {
   ChatDotRound,
   TrendCharts,
   Setting,
+  Tickets,
+  Message,
+  CircleCheck,
 } from '@element-plus/icons-vue'
 
 use([
@@ -205,6 +301,8 @@ use([
 ])
 
 // ---- State ----
+const adminStore = useAdminStore()
+const isService = computed(() => adminStore.isService)
 const dateRange = ref([])
 const overviewPeriod = ref('30')
 const refreshing = ref(false)
@@ -232,6 +330,14 @@ const realtime = reactive({
 const serviceQuality = reactive({ complaints: 0 })
 const abnormalAlerts = ref([])
 const trendSource = ref([])
+const serviceBoard = reactive({
+  conversations: 0,
+  unreadMessages: 0,
+  pendingTickets: 0,
+  processingTickets: 0,
+  resolvedTickets: 0,
+})
+const serviceRecentTickets = ref([])
 
 // ---- Computed ----
 const abnormalSummary = computed(() => abnormalAlerts.value[0] || {})
@@ -350,6 +456,90 @@ const pendingItems = computed(() => [
     to: '/system',
   },
 ])
+
+const serviceStatCards = computed(() => [
+  {
+    key: 'conversations',
+    theme: 'theme-indigo',
+    label: '当前会话',
+    prefix: '',
+    value: serviceBoard.conversations,
+    tagType: 'primary',
+    tag: `未读 ${formatNumber(serviceBoard.unreadMessages)}`,
+    meta: '客服当前可处理的会话总数',
+    icon: Message,
+  },
+  {
+    key: 'pending',
+    theme: 'theme-orange',
+    label: '待处理工单',
+    prefix: '',
+    value: serviceBoard.pendingTickets,
+    tagType: 'warning',
+    tag: '尽快响应',
+    meta: '尚未开始处理的工单',
+    icon: Tickets,
+  },
+  {
+    key: 'processing',
+    theme: 'theme-blue',
+    label: '处理中工单',
+    prefix: '',
+    value: serviceBoard.processingTickets,
+    tagType: 'success',
+    tag: '处理中',
+    meta: '当前正在跟进的工单',
+    icon: Briefcase,
+  },
+  {
+    key: 'resolved',
+    theme: 'theme-green',
+    label: '已解决工单',
+    prefix: '',
+    value: serviceBoard.resolvedTickets,
+    tagType: 'info',
+    tag: '统计期内',
+    meta: '已完成处理闭环的工单数',
+    icon: CircleCheck,
+  },
+])
+
+const serviceQuickEntries = [
+  { to: '/service/chat', label: '在线客服', theme: 'qi', icon: Message },
+  { to: '/service/after-sales', label: '售后工单', theme: 'qo', icon: Tickets },
+]
+
+const servicePendingItems = computed(() => {
+  const items = []
+  if (serviceBoard.unreadMessages > 0) {
+    items.push({
+      id: 1,
+      title: '未读消息待回复',
+      description: `当前共有 ${formatNumber(serviceBoard.unreadMessages)} 条未读消息`,
+      priority: serviceBoard.unreadMessages > 10 ? 'urgent' : 'high',
+      to: '/service/chat',
+    })
+  }
+  if (serviceBoard.pendingTickets > 0) {
+    items.push({
+      id: 2,
+      title: '待处理工单',
+      description: `当前共有 ${formatNumber(serviceBoard.pendingTickets)} 条待处理工单`,
+      priority: serviceBoard.pendingTickets > 5 ? 'high' : 'normal',
+      to: '/service/after-sales',
+    })
+  }
+  if (serviceBoard.processingTickets > 0) {
+    items.push({
+      id: 3,
+      title: '处理中工单跟进',
+      description: `当前共有 ${formatNumber(serviceBoard.processingTickets)} 条处理中工单`,
+      priority: 'normal',
+      to: '/service/after-sales',
+    })
+  }
+  return items
+})
 
 function getDashboardQueryParams(options = {}) {
   const params = {}
@@ -476,6 +666,36 @@ function formatNumber(num) {
   return new Intl.NumberFormat('zh-CN').format(num)
 }
 
+function formatListDate(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleDateString('zh-CN')
+}
+
+function getTicketTypeText(type) {
+  return (
+    {
+      complaint: '投诉',
+      refund: '退款',
+      dispute: '争议',
+      suggestion: '建议',
+      other: '其他',
+    }[type] || type || '工单'
+  )
+}
+
+function getTicketStatusText(status) {
+  return (
+    {
+      pending: '待处理',
+      processing: '处理中',
+      resolved: '已解决',
+      closed: '已关闭',
+    }[status] || status || '-'
+  )
+}
+
 // ---- API ----
 async function fetchDashboardData() {
   const r = await analyticsApi.getDashboardStats(getDashboardQueryParams())
@@ -491,6 +711,28 @@ async function fetchDashboardData() {
     metrics.completionRate =
       d.orders?.total > 0 ? ((d.orders.completed / d.orders.total) * 100).toFixed(1) : '0.0'
   }
+}
+
+async function fetchServiceDashboardData() {
+  const ticketParams = getDashboardQueryParams()
+  const [conversationsRes, pendingRes, processingRes, resolvedRes, recentRes] = await Promise.all([
+    serviceChatApi.getConversations({ page: 1, limit: 50 }),
+    serviceTicketApi.getTickets({ ...ticketParams, status: 'pending', page: 1, limit: 1 }),
+    serviceTicketApi.getTickets({ ...ticketParams, status: 'processing', page: 1, limit: 1 }),
+    serviceTicketApi.getTickets({ ...ticketParams, status: 'resolved', page: 1, limit: 1 }),
+    serviceTicketApi.getTickets({ ...ticketParams, page: 1, limit: 6 }),
+  ])
+
+  const conversations = Array.isArray(conversationsRes?.data) ? conversationsRes.data : []
+  serviceBoard.conversations = conversations.length
+  serviceBoard.unreadMessages = conversations.reduce(
+    (sum, item) => sum + Number(item?.unread_count || 0),
+    0,
+  )
+  serviceBoard.pendingTickets = pendingRes?.pagination?.total || 0
+  serviceBoard.processingTickets = processingRes?.pagination?.total || 0
+  serviceBoard.resolvedTickets = resolvedRes?.pagination?.total || 0
+  serviceRecentTickets.value = Array.isArray(recentRes?.data) ? recentRes.data.slice(0, 6) : []
 }
 
 async function fetchRealtimeData() {
@@ -527,6 +769,11 @@ async function refreshData() {
   if (refreshing.value) return
   refreshing.value = true
   try {
+    if (isService.value) {
+      await fetchServiceDashboardData()
+      return
+    }
+
     const periodMap = { 7: 'week', 30: 'month', 90: 'quarter' }
     const results = await Promise.allSettled([
       fetchDashboardData(),
@@ -556,6 +803,24 @@ async function handleDateRangeChange() {
 }
 
 function handleExportOverview() {
+  if (isService.value) {
+    const rows = [
+      { 模块: '客服概览', 指标: '当前会话', 值: serviceBoard.conversations, 备注: `未读 ${serviceBoard.unreadMessages}` },
+      { 模块: '客服概览', 指标: '待处理工单', 值: serviceBoard.pendingTickets, 备注: '待响应' },
+      { 模块: '客服概览', 指标: '处理中工单', 值: serviceBoard.processingTickets, 备注: '处理中' },
+      { 模块: '客服概览', 指标: '已解决工单', 值: serviceBoard.resolvedTickets, 备注: '统计期内' },
+      ...serviceRecentTickets.value.map((item) => ({
+        模块: '最近工单',
+        指标: item.title || item.ticket_no,
+        值: item.ticket_no,
+        备注: `${getTicketTypeText(item.type)} / ${getTicketStatusText(item.status)}`,
+      })),
+    ]
+    exportCsvFile(rows, '客服工作看板', dateRange.value)
+    ElMessage.success(`已导出 ${rows.length} 条客服概览数据`)
+    return
+  }
+
   const rows = [
     { 模块: '概览', 指标: '总用户数', 值: metrics.totalUsers, 备注: `日增 ${metrics.newUsers}` },
     { 模块: '概览', 指标: '订单总数', 值: metrics.totalOrders, 备注: `完成率 ${metrics.completionRate}%` },
@@ -582,6 +847,16 @@ onMounted(async () => {
     start = new Date()
   start.setDate(start.getDate() - 30)
   dateRange.value = [start.toISOString().slice(0, 10), end.toISOString().slice(0, 10)]
+  if (isService.value) {
+    try {
+      await fetchServiceDashboardData()
+    } catch (e) {
+      ElMessage.error('客服工作看板加载失败')
+      console.error(e)
+    }
+    return
+  }
+
   await refreshData()
 })
 </script>

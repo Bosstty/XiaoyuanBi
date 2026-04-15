@@ -448,6 +448,7 @@ const startServiceConversation = async () => {
     try {
         const res = await chatApi.createConversation({
             type: 'user_service',
+            ticket_type: 'other',
             initial_message: '您好，我想咨询一下。',
         });
 

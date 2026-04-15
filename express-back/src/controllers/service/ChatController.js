@@ -33,25 +33,78 @@ const getSenderType = req => (getCurrentRole(req) === 'service' ? 'service' : 'u
 const getServiceScopeId = req =>
     getCurrentRole(req) === 'service' ? Number(req.serviceScopeId || req.user?.id || 0) || null : null;
 
-const findAssignableService = async preferredId => {
+const normalizeServiceTicketTypes = ticketTypes =>
+    Array.isArray(ticketTypes)
+        ? ticketTypes
+              .map(type => String(type || '').trim())
+              .filter(Boolean)
+        : [];
+
+const pickLeastBusyService = async services => {
+    if (!Array.isArray(services) || services.length === 0) return null;
+
+    const serviceIds = services.map(service => Number(service.id)).filter(Boolean);
+    if (serviceIds.length === 0) return null;
+
+    const openConversations = await ChatConversation.findAll({
+        where: {
+            service_id: { [Op.in]: serviceIds },
+            type: { [Op.in]: ['user_service', 'deliverer_service'] },
+            status: 'open',
+        },
+        attributes: ['service_id'],
+    });
+
+    const loadMap = new Map(serviceIds.map(id => [Number(id), 0]));
+    openConversations.forEach(conversation => {
+        const serviceId = Number(conversation.service_id || 0);
+        if (serviceId) {
+            loadMap.set(serviceId, (loadMap.get(serviceId) || 0) + 1);
+        }
+    });
+
+    return [...services].sort((left, right) => {
+        const leftLoad = loadMap.get(Number(left.id)) || 0;
+        const rightLoad = loadMap.get(Number(right.id)) || 0;
+
+        if (leftLoad !== rightLoad) return leftLoad - rightLoad;
+
+        const leftLogin = left.last_login_at ? new Date(left.last_login_at).getTime() : 0;
+        const rightLogin = right.last_login_at ? new Date(right.last_login_at).getTime() : 0;
+        if (leftLogin !== rightLogin) return rightLogin - leftLogin;
+
+        return Number(left.id) - Number(right.id);
+    })[0];
+};
+
+const findAssignableService = async (preferredId, ticketType = 'other') => {
     if (preferredId) {
         const preferredService = await Service.findOne({
             where: { id: preferredId, status: 'active' },
-            attributes: ['id', 'username', 'name', 'avatar'],
+            attributes: ['id', 'username', 'name', 'avatar', 'ticket_types', 'last_login_at'],
         });
         if (preferredService) {
             return preferredService;
         }
     }
 
-    return Service.findOne({
+    const services = await Service.findAll({
         where: { status: 'active' },
-        attributes: ['id', 'username', 'name', 'avatar'],
+        attributes: ['id', 'username', 'name', 'avatar', 'ticket_types', 'last_login_at'],
         order: [
             ['last_login_at', 'DESC'],
             ['id', 'ASC'],
         ],
     });
+
+    if (!services.length) return null;
+
+    const normalizedTicketType = String(ticketType || '').trim() || 'other';
+    const matchedServices = services.filter(service =>
+        normalizeServiceTicketTypes(service.ticket_types).includes(normalizedTicketType)
+    );
+
+    return pickLeastBusyService(matchedServices.length ? matchedServices : services);
 };
 
 const getReceiverType = (conversation, req) => {
@@ -137,7 +190,7 @@ const resolvePartnerInfo = async (conversation, currentUserId, currentUserRole =
             ? await Service.findByPk(conversation.service_id, {
                   attributes: ['id', 'username', 'name', 'avatar'],
               })
-            : await findAssignableService();
+            : await findAssignableService(null, 'other');
 
         return {
             id: service?.id || null,
@@ -236,6 +289,7 @@ class ServiceChatController {
                 task_id,
                 type,
                 initial_message,
+                ticket_type,
             } = req.body;
 
             if (!currentUserId) {
@@ -334,7 +388,7 @@ class ServiceChatController {
                 });
 
                 if (!conversation) {
-                    const assignedService = await findAssignableService();
+                    const assignedService = await findAssignableService(null, ticket_type || 'other');
 
                     if (!assignedService) {
                         return res.status(503).json({

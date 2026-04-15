@@ -149,11 +149,27 @@ adminRoutes.use(
 // 审核工作台 - /api/admin/reviews/*
 adminRoutes.use('/reviews', adminAuthMiddleware, require('./admin/reviews'));
 
+const allowDashboardAnalyticsForAllAdmins = (req, res, next) => {
+    const dashboardOpenPaths = new Set([
+        '/dashboard',
+        '/realtime',
+        '/revenue',
+        '/service-quality',
+        '/alerts/abnormal-orders',
+    ]);
+
+    if (dashboardOpenPaths.has(req.path)) {
+        return next();
+    }
+
+    return permissionMiddleware.checkPermission('analytics', 'read')(req, res, next);
+};
+
 // 数据分析统计 - /api/admin/analytics/*
 adminRoutes.use(
     '/analytics',
     adminAuthMiddleware,
-    permissionMiddleware.checkPermission('analytics', 'read'),
+    allowDashboardAnalyticsForAllAdmins,
     require('./admin/analytics')
 );
 

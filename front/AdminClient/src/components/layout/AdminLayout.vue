@@ -1,7 +1,7 @@
 <template>
-  <el-container class="admin-layout">
+  <el-container class="admin-layout" :class="{ 'service-shell': isServiceLayout }">
     <!-- 毛玻璃侧边栏 -->
-    <el-aside :width="sidebarCollapsed ? '72px' : '260px'" class="sidebar">
+    <el-aside v-if="!isServiceLayout" :width="sidebarCollapsed ? '72px' : '260px'" class="sidebar">
       <div class="sidebar-bg"></div>
       <div class="logo-section">
         <div class="logo-icon">
@@ -57,12 +57,44 @@
       <!-- 顶部导航栏 -->
       <el-header class="topbar">
         <div class="topbar-left">
-          <el-button @click="toggleSidebar" :icon="Fold" text class="collapse-btn" />
-          <el-breadcrumb separator="/" class="breadcrumbs">
-            <el-breadcrumb-item v-for="(item, index) in breadcrumbs" :key="index">
-              {{ item }}
-            </el-breadcrumb-item>
-          </el-breadcrumb>
+          <template v-if="isServiceLayout">
+            <div class="service-brand">
+              <div class="service-brand__icon">
+                <el-icon :size="18"><Service /></el-icon>
+              </div>
+              <div class="service-brand__copy">
+                <strong>客服工作台</strong>
+                <span>会话处理与售后协同</span>
+              </div>
+            </div>
+            <nav class="service-top-nav">
+              <router-link
+                v-for="item in serviceWorkbenchNav"
+                :key="item.to"
+                :to="item.to"
+                class="service-top-nav__item"
+                :class="{ active: route.path === item.to }"
+              >
+                <el-icon><component :is="item.icon" /></el-icon>
+                <span>{{ item.label }}</span>
+                <el-badge
+                  v-if="item.badge"
+                  :value="item.badge"
+                  :hidden="item.badge <= 0"
+                  :max="99"
+                  class="service-top-nav__badge"
+                />
+              </router-link>
+            </nav>
+          </template>
+          <template v-else>
+            <el-button @click="toggleSidebar" :icon="Fold" text class="collapse-btn" />
+            <el-breadcrumb separator="/" class="breadcrumbs">
+              <el-breadcrumb-item v-for="(item, index) in breadcrumbs" :key="index">
+                {{ item }}
+              </el-breadcrumb-item>
+            </el-breadcrumb>
+          </template>
         </div>
 
         <div class="topbar-right">
@@ -76,7 +108,7 @@
             </el-tooltip>
           </div>
 
-          <el-divider direction="vertical" />
+          <el-divider direction="vertical" v-if="!isServiceLayout" />
 
           <!-- 通知 -->
           <el-dropdown @command="handleNotificationCommand" trigger="click">
@@ -121,7 +153,7 @@
             </template>
           </el-dropdown>
 
-          <el-divider direction="vertical" />
+          <el-divider direction="vertical" v-if="!isServiceLayout" />
 
           <!-- 用户菜单 -->
           <el-dropdown @command="handleUserCommand" trigger="click">
@@ -432,6 +464,12 @@ const visibleMenus = computed(() =>
     })
     .filter((item) => !item.children || item.children.length > 0),
 )
+const isServiceLayout = computed(() => adminStore.userType === 'service')
+const serviceWorkbenchNav = computed(() => [
+  { to: '/dashboard', label: '工作看板', icon: markRaw(DataBoard), badge: 0 },
+  { to: '/service/chat', label: '在线客服', icon: markRaw(ChatLineRound), badge: chatUnreadCount.value },
+  { to: '/service/after-sales', label: '售后工单', icon: markRaw(ShoppingCart), badge: 0 },
+])
 
 const displayUserName = computed(
   () => adminStore.admin?.name || adminStore.admin?.username || '管理员',
@@ -754,6 +792,12 @@ onUnmounted(() => {
   background: var(--bg-primary);
 }
 
+.admin-layout.service-shell {
+  background:
+    radial-gradient(circle at top left, rgba(99, 102, 241, 0.08), transparent 22%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
 /* 侧边栏 */
 .sidebar {
   position: relative;
@@ -933,10 +977,88 @@ onUnmounted(() => {
   height: 64px;
 }
 
+.service-shell .topbar {
+  height: 86px;
+  padding: 0 28px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
 .topbar-left {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.service-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: 6px;
+}
+
+.service-brand__icon {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #4f46e5, #818cf8);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(99, 102, 241, 0.24);
+}
+
+.service-brand__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.service-brand__copy strong {
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.service-brand__copy span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.service-top-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 18px;
+  background: rgba(241, 245, 249, 0.95);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.service-top-nav__item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  color: #475569;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.service-top-nav__item:hover {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1e293b;
+}
+
+.service-top-nav__item.active {
+  background: linear-gradient(135deg, #4f46e5, #818cf8);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(99, 102, 241, 0.22);
+}
+
+.service-top-nav__badge {
+  margin-left: 2px;
 }
 
 .collapse-btn {
@@ -1143,6 +1265,11 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
+.service-shell .page-content {
+  padding: 20px 28px 28px;
+  background: transparent;
+}
+
 .page-content :deep(.el-loading-mask) {
   backdrop-filter: blur(4px);
 }
@@ -1193,6 +1320,36 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
+}
+
+@media (max-width: 960px) {
+  .service-shell .topbar {
+    height: auto;
+    align-items: flex-start;
+    padding: 16px 18px;
+  }
+
+  .service-shell .topbar-left {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .service-top-nav {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .service-top-nav__item {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .service-shell .page-content {
+    padding: 16px 18px 22px;
+  }
 }
 </style>
 

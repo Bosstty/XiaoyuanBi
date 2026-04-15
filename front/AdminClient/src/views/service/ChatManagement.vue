@@ -35,7 +35,7 @@
               :key="conv.id"
               type="button"
               class="conversation-item"
-              :class="{ active: currentConversation?.id === conv.id }"
+              :class="{ active: isConversationActive(conv.id) }"
               @click="selectConversation(conv)"
             >
               <el-badge :value="conv.unread_count || 0" :hidden="!(conv.unread_count > 0)">
@@ -94,6 +94,15 @@
                   :hidden="userPendingTicketCount <= 0"
                   class="pending-ticket-shortcut__badge"
                 />
+              </el-button>
+              <el-button
+                v-if="currentConversation?.order_id"
+                class="pending-ticket-shortcut"
+                size="small"
+                plain
+                @click="openOrderDrawer"
+              >
+                关联订单 #{{ currentConversation.order_id }}
               </el-button>
             </div>
 
@@ -378,7 +387,12 @@
               {{ ticketDetailDrawer.data.description || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="关联订单" v-if="ticketDetailDrawer.data.order_id">
-              {{ ticketDetailDrawer.data.order_id }}
+              <div class="linked-order-row">
+                <span>{{ ticketDetailDrawer.data.order_id }}</span>
+                <el-button type="primary" link @click="openTicketOrderDrawer(ticketDetailDrawer.data.order_id)">
+                  查看订单详情
+                </el-button>
+              </div>
             </el-descriptions-item>
             <el-descriptions-item label="处理时间" v-if="ticketDetailDrawer.data.resolved_at">
               {{ formatDateTime(ticketDetailDrawer.data.resolved_at) }}
@@ -464,6 +478,106 @@
       <button type="button" class="preview-close" @click.stop="closeImagePreview">×</button>
       <img :src="previewImage" alt="preview-image" class="preview-image" @click.stop />
     </div>
+
+    <el-drawer v-model="orderDrawer.visible" title="订单详情" size="620px">
+      <template v-if="orderDrawer.data">
+        <div v-loading="orderDrawer.loading">
+        <div class="ticket-header">
+          <div class="ticket-info">
+            <el-tag size="large" :type="getOrderStatusTagType(orderDrawer.data.status)">
+              {{ getOrderStatusText(orderDrawer.data.status) }}
+            </el-tag>
+            <el-tag size="large" :type="getPaymentStatusTagType(orderDrawer.data.payment_status)">
+              {{ getPaymentStatusText(orderDrawer.data.payment_status) }}
+            </el-tag>
+            <el-tag size="large" :type="getSettlementStatusTagType(orderDrawer.data.settlement_status)">
+              {{ getSettlementStatusText(orderDrawer.data.settlement_status) }}
+            </el-tag>
+          </div>
+          <h3>{{ orderDrawer.data.title || `订单 #${orderDrawer.data.id}` }}</h3>
+          <p class="ticket-meta">
+            <span>{{ orderDrawer.data.order_no || `#${orderDrawer.data.id}` }}</span>
+            <span>创建于 {{ formatDateTime(orderDrawer.data.created_at) }}</span>
+          </p>
+        </div>
+
+        <el-divider />
+
+        <div class="section">
+          <h4>订单概览</h4>
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="订单ID">{{ orderDrawer.data.id }}</el-descriptions-item>
+            <el-descriptions-item label="订单类型">{{ getOrderTypeText(orderDrawer.data.type) }}</el-descriptions-item>
+            <el-descriptions-item label="发布用户">
+              {{ orderDrawer.data.user?.real_name || orderDrawer.data.user?.username || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="配送员">
+              {{ orderDrawer.data.delivererInfo?.real_name || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="订单金额">
+              ¥{{ formatMoney(orderDrawer.data.price) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="小费">
+              ¥{{ formatMoney(orderDrawer.data.tip) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="应付合计">
+              ¥{{ formatMoney(getOrderTotalAmount(orderDrawer.data)) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="联系人">
+              {{ orderDrawer.data.contact_name || '-' }} / {{ orderDrawer.data.contact_phone || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="取货地址">
+              {{ orderDrawer.data.pickup_location || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="送达地址">
+              {{ orderDrawer.data.delivery_location || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item v-if="orderDrawer.data.description" label="备注说明">
+              {{ orderDrawer.data.description }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <div
+          v-if="orderDrawer.data.pickup_photo || orderDrawer.data.delivery_photo"
+          class="order-photo-grid"
+        >
+          <div v-if="orderDrawer.data.pickup_photo" class="order-photo-card">
+            <div class="order-photo-label">取货照片</div>
+            <el-image
+              :src="resolveImage(orderDrawer.data.pickup_photo)"
+              :preview-src-list="[resolveImage(orderDrawer.data.pickup_photo)]"
+              fit="cover"
+              class="order-proof-image"
+            />
+          </div>
+          <div v-if="orderDrawer.data.delivery_photo" class="order-photo-card">
+            <div class="order-photo-label">送达照片</div>
+            <el-image
+              :src="resolveImage(orderDrawer.data.delivery_photo)"
+              :preview-src-list="[resolveImage(orderDrawer.data.delivery_photo)]"
+              fit="cover"
+              class="order-proof-image"
+            />
+          </div>
+        </div>
+
+        <div class="section" v-if="orderDrawer.data.items?.length">
+          <h4>物品明细</h4>
+          <div class="order-items">
+            <div
+              v-for="item in orderDrawer.data.items"
+              :key="item.id || item.item_index"
+              class="order-item-row"
+            >
+              <strong>{{ item.item_name || item.name || `物品#${item.id}` }}</strong>
+              <span>{{ item.quantity || 1 }} 件</span>
+            </div>
+          </div>
+        </div>
+        </div>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
@@ -500,6 +614,9 @@ let handleSocketConnectError = null
 const conversations = ref([])
 const currentConversation = ref(null)
 const messages = ref([])
+const activeConversationId = ref(null)
+let conversationRequestToken = 0
+const pageAlive = ref(true)
 
 const userDrawer = reactive({
   visible: false,
@@ -514,6 +631,11 @@ const ticketListDialog = reactive({
 
 const ticketDetailDrawer = reactive({
   visible: false,
+  data: null,
+})
+const orderDrawer = reactive({
+  visible: false,
+  loading: false,
   data: null,
 })
 
@@ -574,6 +696,35 @@ const currentServiceName = computed(
 )
 const canTransferConversation = computed(() => Boolean(currentConversation.value?.id))
 const userPendingTicketCount = computed(() => Number(userDrawer.data?.unresolved_ticket_count || 0))
+const currentOrderId = computed(() => Number(currentConversation.value?.order_id || 0))
+const availableOrderStatusActions = computed(() => {
+  const status = orderDrawer.data?.status
+  const map = {
+    pending: [
+      { value: 'accepted', label: '标记已接单', type: 'primary' },
+      { value: 'cancelled', label: '取消订单', type: 'danger' },
+    ],
+    accepted: [
+      { value: 'picking', label: '开始取货', type: 'primary' },
+      { value: 'cancelled', label: '取消订单', type: 'danger' },
+    ],
+    picking: [
+      { value: 'delivering', label: '标记配送中', type: 'primary' },
+      { value: 'cancelled', label: '取消订单', type: 'danger' },
+    ],
+    delivering: [{ value: 'completed', label: '标记已完成', type: 'success' }],
+  }
+  return map[status] || []
+})
+const canRefundCurrentOrder = computed(
+  () => Boolean(orderDrawer.data?.id) && orderDrawer.data?.payment_status === 'paid',
+)
+const canCompensateCurrentOrder = computed(
+  () => Boolean(orderDrawer.data?.id) && ['accepted', 'picking', 'delivering', 'completed'].includes(orderDrawer.data?.status),
+)
+const canDamageCompensateCurrentOrder = computed(
+  () => Boolean(orderDrawer.data?.id) && ['accepted', 'picking', 'delivering', 'completed'].includes(orderDrawer.data?.status),
+)
 
 const filteredConversations = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase()
@@ -588,6 +739,9 @@ const filteredConversations = computed(() => {
     )
   })
 })
+
+const isConversationActive = (conversationId) =>
+  Number(activeConversationId.value || 0) === Number(conversationId || 0)
 
 const formatListTime = (value) => {
   if (!value) return ''
@@ -745,16 +899,22 @@ const fetchConversations = async () => {
       throw new Error(response.message || '获取会话失败')
     }
 
+    if (!pageAlive.value) return
     applyConversationList(response.data)
   } catch (error) {
+    if (!pageAlive.value) return
     console.error('获取会话列表失败:', error)
     ElMessage.error(error.message || '获取会话列表失败')
   } finally {
-    loading.value = false
+    if (pageAlive.value) {
+      loading.value = false
+    }
   }
 }
 
 const loadConversationDetail = async (conversationId, keepScroll = false) => {
+  const requestToken = ++conversationRequestToken
+  activeConversationId.value = Number(conversationId || 0)
   detailLoading.value = true
   try {
     const response = await serviceChatApi.getConversationDetail(conversationId)
@@ -762,32 +922,61 @@ const loadConversationDetail = async (conversationId, keepScroll = false) => {
       throw new Error(response.message || '获取会话详情失败')
     }
 
+    if (!pageAlive.value || requestToken !== conversationRequestToken) return
+
     currentConversation.value = response.data
     messages.value = Array.isArray(response.data.messages) ? response.data.messages : []
-    await serviceChatApi.markAsRead(conversationId)
 
     conversations.value = conversations.value.map((item) =>
       item.id === conversationId ? { ...item, ...response.data, unread_count: 0 } : item,
     )
 
+    void serviceChatApi.markAsRead(conversationId)
+    void refreshUserStats()
+
     if (!keepScroll) {
       await scrollToBottom()
     }
   } catch (error) {
+    if (!pageAlive.value || requestToken !== conversationRequestToken) return
     console.error('获取会话详情失败:', error)
     ElMessage.error(error.message || '获取会话详情失败')
   } finally {
-    detailLoading.value = false
+    if (pageAlive.value && requestToken === conversationRequestToken) {
+      detailLoading.value = false
+    }
   }
 }
 
 const selectConversation = async (conversation) => {
-  await loadConversationDetail(conversation.id)
+  const nextConversationId = Number(conversation?.id || 0)
+  if (!nextConversationId || isConversationActive(nextConversationId)) return
+
+  activeConversationId.value = nextConversationId
+  userDrawer.data = null
+  orderDrawer.data = null
+  ticketListDialog.tickets = []
+  if (ticketListDialog.visible) {
+    ticketListDialog.visible = false
+  }
+
+  currentConversation.value = {
+    ...(currentConversation.value || {}),
+    ...conversation,
+  }
+  messages.value = []
+
+  await loadConversationDetail(nextConversationId)
 }
 
 const openConversationById = async (conversationId) => {
   const numericId = Number(conversationId || 0)
   if (!numericId) return
+
+  if (isConversationActive(numericId)) return
+
+  userDrawer.data = null
+  orderDrawer.data = null
 
   const localConversation = conversations.value.find((item) => Number(item.id) === numericId)
   if (localConversation) {
@@ -1004,11 +1193,20 @@ const openPendingTicketListFromShortcut = async () => {
 const getPendingTicketUserId = () => Number(userDrawer.data?.id || currentConversation.value?.partner?.id || 0)
 
 const refreshUserStats = async () => {
+  if (!pageAlive.value) return
+  if (currentPartner.value.role !== '用户') {
+    userDrawer.data = null
+    return
+  }
+
   const userId = getPendingTicketUserId()
-  if (!userId) return
+  if (!userId) {
+    userDrawer.data = null
+    return
+  }
 
   const response = await serviceChatApi.getUserStats(userId)
-  if (response.success) {
+  if (pageAlive.value && response.success) {
     userDrawer.data = response.data
   }
 }
@@ -1048,6 +1246,55 @@ const openPendingTicketList = async () => {
   }
 }
 
+const fetchConversationOrderDetail = async (orderId = currentOrderId.value) => {
+  if (!orderId) {
+    orderDrawer.data = null
+    return
+  }
+
+  orderDrawer.loading = true
+  try {
+    const response = await serviceOrderApi.getOrderDetail(orderId)
+    if (!response.success || !response.data) {
+      throw new Error(response.message || '获取订单详情失败')
+    }
+    if (!pageAlive.value) return
+    orderDrawer.data = response.data
+  } catch (error) {
+    if (!pageAlive.value) return
+    console.error('获取订单详情失败:', error)
+    ElMessage.error(error.message || '获取订单详情失败')
+  } finally {
+    if (pageAlive.value) {
+      orderDrawer.loading = false
+    }
+  }
+}
+
+const openOrderDrawer = async () => {
+  if (!currentOrderId.value) {
+    ElMessage.warning('当前会话没有关联订单')
+    return
+  }
+
+  await fetchConversationOrderDetail()
+  if (orderDrawer.data?.id) {
+    orderDrawer.visible = true
+  }
+}
+
+const openTicketOrderDrawer = async (orderId) => {
+  if (!orderId) {
+    ElMessage.warning('该工单没有关联订单')
+    return
+  }
+
+  await fetchConversationOrderDetail(orderId)
+  if (orderDrawer.data?.id) {
+    orderDrawer.visible = true
+  }
+}
+
 const refreshPendingTicketContext = async (ticketId) => {
   await Promise.all([fetchPendingTickets(), refreshUserStats()])
 
@@ -1060,15 +1307,19 @@ const refreshPendingTicketContext = async (ticketId) => {
 }
 
 const viewPendingTicketDetail = async (row) => {
-  ticketHandleForm.solution = ''
-  try {
-    const response = await serviceTicketApi.getTicketById(row.id)
-    ticketDetailDrawer.data = response.success && response.data ? response.data : row
-    ticketDetailDrawer.visible = true
-  } catch (error) {
-    ticketDetailDrawer.data = row
-    ticketDetailDrawer.visible = true
+  const ticketId = Number(row?.id || 0)
+  if (!ticketId) {
+    ElMessage.warning('未找到工单信息')
+    return
   }
+
+  router.push({
+    path: '/service/after-sales',
+    query: {
+      ticketId: String(ticketId),
+      conversationId: currentConversation.value?.id ? String(currentConversation.value.id) : undefined,
+    },
+  })
 }
 
 const updatePendingTicketStatus = async (status, fallbackSolution = '') => {
@@ -1228,6 +1479,112 @@ const handlePendingTicketCompensate = async () => {
   }
 }
 
+const updateCurrentOrderStatus = async (status) => {
+  if (!orderDrawer.data?.id) return
+
+  try {
+    let reason
+    if (status === 'cancelled') {
+      const result = await ElMessageBox.prompt('请输入取消原因', '取消订单', {
+        inputValidator: (inputValue) => (inputValue && inputValue.trim() ? true : '请填写取消原因'),
+      })
+      reason = result.value.trim()
+    } else {
+      await ElMessageBox.confirm(`确认将订单状态更新为“${getOrderStatusText(status)}”？`, '更新订单状态', {
+        type: 'warning',
+      })
+    }
+
+    const response = await serviceOrderApi.handleOrderStatus(orderDrawer.data.id, { status, reason })
+    if (!response.success) {
+      throw new Error(response.message || '更新订单状态失败')
+    }
+
+    ElMessage.success('订单状态已更新')
+    await fetchConversationOrderDetail(orderDrawer.data.id)
+  } catch (error) {
+    if (!isDialogCancel(error)) {
+      ElMessage.error(error.message || '更新订单状态失败')
+    }
+  }
+}
+
+const handleConversationOrderRefund = async () => {
+  if (!orderDrawer.data?.id) return
+
+  try {
+    const { value } = await ElMessageBox.prompt('请输入退款原因', '退款处理', {
+      inputValidator: (inputValue) => (inputValue && inputValue.trim() ? true : '请填写退款原因'),
+    })
+
+    const response = await serviceOrderApi.processRefund(orderDrawer.data.id, {
+      reason: value.trim(),
+    })
+    if (!response.success) {
+      throw new Error(response.message || '退款处理失败')
+    }
+
+    ElMessage.success('退款处理成功')
+    await fetchConversationOrderDetail(orderDrawer.data.id)
+  } catch (error) {
+    if (!isDialogCancel(error)) {
+      ElMessage.error(error.message || '退款处理失败')
+    }
+  }
+}
+
+const handleConversationOrderCompensation = async () => {
+  if (!orderDrawer.data?.id) return
+
+  try {
+    const { value } = await ElMessageBox.prompt('请输入赔偿金额和原因（格式：金额|原因）', '投诉赔偿处理', {
+      inputPattern: /^\d+(\.\d+)?\|.+$/,
+      inputErrorMessage: '格式错误，请输入：金额|原因',
+    })
+    const [amount, reason] = value.split('|')
+    const response = await serviceOrderApi.processCompensation(orderDrawer.data.id, {
+      amount: parseFloat(amount),
+      reason: reason.trim(),
+    })
+    if (!response.success) {
+      throw new Error(response.message || '赔偿处理失败')
+    }
+
+    ElMessage.success('赔偿处理成功')
+    await fetchConversationOrderDetail(orderDrawer.data.id)
+  } catch (error) {
+    if (!isDialogCancel(error)) {
+      ElMessage.error(error.message || '赔偿处理失败')
+    }
+  }
+}
+
+const handleConversationOrderDamageCompensation = async () => {
+  if (!orderDrawer.data?.id) return
+
+  try {
+    const { value } = await ElMessageBox.prompt('请输入额外赔付金额和原因（格式：金额|原因）', '损坏赔付处理', {
+      inputPattern: /^\d+(\.\d+)?\|.+$/,
+      inputErrorMessage: '格式错误，请输入：金额|原因',
+    })
+    const [amount, reason] = value.split('|')
+    const response = await serviceOrderApi.processCompensate(orderDrawer.data.id, {
+      amount: parseFloat(amount),
+      reason: reason.trim(),
+    })
+    if (!response.success) {
+      throw new Error(response.message || '赔付处理失败')
+    }
+
+    ElMessage.success('赔付处理成功')
+    await fetchConversationOrderDetail(orderDrawer.data.id)
+  } catch (error) {
+    if (!isDialogCancel(error)) {
+      ElMessage.error(error.message || '赔付处理失败')
+    }
+  }
+}
+
 const getTypeText = (type) => {
   const texts = {
     complaint: '投诉',
@@ -1289,7 +1646,93 @@ const getStatusTagType = (status) => {
     resolved: 'success',
     closed: 'info',
   }
-  return types[status] || ''
+  return types[status] || 'info'
+}
+
+const getOrderStatusText = (status) => {
+  const texts = {
+    pending: '待接单',
+    accepted: '已接单',
+    picking: '取货处理中',
+    delivering: '配送中',
+    completed: '已完成',
+    cancelled: '已取消',
+  }
+  return texts[status] || status || '-'
+}
+
+const getPaymentStatusText = (status) => {
+  const texts = {
+    unpaid: '待支付',
+    paid: '已支付',
+    refunded: '已退款',
+  }
+  return texts[status] || status || '-'
+}
+
+const getSettlementStatusText = (status) => {
+  const texts = {
+    none: '未进入结算',
+    holding: '担保期中',
+    settled: '已结算',
+    partial_refunded: '部分退款',
+    refunded: '已退款',
+    partial_compensated: '部分赔付',
+    compensated: '已赔付',
+  }
+  return texts[status] || status || '-'
+}
+
+const formatMoney = (value) => {
+  const amount = Number.parseFloat(value || 0)
+  return Number.isFinite(amount) ? amount.toFixed(2) : '0.00'
+}
+
+const getOrderTotalAmount = (order) =>
+  Number.parseFloat(order?.price || 0) + Number.parseFloat(order?.tip || 0)
+
+const getOrderStatusTagType = (status) => {
+  const types = {
+    pending: 'warning',
+    accepted: 'primary',
+    picking: 'warning',
+    delivering: 'primary',
+    completed: 'success',
+    cancelled: 'info',
+  }
+  return types[status] || 'info'
+}
+
+const getPaymentStatusTagType = (status) => {
+  const types = {
+    unpaid: 'warning',
+    paid: 'success',
+    refunded: 'info',
+  }
+  return types[status] || 'info'
+}
+
+const getSettlementStatusTagType = (status) => {
+  const types = {
+    none: 'info',
+    holding: 'warning',
+    settled: 'success',
+    partial_refunded: 'warning',
+    refunded: 'info',
+    partial_compensated: 'warning',
+    compensated: 'success',
+  }
+  return types[status] || 'info'
+}
+
+const getOrderTypeText = (type) => {
+  const texts = {
+    express: '快递代取',
+    food: '外卖代取',
+    medicine: '药品代取',
+    daily: '日用品代取',
+  }
+  return texts[type] || type || '-'
 }
 
 const leaveConversationRoom = () => {
@@ -1321,6 +1764,7 @@ const connectChatSocket = () => {
   socket.value = client
 
   handleSocketConnect = () => {
+    if (!pageAlive.value) return
     if (currentConversation.value?.id) {
       joinConversationRoom(currentConversation.value.id)
     }
@@ -1328,6 +1772,7 @@ const connectChatSocket = () => {
   }
 
   handleSocketMessageNew = async (payload) => {
+    if (!pageAlive.value) return
     const conversationId = Number(payload?.conversation_id || 0)
     const incomingMessage = payload?.message
     if (!conversationId || !incomingMessage) return
@@ -1349,6 +1794,7 @@ const connectChatSocket = () => {
   }
 
   handleSocketConversationUpdated = (payload) => {
+    if (!pageAlive.value) return
     const incomingConversation = payload?.conversation
     if (!incomingConversation?.id) return
 
@@ -1364,6 +1810,7 @@ const connectChatSocket = () => {
   }
 
   handleSocketMessageRead = (payload) => {
+    if (!pageAlive.value) return
     const conversationId = Number(payload?.conversation_id || 0)
     if (!conversationId || Number(currentConversation.value?.id || 0) !== conversationId) {
       return
@@ -1412,12 +1859,15 @@ const disconnectChatSocket = () => {
 }
 
 onMounted(async () => {
+  pageAlive.value = true
   connectChatSocket()
   await fetchConversations()
   await openConversationById(route.query.conversationId)
 })
 
 onBeforeUnmount(() => {
+  pageAlive.value = false
+  conversationRequestToken += 1
   disconnectChatSocket()
 })
 
@@ -1435,9 +1885,11 @@ watch(
   (value) => {
     if (value) {
       joinConversationRoom(Number(value))
+      orderDrawer.data = null
     } else {
       leaveConversationRoom()
       closeImagePreview()
+      orderDrawer.data = null
     }
   },
 )
@@ -1902,6 +2354,51 @@ watch(
 
 .action-section {
   padding-top: 4px;
+}
+
+.linked-order-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.order-item-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e8edf5;
+  background: #fff;
+}
+
+.order-photo-grid {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.order-photo-card {
+  border: 1px solid #e8edf5;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+}
+
+.order-photo-label {
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.order-proof-image {
+  width: 100%;
+  height: 220px;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 :deep(.el-drawer__body) {
