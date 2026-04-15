@@ -1,8 +1,65 @@
-const { ForumPost, ForumComment, User } = require('../../models');
+const { ForumPost, ForumComment, User, ContentReport } = require('../../models');
 const { responseUtils } = require('../../utils');
 const { Op } = require('sequelize');
+const ContentModerationService = require('../../services/ContentModerationService');
 
 class ForumController {
+    static async createReport(req, res) {
+        try {
+            const { id } = req.params;
+            const reporterId = req.user.id;
+            const reasonType = String(req.body?.reason_type || '').trim();
+            const reasonText = String(req.body?.reason_text || '').trim();
+
+            if (!reasonType) {
+                return res.status(400).json(responseUtils.error('请选择举报原因'));
+            }
+
+            const post = await ForumPost.findByPk(id, {
+                attributes: ['id', 'author_id', 'title', 'status'],
+            });
+
+            if (!post) {
+                return res.status(404).json(responseUtils.error('帖子不存在'));
+            }
+
+            if (Number(post.author_id) === Number(reporterId)) {
+                return res.status(400).json(responseUtils.error('不能举报自己的帖子'));
+            }
+
+            const existing = await ContentReport.findOne({
+                where: {
+                    biz_type: 'post',
+                    biz_id: id,
+                    reporter_id: reporterId,
+                    status: 'pending',
+                },
+            });
+
+            if (existing) {
+                return res.status(400).json(responseUtils.error('你已举报过该帖子，请勿重复提交'));
+            }
+
+            const report = await ContentReport.create({
+                biz_type: 'post',
+                biz_id: id,
+                reporter_id: reporterId,
+                reported_user_id: post.author_id,
+                reason_type: reasonType,
+                reason_text: reasonText || null,
+                snapshot: {
+                    title: post.title,
+                    status: post.status,
+                },
+            });
+
+            return res.json(responseUtils.success(report, '举报已提交，管理员会尽快处理'));
+        } catch (error) {
+            console.error('创建帖子举报失败:', error);
+            return res.status(500).json(responseUtils.error('提交举报失败'));
+        }
+    }
+
     // 获取各分类帖子数量
     static async getCategoryStats(req, res) {
         try {
@@ -33,10 +90,31 @@ class ForumController {
         try {
             const userId = req.user.id;
             const postData = req.body;
+            const moderationResult = await ContentModerationService.review(postData, {
+                label: '帖子内容',
+                scene: 'content',
+            });
+
+            if (moderationResult.action === 'reject') {
+                return res
+                    .status(400)
+                    .json(
+                        responseUtils.error(
+                            `${ContentModerationService.buildReason(
+                                moderationResult
+                            )}，请修改后重新提交`
+                        )
+                    );
+            }
 
             const post = await ForumPost.create({
                 author_id: userId,
                 ...postData,
+                status: moderationResult.action === 'review' ? 'pending_review' : 'published',
+                rejectReason:
+                    moderationResult.action === 'review'
+                        ? ContentModerationService.buildReason(moderationResult)
+                        : null,
             });
 
             // 获取包含作者信息的帖子详情
@@ -50,7 +128,11 @@ class ForumController {
                 ],
             });
 
-            res.json(responseUtils.success(postWithAuthor, '帖子创建成功'));
+            const message =
+                moderationResult.action === 'review'
+                    ? '帖子已提交，因命中敏感词进入人工审核'
+                    : '帖子创建成功';
+            res.json(responseUtils.success(postWithAuthor, message));
         } catch (error) {
             console.error('创建帖子失败:', error);
             return res.status(500).json(responseUtils.error('创建帖子失败'));
@@ -170,7 +252,28 @@ class ForumController {
             // 增加浏览次数
             await post.increment('viewCount');
 
-            res.json(responseUtils.success(post));
+            const [report_count, currentUserReport] = await Promise.all([
+                ContentReport.count({
+                    where: { biz_type: 'post', biz_id: id, status: 'pending' },
+                }),
+                req.user?.id
+                    ? ContentReport.findOne({
+                          where: {
+                              biz_type: 'post',
+                              biz_id: id,
+                              reporter_id: req.user.id,
+                              status: 'pending',
+                          },
+                          attributes: ['id'],
+                      })
+                    : Promise.resolve(null),
+            ]);
+
+            const postData = post.toJSON();
+            postData.report_count = report_count;
+            postData.has_reported = Boolean(currentUserReport);
+
+            res.json(responseUtils.success(postData));
         } catch (error) {
             console.error('获取帖子详情失败:', error);
             return res.status(500).json(responseUtils.error('获取帖子详情失败'));

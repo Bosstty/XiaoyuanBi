@@ -393,7 +393,7 @@
                             ? 'success'
                             : row.response_status >= 400
                               ? 'danger'
-                              : ''
+                              : 'info'
                         "
                         size="small"
                         >{{ row.response_status || '-' }}</el-tag
@@ -556,7 +556,9 @@
             :type="
               currentLog.response_status >= 200 && currentLog.response_status < 300
                 ? 'success'
-                : 'danger'
+                : currentLog.response_status >= 400
+                  ? 'danger'
+                  : 'info'
             "
             size="small"
             >{{ currentLog.response_status }}</el-tag
@@ -829,7 +831,7 @@ const statusTotal = computed(() =>
 )
 const getStatusPct = (count) => ((count / statusTotal.value) * 100).toFixed(1)
 const getStatusTagType = (code) =>
-  ({ '2xx': 'success', '4xx': 'warning', '5xx': 'danger' })[code] || ''
+  ({ '2xx': 'success', '4xx': 'warning', '5xx': 'danger' })[code] || 'info'
 
 // ─── 数据获取 ──────────────────────────────────────────────
 const fetchLogs = async () => {
@@ -1090,7 +1092,7 @@ const getMethodType = (m) => {
   const method = typeof m === 'string' ? m.toUpperCase() : ''
   return (
     { GET: 'success', POST: 'primary', PUT: 'warning', DELETE: 'danger', PATCH: 'info' }[method] ||
-    ''
+    'info'
   )
 }
 const getRiskType = (l) =>

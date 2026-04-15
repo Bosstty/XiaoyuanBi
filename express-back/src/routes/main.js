@@ -108,6 +108,9 @@ adminRoutes.use(
     require('./admin/users')
 );
 
+// 管理员管理 - /api/admin/admins/*
+adminRoutes.use('/admins', adminAuthMiddleware, require('./admin/admins'));
+
 // 客服管理 - /api/admin/services/*
 adminRoutes.use('/services', adminAuthMiddleware, require('./admin/services'));
 
@@ -142,6 +145,9 @@ adminRoutes.use(
     permissionMiddleware.checkPermission('forum', 'moderate'),
     require('./admin/forum')
 );
+
+// 审核工作台 - /api/admin/reviews/*
+adminRoutes.use('/reviews', adminAuthMiddleware, require('./admin/reviews'));
 
 // 数据分析统计 - /api/admin/analytics/*
 adminRoutes.use(

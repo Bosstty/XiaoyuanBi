@@ -8,6 +8,7 @@ const Task = require('./user/Task');
 const TaskApplication = require('./user/TaskApplication');
 const ForumPost = require('./user/ForumPost');
 const ForumComment = require('./user/ForumComment');
+const ContentReport = require('./user/ContentReport');
 const Wallet = require('./user/Wallet');
 const Transaction = require('./user/Transaction');
 const DelivererDebt = require('./user/DelivererDebt');
@@ -184,6 +185,25 @@ ForumComment.belongsTo(ForumComment, {
 ForumComment.belongsTo(User, {
     foreignKey: 'reply_to_id',
     as: 'replyToUser',
+});
+
+// 用户与举报记录的关系
+User.hasMany(ContentReport, {
+    foreignKey: 'reporter_id',
+    as: 'submittedReports',
+});
+ContentReport.belongsTo(User, {
+    foreignKey: 'reporter_id',
+    as: 'reporter',
+});
+
+User.hasMany(ContentReport, {
+    foreignKey: 'reported_user_id',
+    as: 'receivedReports',
+});
+ContentReport.belongsTo(User, {
+    foreignKey: 'reported_user_id',
+    as: 'reportedUser',
 });
 
 // 用户与钱包的关系
@@ -407,6 +427,7 @@ module.exports = {
     TaskApplication,
     ForumPost,
     ForumComment,
+    ContentReport,
     Wallet,
     Transaction,
     DelivererDebt,

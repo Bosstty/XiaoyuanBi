@@ -1,4 +1,4 @@
-const { Task, User, TaskApplication, Wallet } = require('../../models');
+const { Task, User, TaskApplication, Wallet, ContentReport } = require('../../models');
 const { Op } = require('sequelize');
 
 const parseAmount = value => Number(value || 0);
@@ -230,10 +230,17 @@ class TaskController {
                 });
             }
 
+            const reportCount = await ContentReport.count({
+                where: { biz_type: 'task', biz_id: id, status: 'pending' },
+            });
+
             return res.json({
                 success: true,
                 message: '获取任务详情成功',
-                data: task,
+                data: {
+                    ...task.toJSON(),
+                    reportCount,
+                },
             });
         } catch (error) {
             console.error('Get task detail error:', error);

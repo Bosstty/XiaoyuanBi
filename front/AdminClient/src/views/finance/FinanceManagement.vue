@@ -67,31 +67,12 @@
           </div>
         </div>
 
-        <div class="hero-kpi-strip">
-          <article class="kpi-tile">
-            <span>最近流水密度</span>
-            <strong>{{ recentTransactionCount }} 条</strong>
-            <p>最近动态</p>
-          </article>
-          <article class="kpi-tile">
-            <span>净流入状态</span>
-            <strong :class="netIncome >= 0 ? 'positive' : 'negative'">
-              {{ netIncome >= 0 ? '+' : '-' }}¥{{ formatMoney(Math.abs(netIncome)) }}
-            </strong>
-            <p>收入减支出</p>
-          </article>
-          <article class="kpi-tile">
-            <span>欠款回收压力</span>
-            <strong>¥{{ formatMoney(systemOverview.debt_summary.active_amount) }}</strong>
-            <p>活跃欠款金额</p>
-          </article>
-        </div>
       </div>
     </section>
 
-    <section class="insight-grid">
+    <section class="insight-grid" v-loading="loading.revenueBrief">
       <article class="insight-card primary insight-card-wide">
-        <span class="insight-eyebrow">收入结构</span>
+        <span class="insight-eyebrow">平台账户入账</span>
         <div class="insight-value">¥{{ formatMoney(platformIncome) }}</div>
         <p>平台累计入账</p>
       </article>
@@ -109,6 +90,16 @@
         </div>
         <p>{{ systemOverview.debt_summary.active_count }} 条活跃欠款</p>
       </article>
+      <article class="insight-card">
+        <span class="insight-eyebrow">{{ analysisRangeLabel }}抽成收入</span>
+        <div class="insight-value">¥{{ formatMoney(revenueBrief.totalCommission) }}</div>
+        <p>{{ revenueBrief.completedOrders }} 笔已完成订单贡献</p>
+      </article>
+      <article class="insight-card soft">
+        <span class="insight-eyebrow">平均佣金费率</span>
+        <div class="insight-value">{{ formatRate(revenueBrief.avgCommissionRate) }}</div>
+        <p>抽成收入占运营总收入 {{ commissionRevenueRatio }}%</p>
+      </article>
       <article class="insight-card soft">
         <span class="insight-eyebrow">最近流水</span>
         <div class="insight-value">{{ recentTransactionCount }}</div>
@@ -121,10 +112,10 @@
         <template #header>
           <div class="panel-head">
             <div class="panel-title-group">
-              <span class="panel-title">历史收入分析</span>
-              <span class="panel-desc">按时间查看平台收入、支出、净收益与收益率的变化趋势</span>
+              <span class="panel-title">财务趋势</span>
+              <span class="panel-desc">按时间查看账户收支、净收益与收益率的变化趋势</span>
             </div>
-            <el-radio-group v-model="analysisRange" size="small" @change="loadAnalysis">
+            <el-radio-group v-model="analysisRange" size="small" @change="loadRangeSummary">
               <el-radio-button :value="7">近7天</el-radio-button>
               <el-radio-button :value="30">近30天</el-radio-button>
               <el-radio-button :value="90">近90天</el-radio-button>
@@ -147,7 +138,7 @@
           <div class="panel-head">
             <div class="panel-title-group">
               <span class="panel-title">区间收益表现</span>
-              <span class="panel-desc">最近 {{ analysisData.range_days }} 天的收入质量与效率</span>
+              <span class="panel-desc">最近 {{ analysisData.range_days }} 天的财务结果与运营收入摘要</span>
             </div>
           </div>
         </template>
@@ -180,6 +171,14 @@
           <div class="metric-row">
             <span>日均支出</span>
             <strong>¥{{ formatMoney(analysisData.summary.avg_daily_expense) }}</strong>
+          </div>
+          <div class="metric-row">
+            <span>{{ analysisRangeLabel }}抽成收入</span>
+            <strong>¥{{ formatMoney(revenueBrief.totalCommission) }}</strong>
+          </div>
+          <div class="metric-row">
+            <span>平均佣金费率</span>
+            <strong>{{ formatRate(revenueBrief.avgCommissionRate) }}</strong>
           </div>
         </div>
       </el-card>
@@ -533,13 +532,14 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { ElMessage } from 'element-plus'
-import { financeManagementApi } from '@/api'
+import { analyticsApi, financeManagementApi } from '@/api'
 
 use([CanvasRenderer, BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent])
 
 const loading = reactive({
   overview: false,
   analysis: false,
+  revenueBrief: false,
   debts: false,
   transactions: false,
   debtDetail: false,
@@ -579,6 +579,12 @@ const analysisData = reactive({
     deliverer_compensation_advance: 0,
   },
   grouped_breakdown: [],
+})
+const revenueBrief = reactive({
+  totalRevenue: 0,
+  totalCommission: 0,
+  avgCommissionRate: 0,
+  completedOrders: 0,
 })
 
 const debtFilters = reactive({
@@ -632,6 +638,7 @@ const overviewTransactionCount = computed(
 )
 const recentTransactionCount = computed(() => recentTransactions.value.length)
 const netIncome = computed(() => platformIncome.value - platformExpense.value)
+const analysisRangeLabel = computed(() => `近${analysisRange.value}天`)
 const overviewExpenseRows = computed(() =>
   Object.entries(systemOverview.expense_breakdown || {}).map(([key, value]) => ({
     key,
@@ -662,6 +669,10 @@ const debtRecoveryRate = computed(() => {
   const baseline = platformIncome.value + activeAmount
   if (!baseline) return '100.0'
   return ((platformIncome.value / baseline) * 100).toFixed(1)
+})
+const commissionRevenueRatio = computed(() => {
+  if (!revenueBrief.totalRevenue) return '0.0'
+  return ((revenueBrief.totalCommission / revenueBrief.totalRevenue) * 100).toFixed(1)
 })
 const lastTransactionLabel = computed(() => {
   const value = systemOverview.account?.last_transaction_at
@@ -771,6 +782,24 @@ const activeDebtSummaryText = computed(() => {
 
 const formatMoney = (value) => (Number(value || 0) || 0).toFixed(2)
 const formatPercent = (value) => `${(Number(value || 0) || 0).toFixed(1)}%`
+const formatRate = (value) => `${((Number(value || 0) || 0) * 100).toFixed(1)}%`
+
+const formatDateParam = (value) => {
+  const year = value.getFullYear()
+  const month = `${value.getMonth() + 1}`.padStart(2, '0')
+  const day = `${value.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getAnalyticsRangeParams = () => {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(end.getDate() - analysisRange.value + 1)
+  return {
+    start_date: formatDateParam(start),
+    end_date: formatDateParam(end),
+  }
+}
 
 const formatDateTime = (value) => {
   if (!value) return '--'
@@ -825,6 +854,28 @@ const loadAnalysis = async () => {
   }
 }
 
+const loadRevenueBrief = async () => {
+  loading.revenueBrief = true
+  try {
+    const params = getAnalyticsRangeParams()
+    const [dashboardResponse, revenueResponse] = await Promise.all([
+      analyticsApi.getDashboardStats(params),
+      analyticsApi.getRevenueStats(params),
+    ])
+
+    revenueBrief.totalRevenue = Number(dashboardResponse.data?.revenue || 0) || 0
+    revenueBrief.completedOrders = Number(dashboardResponse.data?.orders?.completed || 0) || 0
+    revenueBrief.totalCommission =
+      Number(revenueResponse.data?.commission_stats?.total_commission || 0) || 0
+    revenueBrief.avgCommissionRate =
+      Number(revenueResponse.data?.commission_stats?.avg_commission_rate || 0) || 0
+  } catch (error) {
+    ElMessage.error(error.message || '获取运营收入摘要失败')
+  } finally {
+    loading.revenueBrief = false
+  }
+}
+
 const loadDebts = async () => {
   loading.debts = true
   try {
@@ -853,7 +904,11 @@ const loadTransactions = async () => {
 }
 
 const loadAll = async () => {
-  await Promise.all([loadOverview(), loadAnalysis(), loadDebts(), loadTransactions()])
+  await Promise.all([loadOverview(), loadRangeSummary(), loadDebts(), loadTransactions()])
+}
+
+const loadRangeSummary = async () => {
+  await Promise.all([loadAnalysis(), loadRevenueBrief()])
 }
 
 const handleDebtPageChange = (page) => {
@@ -1189,43 +1244,8 @@ onMounted(() => {
 
 .insight-grid {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr 1fr;
-  gap: 18px;
-}
-
-.hero-kpi-strip {
-  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.kpi-tile {
-  display: grid;
-  gap: 10px;
-  padding: 18px 20px 16px;
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.84));
-  border: 1px solid rgba(203, 213, 225, 0.72);
-}
-
-.kpi-tile span {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.kpi-tile strong {
-  color: #0f172a;
-  font-size: 1.6rem;
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
-
-.kpi-tile p {
-  margin: 0;
-  color: #64748b;
-  line-height: 1.65;
+  gap: 18px;
 }
 
 .insight-card {
@@ -1633,7 +1653,6 @@ onMounted(() => {
 }
 
 @media (max-width: 960px) {
-  .hero-kpi-strip,
   .hero-income-card {
     grid-template-columns: 1fr;
   }
@@ -1669,7 +1688,6 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .hero-kpi-strip,
   .risk-summary-row {
     grid-template-columns: 1fr;
   }

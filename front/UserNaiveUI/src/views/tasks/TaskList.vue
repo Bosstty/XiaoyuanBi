@@ -142,6 +142,15 @@
                         </div>
                         <div class="foot-actions" @click.stop>
                             <NButton
+                                v-if="canCancelPublish(task)"
+                                size="small"
+                                round
+                                class="cancel-btn"
+                                @click="handleCancelPublish(task)"
+                            >
+                                取消发布
+                            </NButton>
+                            <NButton
                                 v-if="canChat(task)"
                                 size="small"
                                 class="chat-btn"
@@ -194,7 +203,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { NButton, NIcon, NSpin, useMessage } from 'naive-ui';
+import { NButton, NIcon, NSpin, useDialog, useMessage } from 'naive-ui';
 import { AddOutline } from '@vicons/ionicons5';
 import { TaskApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
@@ -209,6 +218,7 @@ const route = useRoute();
 const appStore = useAppStore();
 const userStore = useUserStore();
 const message = useMessage();
+const dialog = useDialog();
 
 const loading = ref(true);
 const loadingMore = ref(false);
@@ -371,6 +381,11 @@ const canApply = (task: Task) =>
 
 const canChat = (task: Task) => task.publisher_id !== userStore.user?.id;
 
+const canCancelPublish = (task: Task) =>
+    task.status === 'published' &&
+    task.publisher_id === userStore.user?.id &&
+    !task.assignee_id;
+
 const handleChat = async (task: Task) => {
     try {
         const response = await chatApi.createConversation({
@@ -399,6 +414,30 @@ const handleApply = async (task: Task) => {
     } catch (e: any) {
         message.error(e?.message || '申请失败');
     }
+};
+
+const handleCancelPublish = (task: Task) => {
+    if (!canCancelPublish(task)) return;
+
+    dialog.warning({
+        title: '取消发布任务',
+        content: `确认取消发布“${task.title}”？取消后会从当前招募列表移除。`,
+        positiveText: '确认取消',
+        negativeText: '返回',
+        async onPositiveClick() {
+            try {
+                const response = await TaskApi.cancelTask(task.id);
+                if (!response.success) throw new Error(response.message || '取消发布失败');
+                tasks.value = tasks.value.filter(item => item.id !== task.id);
+                message.success('任务已取消发布');
+                appStore.hapticFeedback('medium');
+                return true;
+            } catch (error: any) {
+                message.error(error?.message || '取消发布失败');
+                return false;
+            }
+        },
+    });
 };
 
 onMounted(() => {
@@ -780,6 +819,12 @@ watch(
     background: var(--surface) !important;
     border: 1px solid var(--border) !important;
     color: var(--sub) !important;
+}
+
+.cancel-btn {
+    background: #fff1f2 !important;
+    border: 1px solid rgba(239, 68, 68, 0.16) !important;
+    color: #dc2626 !important;
 }
 
 /* 空/加载 */

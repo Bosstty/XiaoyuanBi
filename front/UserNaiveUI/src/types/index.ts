@@ -248,6 +248,8 @@ export interface Task {
     has_applied?: boolean;
     current_user_application_status?: 'pending' | 'accepted' | 'rejected' | null;
     current_user_application?: TaskApplication | null;
+    report_count?: number;
+    has_reported?: boolean;
     createdAt: string;
     updatedAt: string;
 }
@@ -357,6 +359,8 @@ export interface ForumPost {
     rejectReason?: string;
     author?: User;
     comments?: ForumComment[];
+    report_count?: number;
+    has_reported?: boolean;
     createdAt: string;
     updatedAt: string;
     created_at?: string;

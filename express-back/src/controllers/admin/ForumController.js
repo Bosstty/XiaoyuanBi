@@ -1,4 +1,4 @@
-const { ForumPost: Post, ForumComment: Comment, User } = require('../../models');
+const { ForumPost: Post, ForumComment: Comment, User, ContentReport } = require('../../models');
 const { Op } = require('sequelize');
 
 /**
@@ -131,11 +131,9 @@ class ForumController {
         });
       }
 
-      // 获取举报数（Report 模型暂未实现）
-      // const reportCount = await Report.count({
-      //   where: { postId: id, status: 'pending' }
-      // });
-      const reportCount = 0;
+      const reportCount = await ContentReport.count({
+        where: { biz_type: 'post', biz_id: id, status: 'pending' }
+      });
 
       return res.json({
         success: true,
@@ -457,7 +455,7 @@ class ForumController {
       const where = {};
 
       if (status) where.status = status;
-      if (type) where.type = type;
+      if (type) where.reason_type = type;
 
       if (startDate || endDate) {
         where.createdAt = {};
@@ -469,8 +467,9 @@ class ForumController {
         }
       }
 
-      const { count, rows: reports } = await Report.findAndCountAll({
-        where,
+      const whereWithType = { ...where, biz_type: 'post' };
+      const { count, rows: reports } = await ContentReport.findAndCountAll({
+        where: whereWithType,
         limit: parseInt(limit),
         offset: parseInt(offset),
         include: [
@@ -479,16 +478,6 @@ class ForumController {
             as: 'reporter',
             attributes: ['id', 'username', 'real_name', 'avatar']
           },
-          {
-            model: Post,
-            as: 'post',
-            attributes: ['id', 'title', 'status']
-          },
-          {
-            model: Comment,
-            as: 'comment',
-            attributes: ['id', 'content', 'status']
-          }
         ],
         order: [['createdAt', 'DESC']]
       });
@@ -541,12 +530,7 @@ class ForumController {
         });
       }
 
-      const report = await Report.findByPk(id, {
-        include: [
-          { model: Post, as: 'post' },
-          { model: Comment, as: 'comment' }
-        ]
-      });
+      const report = await ContentReport.findByPk(id);
 
       if (!report) {
         return res.status(404).json({
@@ -563,31 +547,25 @@ class ForumController {
       }
 
       // 更新举报状态
-      report.status = action === 'accept' ? 'accepted' : action === 'reject' ? 'rejected' : 'dismissed';
-      report.handleReason = reason;
-      report.adminRemark = remark;
-      report.handledAt = new Date();
-      report.handledBy = adminUser.id;
+      report.status = action === 'accept' ? 'accepted' : 'dismissed';
+      report.handle_reason = reason || remark || null;
+      report.handled_at = new Date();
+      report.handled_by = adminUser.id;
 
       await report.save();
 
       // 如果接受举报，需要处理被举报的内容
       if (action === 'accept') {
-        if (report.type === 'post' && report.post) {
-          report.post.status = 'hidden';
-          report.post.rejectReason = `举报处理: ${reason}`;
-          report.post.hiddenBy = adminUser.id;
-          report.post.hiddenAt = new Date();
-          await report.post.save();
-        } else if (report.type === 'comment' && report.comment) {
-          report.comment.status = 'hidden';
-          report.comment.rejectReason = `举报处理: ${reason}`;
-          report.comment.hiddenBy = adminUser.id;
-          report.comment.hiddenAt = new Date();
-          await report.comment.save();
+        if (report.biz_type === 'post') {
+          const post = await Post.findByPk(report.biz_id);
+          if (post) {
+            post.status = 'hidden';
+            post.rejectReason = `举报处理: ${reason || '已下架'}`;
+            post.hiddenBy = adminUser.id;
+            post.hiddenAt = new Date();
+            await post.save();
+          }
         }
-
-        // TODO: 可能需要对被举报用户进行处罚
       }
 
       // TODO: 发送通知给举报人和被举报人

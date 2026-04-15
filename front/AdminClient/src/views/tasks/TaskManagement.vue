@@ -112,7 +112,12 @@
         </el-table-column>
         <el-table-column prop="title" label="任务标题" align="center" show-overflow-tooltip>
           <template #default="{ row }">
-            <div class="task-title">{{ row.title }}</div>
+            <div class="task-title">
+              <span>{{ row.title }}</span>
+              <el-tooltip v-if="row.status === 'pending' && row.cancel_reason" :content="row.cancel_reason" placement="top">
+                <el-tag size="small" type="warning">预审命中</el-tag>
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
         <!-- <el-table-column label="标签" width="90" align="center">

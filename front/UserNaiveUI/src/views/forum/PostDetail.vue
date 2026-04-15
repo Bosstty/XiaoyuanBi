@@ -97,6 +97,9 @@
                         <span class="stat-pill">
                             {{ post.commentCount || post.comment_count || 0 }} 评论
                         </span>
+                        <span v-if="post.report_count" class="stat-pill">
+                            {{ post.report_count }} 举报
+                        </span>
                         <button
                             type="button"
                             class="like-pill"
@@ -104,6 +107,15 @@
                             @click="handleLikePost"
                         >
                             {{ post.likeCount || post.like_count || 0 }} 点赞
+                        </button>
+                        <button
+                            v-if="canReportPost"
+                            type="button"
+                            class="minor-btn report-pill"
+                            :disabled="post.has_reported"
+                            @click="openReportPostModal"
+                        >
+                            {{ post.has_reported ? '已举报' : '举报' }}
                         </button>
                     </div>
                 </article>
@@ -278,13 +290,41 @@
             <button type="button" class="preview-close" @click="previewingImage = ''">×</button>
             <img :src="previewingImage" alt="预览图片" />
         </div>
+
+        <div v-if="showReportPostModal" class="preview-mask" @click.self="showReportPostModal = false">
+            <div class="report-modal">
+                <div class="section-head">
+                    <h2>举报帖子</h2>
+                    <button type="button" class="preview-close preview-close--static" @click="showReportPostModal = false">×</button>
+                </div>
+                <p class="report-modal__hint">举报会进入管理员审核工作台，请仅举报真实违规内容。</p>
+                <NSelect
+                    v-model:value="postReportReasonType"
+                    :options="reportReasonOptions"
+                    placeholder="请选择举报原因"
+                />
+                <NInput
+                    v-model:value="postReportReasonText"
+                    type="textarea"
+                    :autosize="{ minRows: 3, maxRows: 5 }"
+                    placeholder="补充具体情况，便于管理员快速判断"
+                    style="margin-top: 12px"
+                />
+                <div class="report-modal__actions">
+                    <NButton round @click="showReportPostModal = false">取消</NButton>
+                    <NButton type="warning" round :loading="submittingPostReport" @click="submitPostReport">
+                        提交举报
+                    </NButton>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { NButton, NInput, NSpin, useDialog, useMessage } from 'naive-ui';
+import { NButton, NInput, NSelect, NSpin, useDialog, useMessage } from 'naive-ui';
 import type { ForumComment, ForumPost } from '@/types';
 import { forumApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
@@ -309,11 +349,32 @@ const likedComments = ref(new Set<number>());
 const previewingImage = ref('');
 const replyTarget = ref<ForumComment | null>(null);
 const commentInputRef = ref<any>(null);
+const showReportPostModal = ref(false);
+const submittingPostReport = ref(false);
+const postReportReasonType = ref<string | null>(null);
+const postReportReasonText = ref('');
 
 const postId = computed(() => Number(route.params.id || 0));
 const authorName = computed(
     () => post.value?.author?.real_name || post.value?.author?.username || '匿名用户'
 );
+const canReportPost = computed(
+    () =>
+        !!post.value &&
+        Number(userStore.user?.id || 0) > 0 &&
+        Number(post.value.author_id) !== Number(userStore.user?.id || 0) &&
+        !post.value.has_reported
+);
+const reportReasonOptions = [
+    { label: '诈骗/虚假', value: 'fraud' },
+    { label: '广告引流', value: 'ad' },
+    { label: '色情低俗', value: 'vulgar' },
+    { label: '违法违规', value: 'illegal' },
+    { label: '辱骂攻击', value: 'abuse' },
+    { label: '不实信息', value: 'false_info' },
+    { label: '危险交易', value: 'unsafe_trade' },
+    { label: '其他', value: 'other' },
+];
 const composerPlaceholder = computed(() =>
     replyTarget.value ? `回复 ${getCommentAuthor(replyTarget.value)}...` : '写下你的看法...'
 );
@@ -494,6 +555,37 @@ const handleDelete = () => {
             }
         },
     });
+};
+
+const submitPostReport = async () => {
+    if (!post.value || !canReportPost.value || submittingPostReport.value) return;
+    if (!postReportReasonType.value) {
+        message.warning('请选择举报原因');
+        return;
+    }
+
+    submittingPostReport.value = true;
+    try {
+        const res = await forumApi.reportPost(post.value.id, {
+            reason_type: postReportReasonType.value,
+            reason_text: postReportReasonText.value.trim() || undefined,
+        });
+        if (!res.success) throw new Error(res.message || '提交举报失败');
+        showReportPostModal.value = false;
+        message.success('举报已提交');
+        await loadPost();
+    } catch (error: any) {
+        message.error(error?.message || '提交举报失败');
+    } finally {
+        submittingPostReport.value = false;
+    }
+};
+
+const openReportPostModal = () => {
+    if (!canReportPost.value) return;
+    postReportReasonType.value = null;
+    postReportReasonText.value = '';
+    showReportPostModal.value = true;
 };
 
 onMounted(() => {
@@ -841,6 +933,10 @@ onMounted(() => {
     background: #ffe4e6;
     color: #ef4444;
 }
+.report-pill {
+    background: #fff4d6;
+    color: #d97706;
+}
 .like-pill.is-liked {
     background: #ef4444;
     color: #fff;
@@ -1021,6 +1117,28 @@ onMounted(() => {
     max-height: 90vh;
     object-fit: contain;
     border-radius: 16px;
+}
+.report-modal {
+    width: min(100%, 420px);
+    padding: 20px;
+    border-radius: 24px;
+    background: #fff;
+    color: #172033;
+}
+.report-modal__hint {
+    margin: 0 0 14px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #64748b;
+}
+.report-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+}
+.preview-close--static {
+    position: static;
 }
 @media (max-width: 640px) {
     .detail-shell {

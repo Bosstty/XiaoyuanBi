@@ -115,6 +115,9 @@
               <el-tag v-if="row.isPinned" size="small" type="danger">置顶</el-tag>
               <el-tag v-if="row.isHot" size="small" type="warning">热门</el-tag>
               <el-tag v-if="row.isAnonymous" size="small" type="info">匿名</el-tag>
+              <el-tooltip v-if="row.status === 'pending_review' && row.rejectReason" :content="row.rejectReason" placement="top">
+                <el-tag size="small" type="warning">预审命中</el-tag>
+              </el-tooltip>
               <el-link @click="viewDetail(row.id)" type="primary">{{ row.title }}</el-link>
             </div>
           </template>

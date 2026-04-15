@@ -79,6 +79,12 @@ class SystemSettingsController {
                     twoFactorEnabled: setting.two_factor_enabled,
                     apiRateLimit: setting.api_rate_limit,
                 },
+                moderation: {
+                    contentAutoReviewEnabled: setting.content_auto_review_enabled,
+                    taskAutoReviewEnabled: setting.task_auto_review_enabled,
+                    contentReviewWords: setting.content_review_words || '',
+                    contentRejectWords: setting.content_reject_words || '',
+                },
             };
 
             res.json(responseUtils.success(result, '获取系统设置成功'));
@@ -109,7 +115,7 @@ class SystemSettingsController {
     // 更新系统设置
     static async updateSettings(req, res) {
         try {
-            const { basic, user, order, payment, notification, security } = req.body;
+            const { basic, user, order, payment, notification, security, moderation } = req.body;
 
             // 获取现有设置
             let setting = await SystemSetting.findOne();
@@ -294,6 +300,25 @@ class SystemSettingsController {
                     security.apiRateLimit !== undefined
                         ? security.apiRateLimit
                         : setting.api_rate_limit;
+            }
+
+            if (moderation) {
+                setting.content_auto_review_enabled =
+                    moderation.contentAutoReviewEnabled !== undefined
+                        ? moderation.contentAutoReviewEnabled
+                        : setting.content_auto_review_enabled;
+                setting.task_auto_review_enabled =
+                    moderation.taskAutoReviewEnabled !== undefined
+                        ? moderation.taskAutoReviewEnabled
+                        : setting.task_auto_review_enabled;
+                setting.content_review_words =
+                    moderation.contentReviewWords !== undefined
+                        ? moderation.contentReviewWords
+                        : setting.content_review_words;
+                setting.content_reject_words =
+                    moderation.contentRejectWords !== undefined
+                        ? moderation.contentRejectWords
+                        : setting.content_reject_words;
             }
 
             await setting.save();
@@ -494,6 +519,24 @@ class SystemSettingsController {
                             ? settings.apiRateLimit
                             : setting.api_rate_limit;
                     break;
+                case 'moderation':
+                    setting.content_auto_review_enabled =
+                        settings.contentAutoReviewEnabled !== undefined
+                            ? settings.contentAutoReviewEnabled
+                            : setting.content_auto_review_enabled;
+                    setting.task_auto_review_enabled =
+                        settings.taskAutoReviewEnabled !== undefined
+                            ? settings.taskAutoReviewEnabled
+                            : setting.task_auto_review_enabled;
+                    setting.content_review_words =
+                        settings.contentReviewWords !== undefined
+                            ? settings.contentReviewWords
+                            : setting.content_review_words;
+                    setting.content_reject_words =
+                        settings.contentRejectWords !== undefined
+                            ? settings.contentRejectWords
+                            : setting.content_reject_words;
+                    break;
                 default:
                     return res.status(400).json(responseUtils.error('无效的设置分类'));
             }
@@ -595,6 +638,14 @@ class SystemSettingsController {
                             api_rate_limit: defaults.api_rate_limit,
                         });
                         break;
+                    case 'moderation':
+                        Object.assign(setting, {
+                            content_auto_review_enabled: defaults.content_auto_review_enabled,
+                            task_auto_review_enabled: defaults.task_auto_review_enabled,
+                            content_review_words: defaults.content_review_words,
+                            content_reject_words: defaults.content_reject_words,
+                        });
+                        break;
                     default:
                         return res.status(400).json(responseUtils.error('无效的设置分类'));
                 }
@@ -632,6 +683,7 @@ class SystemSettingsController {
                 payment: formatCategorySettings(setting, 'payment'),
                 notification: formatCategorySettings(setting, 'notification'),
                 security: formatCategorySettings(setting, 'security'),
+                moderation: formatCategorySettings(setting, 'moderation'),
             };
 
             res.setHeader('Content-Type', 'application/json');
@@ -835,6 +887,26 @@ class SystemSettingsController {
                         : setting.api_rate_limit;
             }
 
+            if (settings.moderation) {
+                const moderation = settings.moderation;
+                setting.content_auto_review_enabled =
+                    moderation.contentAutoReviewEnabled !== undefined
+                        ? moderation.contentAutoReviewEnabled
+                        : setting.content_auto_review_enabled;
+                setting.task_auto_review_enabled =
+                    moderation.taskAutoReviewEnabled !== undefined
+                        ? moderation.taskAutoReviewEnabled
+                        : setting.task_auto_review_enabled;
+                setting.content_review_words =
+                    moderation.contentReviewWords !== undefined
+                        ? moderation.contentReviewWords
+                        : setting.content_review_words;
+                setting.content_reject_words =
+                    moderation.contentRejectWords !== undefined
+                        ? moderation.contentRejectWords
+                        : setting.content_reject_words;
+            }
+
             await setting.save();
 
             res.json(responseUtils.success(null, '导入设置成功'));
@@ -914,6 +986,13 @@ function formatCategorySettings(setting, category) {
                 twoFactorEnabled: setting.two_factor_enabled,
                 apiRateLimit: setting.api_rate_limit,
             };
+        case 'moderation':
+            return {
+                contentAutoReviewEnabled: setting.content_auto_review_enabled,
+                taskAutoReviewEnabled: setting.task_auto_review_enabled,
+                contentReviewWords: setting.content_review_words || '',
+                contentRejectWords: setting.content_reject_words || '',
+            };
         default:
             return {};
     }
@@ -964,6 +1043,11 @@ function getDefaultSettings() {
         ip_whitelist: '',
         two_factor_enabled: false,
         api_rate_limit: 1000,
+        content_auto_review_enabled: true,
+        task_auto_review_enabled: true,
+        content_review_words:
+            '代写,代考,刷单,兼职刷,高价收,低价出,外挂,破解,翻墙,vpn,加微信,vx,qq,返利,套现',
+        content_reject_words: '毒品,枪支,办证,假证,裸聊,招嫖,约炮,赌博,私彩,洗钱,发票',
     };
 }
 

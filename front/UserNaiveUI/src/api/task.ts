@@ -1,11 +1,5 @@
 import { apiClient } from './client';
-import type {
-    Task,
-    CreateTaskData,
-    TaskApplication,
-    TaskFilters,
-    ApiResponse,
-} from '@/types';
+import type { Task, CreateTaskData, TaskApplication, TaskFilters, ApiResponse } from '@/types';
 
 export interface TaskListResponse {
     tasks: Task[];
@@ -31,7 +25,9 @@ export interface TaskCategoryStatsResponse {
 
 export class TaskApi {
     // 获取任务列表
-    static async getTasks(filters?: TaskFilters & { search?: string; sort?: string; order?: 'asc' | 'desc' }): Promise<ApiResponse<TaskListResponse>> {
+    static async getTasks(
+        filters?: TaskFilters & { search?: string; sort?: string; order?: 'asc' | 'desc' }
+    ): Promise<ApiResponse<TaskListResponse>> {
         return apiClient.get('/tasks', { params: filters });
     }
 
@@ -66,6 +62,13 @@ export class TaskApi {
     // 取消发布任务
     static async cancelTask(id: number): Promise<ApiResponse<Task>> {
         return apiClient.post(`/tasks/${id}/cancel`);
+    }
+
+    static async reportTask(
+        id: number,
+        data: { reason_type: string; reason_text?: string }
+    ): Promise<ApiResponse> {
+        return apiClient.post(`/tasks/${id}/report`, data);
     }
 
     // 申请任务

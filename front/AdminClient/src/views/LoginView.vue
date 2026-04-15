@@ -190,8 +190,8 @@ const handleLogin = async () => {
               role: 'service',
             }
           : {
-              ...response.data.user,
-              role: 'admin',
+              ...(response.data.admin || {}),
+              role: response.data.admin?.role || 'admin',
             }
 
       adminStore.setUserType(loginMode.value)

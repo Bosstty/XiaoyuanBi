@@ -18,6 +18,7 @@ router.post('/', auth('user'), validate(validationRules.forumPost), ForumControl
 router.put('/:id', auth('user'), ForumController.updatePost);
 router.delete('/:id', auth('user'), ForumController.deletePost);
 router.post('/:id/like', auth('user'), ForumController.likePost);
+router.post('/:id/report', auth('user'), ForumController.createReport);
 
 // 评论相关
 router.post('/:id/comments', auth('user'), ForumController.createComment);

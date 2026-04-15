@@ -234,6 +234,26 @@ const SystemSetting = sequelize.define(
             defaultValue: 1000,
             comment: 'API访问限制(次/小时)',
         },
+        content_auto_review_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: true,
+            comment: '帖子内容自动预审',
+        },
+        task_auto_review_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: true,
+            comment: '任务内容自动预审',
+        },
+        content_review_words: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            comment: '内容预审敏感词',
+        },
+        content_reject_words: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            comment: '内容高风险拦截词',
+        },
     },
     {
         tableName: 'system_settings',

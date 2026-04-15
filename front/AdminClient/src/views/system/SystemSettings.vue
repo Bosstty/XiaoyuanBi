@@ -296,6 +296,43 @@
             </el-form-item>
           </el-form>
         </el-tab-pane>
+
+        <el-tab-pane label="审核规则" name="moderation">
+          <el-form :model="moderationSettings" label-width="150px" class="settings-form">
+            <el-form-item label="帖子自动预审">
+              <el-switch
+                v-model="moderationSettings.contentAutoReviewEnabled"
+                active-text="开启"
+                inactive-text="关闭"
+              />
+            </el-form-item>
+            <el-form-item label="任务自动预审">
+              <el-switch
+                v-model="moderationSettings.taskAutoReviewEnabled"
+                active-text="开启"
+                inactive-text="关闭"
+              />
+            </el-form-item>
+            <el-form-item label="人工复核词">
+              <el-input
+                v-model="moderationSettings.contentReviewWords"
+                type="textarea"
+                :rows="5"
+                placeholder="多个关键词用逗号或换行分隔，命中后进入人工审核"
+              />
+              <div class="setting-hint">命中这些词的帖子或任务会进入待审队列。</div>
+            </el-form-item>
+            <el-form-item label="自动拦截词">
+              <el-input
+                v-model="moderationSettings.contentRejectWords"
+                type="textarea"
+                :rows="5"
+                placeholder="多个关键词用逗号或换行分隔，命中后直接拒绝提交"
+              />
+              <div class="setting-hint">命中这些词会被系统直接拦截，不进入发布流程。</div>
+            </el-form-item>
+          </el-form>
+        </el-tab-pane>
       </el-tabs>
 
       <!-- 操作按钮 -->
@@ -404,6 +441,13 @@ const securitySettings = reactive({
   apiRateLimit: 1000,
 })
 
+const moderationSettings = reactive({
+  contentAutoReviewEnabled: true,
+  taskAutoReviewEnabled: true,
+  contentReviewWords: '',
+  contentRejectWords: '',
+})
+
 const systemInfo = reactive({
   version: '1.0.0',
   environment: 'Production',
@@ -427,6 +471,7 @@ const fetchSettings = async () => {
       Object.assign(paymentSettings, response.data.payment || {})
       Object.assign(notificationSettings, response.data.notification || {})
       Object.assign(securitySettings, response.data.security || {})
+      Object.assign(moderationSettings, response.data.moderation || {})
     }
   } catch (error) {
     ElMessage.error('获取系统设置失败: ' + error.message)
@@ -443,6 +488,7 @@ const saveSettings = async () => {
       payment: paymentSettings,
       notification: notificationSettings,
       security: securitySettings,
+      moderation: moderationSettings,
     }
 
     const response = await systemApi.updateSettings(settings)
@@ -599,6 +645,13 @@ onMounted(() => {
 .unit {
   margin-left: 10px;
   color: #666;
+}
+
+.setting-hint {
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .logo-uploader .logo {

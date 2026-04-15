@@ -1,14 +1,37 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <div>
+      <div class="page-header-left">
         <h1 class="page-title">客服管理</h1>
         <p class="page-subtitle">配置客服账号、封禁状态与可处理工单类型</p>
       </div>
       <el-button type="primary" @click="openCreateDialog">新增客服</el-button>
     </div>
 
-    <el-card shadow="never">
+    <section class="stats-grid">
+      <article class="stat-card primary">
+        <span>客服总数</span>
+        <strong>{{ services.length }}</strong>
+        <p>当前已配置客服账号</p>
+      </article>
+      <article class="stat-card">
+        <span>正常服务</span>
+        <strong>{{ activeCount }}</strong>
+        <p>可正常处理工单的客服</p>
+      </article>
+      <article class="stat-card">
+        <span>封禁账号</span>
+        <strong>{{ bannedCount }}</strong>
+        <p>已被限制登录或处理工单</p>
+      </article>
+      <article class="stat-card">
+        <span>类型覆盖</span>
+        <strong>{{ coveredTicketTypes }}</strong>
+        <p>已分配的工单类型种类</p>
+      </article>
+    </section>
+
+    <el-card shadow="never" class="panel-card">
       <el-table v-loading="loading" :data="services" stripe>
         <el-table-column prop="username" label="账号" min-width="140" />
         <el-table-column prop="name" label="姓名" min-width="120" />
@@ -48,30 +71,32 @@
       </el-table>
     </el-card>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.mode === 'create' ? '新增客服' : '编辑客服'" width="480px">
-      <el-form label-position="top">
-        <el-form-item label="账号">
-          <el-input v-model="dialog.form.username" :disabled="dialog.mode === 'edit'" />
-        </el-form-item>
-        <el-form-item label="姓名">
-          <el-input v-model="dialog.form.name" />
-        </el-form-item>
-        <el-form-item label="手机号">
-          <el-input v-model="dialog.form.phone" />
-        </el-form-item>
-        <el-form-item label="邮箱">
-          <el-input v-model="dialog.form.email" />
-        </el-form-item>
-        <el-form-item label="角色">
-          <el-select v-model="dialog.form.role" style="width: 100%">
-            <el-option label="普通客服" value="service" />
-            <el-option label="高级客服" value="senior_service" />
-            <el-option label="客服经理" value="manager" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="dialog.mode === 'create' ? '密码' : '重置密码'">
-          <el-input v-model="dialog.form.password" type="password" show-password />
-        </el-form-item>
+    <el-dialog v-model="dialog.visible" :title="dialog.mode === 'create' ? '新增客服' : '编辑客服'" width="640px">
+      <el-form label-position="top" class="service-form">
+        <div class="form-grid">
+          <el-form-item label="账号">
+            <el-input v-model="dialog.form.username" :disabled="dialog.mode === 'edit'" />
+          </el-form-item>
+          <el-form-item label="姓名">
+            <el-input v-model="dialog.form.name" />
+          </el-form-item>
+          <el-form-item label="手机号">
+            <el-input v-model="dialog.form.phone" />
+          </el-form-item>
+          <el-form-item label="邮箱">
+            <el-input v-model="dialog.form.email" />
+          </el-form-item>
+          <el-form-item label="角色">
+            <el-select v-model="dialog.form.role" style="width: 100%">
+              <el-option label="普通客服" value="service" />
+              <el-option label="高级客服" value="senior_service" />
+              <el-option label="客服经理" value="manager" />
+            </el-select>
+          </el-form-item>
+          <el-form-item :label="dialog.mode === 'create' ? '密码' : '重置密码'">
+            <el-input v-model="dialog.form.password" type="password" show-password />
+          </el-form-item>
+        </div>
         <el-form-item label="可处理工单类型">
           <el-select
             v-model="dialog.form.ticket_types"
@@ -99,12 +124,21 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { adminServiceApi } from '@/api'
 
 const services = ref([])
 const loading = ref(false)
+const activeCount = computed(() => services.value.filter((item) => item.status === 'active').length)
+const bannedCount = computed(() => services.value.filter((item) => item.status === 'banned').length)
+const coveredTicketTypes = computed(() => {
+  const values = new Set()
+  services.value.forEach((item) => {
+    ;(item.ticket_types || []).forEach((type) => values.add(type))
+  })
+  return values.size
+})
 
 const ticketTypeOptions = [
   { label: '投诉', value: 'complaint' },
@@ -275,27 +309,79 @@ onMounted(() => {
 
 <style scoped>
 .page-container {
-  max-width: 1500px;
+  max-width: 1600px;
   margin: 0 auto;
+  display: grid;
+  gap: 20px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
-  margin-bottom: 20px;
+}
+
+.page-header-left {
+  display: grid;
+  gap: 8px;
 }
 
 .page-title {
   margin: 0;
-  font-size: 28px;
-  color: #24364b;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'Fira Code', monospace;
 }
 
 .page-subtitle {
-  margin: 6px 0 0;
-  color: #7f8ea3;
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid var(--border-color, rgba(203, 213, 225, 0.72));
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(148, 163, 184, 0.08);
+}
+
+.stat-card.primary {
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+}
+
+.stat-card span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stat-card strong {
+  font-size: 2rem;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.stat-card p {
+  margin: 0;
+  color: #64748b;
+}
+
+.panel-card {
+  border-radius: 24px;
+  border: 1px solid var(--border-color, rgba(203, 213, 225, 0.72));
+  box-shadow: 0 12px 28px rgba(148, 163, 184, 0.08);
 }
 
 .type-tags {
@@ -306,5 +392,46 @@ onMounted(() => {
 
 .muted {
   color: #9ca3af;
+}
+
+.service-form {
+  display: grid;
+  gap: 8px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+:deep(.el-card__body) {
+  padding: 20px;
+}
+
+:deep(.el-dialog) {
+  border-radius: 24px;
+}
+
+:deep(.el-dialog__body) {
+  padding-top: 12px;
+}
+
+@media (max-width: 1100px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .form-grid,
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

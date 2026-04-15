@@ -82,6 +82,13 @@ export class ForumApi {
         return apiClient.post(`/forum/${id}/like`);
     }
 
+    static async reportPost(
+        id: number,
+        data: { reason_type: string; reason_text?: string }
+    ): Promise<ApiResponse> {
+        return apiClient.post(`/forum/${id}/report`, data);
+    }
+
     static async getComments(
         postId: number,
         params?: ForumCommentQuery

@@ -62,6 +62,20 @@
                         </div>
                     </div>
                     <div class="deadline-note">截止时间：{{ formatDateTime(task.deadline) }}</div>
+                    <div v-if="canReportTask" class="detail-side-actions">
+                        <NButton
+                            quaternary
+                            round
+                            size="small"
+                            :disabled="task.has_reported"
+                            @click="openReportTaskModal"
+                        >
+                            {{ task.has_reported ? '已举报' : '举报任务' }}
+                        </NButton>
+                        <span v-if="task.report_count" class="detail-side-meta">
+                            {{ task.report_count }} 人举报
+                        </span>
+                    </div>
                 </NCard>
 
                 <NCard
@@ -626,9 +640,46 @@
                         提交工单
                     </NButton>
                 </div>
+                </div>
             </div>
         </div>
-    </div>
+
+        <div v-if="showReportTaskModal" class="review-modal-mask" @click.self="showReportTaskModal = false">
+            <div class="review-modal">
+                <div class="review-modal__head">
+                    <strong>举报任务</strong>
+                    <button type="button" class="review-modal__close" @click="showReportTaskModal = false">
+                        ×
+                    </button>
+                </div>
+                <p class="review-modal__hint">
+                    举报将直接进入管理员审核工作台，请只提交真实问题内容。
+                </p>
+                <div class="review-modal__subcard">
+                    <span>举报原因</span>
+                    <NSelect
+                        v-model:value="taskReportReasonType"
+                        :options="reportReasonOptions"
+                        placeholder="请选择举报原因"
+                    />
+                </div>
+                <div class="review-modal__subcard">
+                    <span>补充说明</span>
+                    <NInput
+                        v-model:value="taskReportReasonText"
+                        type="textarea"
+                        :autosize="{ minRows: 3, maxRows: 5 }"
+                        placeholder="可补充具体情况，便于管理员判断"
+                    />
+                </div>
+                <div class="review-modal__actions">
+                    <NButton round @click="showReportTaskModal = false">取消</NButton>
+                    <NButton type="warning" round :loading="submittingTaskReport" @click="submitTaskReport">
+                        提交举报
+                    </NButton>
+                </div>
+            </div>
+        </div>
 </template>
 
 <script setup lang="ts">
@@ -639,6 +690,7 @@ import {
     NCard,
     NIcon,
     NInput,
+    NSelect,
     NSpace,
     NSpin,
     NTag,
@@ -683,6 +735,10 @@ const cancellationCompensation = ref<number | null>(null);
 const showTicketModal = ref(false);
 const submittingTicket = ref(false);
 const cancellationTicketDescription = ref('');
+const showReportTaskModal = ref(false);
+const submittingTaskReport = ref(false);
+const taskReportReasonType = ref<string | null>(null);
+const taskReportReasonText = ref('');
 const countdownNow = ref(Date.now());
 let countdownTimer: number | null = null;
 
@@ -693,6 +749,23 @@ const taskId = computed(() => Number(route.params.id || 0));
 const currentUserId = computed(() => Number(userStore.user?.id || 0));
 const isPublisher = computed(() => task.value?.publisher_id === currentUserId.value);
 const isAssignee = computed(() => task.value?.assignee_id === currentUserId.value);
+const canReportTask = computed(
+    () =>
+        !!task.value &&
+        currentUserId.value > 0 &&
+        !isPublisher.value &&
+        !task.value.has_reported
+);
+const reportReasonOptions = [
+    { label: '诈骗/虚假', value: 'fraud' },
+    { label: '广告引流', value: 'ad' },
+    { label: '色情低俗', value: 'vulgar' },
+    { label: '违法违规', value: 'illegal' },
+    { label: '辱骂攻击', value: 'abuse' },
+    { label: '不实信息', value: 'false_info' },
+    { label: '危险交易', value: 'unsafe_trade' },
+    { label: '其他', value: 'other' },
+];
 const hasBlockingCancellationState = computed(
     () =>
         task.value?.cancellation_status === 'pending' ||
@@ -1016,6 +1089,13 @@ const openTicketModal = () => {
         ? `协商取消原因：${task.value.cancellation_reason}`
         : '';
     showTicketModal.value = true;
+};
+
+const openReportTaskModal = () => {
+    if (!canReportTask.value) return;
+    taskReportReasonType.value = null;
+    taskReportReasonText.value = '';
+    showReportTaskModal.value = true;
 };
 
 const fetchTask = async () => {
@@ -1353,6 +1433,32 @@ const submitCancellationTicket = async () => {
     }
 };
 
+const submitTaskReport = async () => {
+    if (!task.value || !canReportTask.value || submittingTaskReport.value) return;
+    if (!taskReportReasonType.value) {
+        message.warning('请选择举报原因');
+        return;
+    }
+
+    submittingTaskReport.value = true;
+    try {
+        const response = await TaskApi.reportTask(task.value.id, {
+            reason_type: taskReportReasonType.value,
+            reason_text: taskReportReasonText.value.trim() || undefined,
+        });
+        if (!response.success) {
+            throw new Error(response.message || '提交举报失败');
+        }
+        showReportTaskModal.value = false;
+        message.success('举报已提交');
+        await refreshDetail();
+    } catch (error: any) {
+        message.error(error?.message || '提交举报失败');
+    } finally {
+        submittingTaskReport.value = false;
+    }
+};
+
 const submitTaskRating = async () => {
     if (!task.value || !canRateTask.value || submittingRating.value) return;
     if (taskRating.value < 1 || taskRating.value > 5) {
@@ -1542,6 +1648,18 @@ onUnmounted(() => {
     font-size: 12px;
     color: #94a3b8;
     margin-top: 8px;
+}
+
+.detail-side-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.detail-side-meta {
+    font-size: 12px;
+    color: #94a3b8;
 }
 
 .cancellation-notice-card {

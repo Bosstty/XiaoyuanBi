@@ -234,12 +234,14 @@
 import { ref, computed, markRaw, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { canAccessMenuItem } from '@/utils/adminPermissions'
 import {
   DataBoard,
   User,
   Van,
   Box,
   Briefcase,
+  Checked,
   ChatDotRound,
   Service,
   Tickets,
@@ -338,21 +340,29 @@ const iconMap = {
 
 const menuConfig = [
   { index: '/dashboard', title: '数据看板', icon: markRaw(DataBoard), roles: ['admin', 'service'] },
-  { index: '/users', title: '用户管理', icon: markRaw(User), roles: ['admin'] },
-  { index: '/services', title: '客服管理', icon: markRaw(Service), roles: ['admin'] },
+  {
+    index: '/reviews',
+    title: '审核工作台',
+    icon: markRaw(Checked),
+    roles: ['admin'],
+    permission: ['review:view_all', 'review:student', 'review:deliverer', 'review:forum', 'review:task', 'review:report'],
+  },
+  { index: '/users', title: '用户管理', icon: markRaw(User), roles: ['admin'], permission: 'user:admin_read' },
   {
     index: '/deliverers',
     title: '配送员管理',
     icon: markRaw(Van),
     roles: ['admin'],
+    permission: 'deliverer:admin',
     children: [
-      { index: '/deliverers', title: '配送员列表', icon: markRaw(Van) },
-      { index: '/deliverers/verification', title: '配送员审核', icon: markRaw(Check) },
+      { index: '/deliverers', title: '配送员列表', icon: markRaw(Van), permission: 'deliverer:admin' },
+      { index: '/deliverers/verification', title: '配送员审核', icon: markRaw(Check), permission: 'deliverer:admin' },
     ],
   },
-  { index: '/orders', title: '订单管理', icon: markRaw(Box), roles: ['admin'] },
-  { index: '/tasks', title: '任务管理', icon: markRaw(Briefcase), roles: ['admin'] },
-  { index: '/forum', title: '论坛管理', icon: markRaw(ChatDotRound), roles: ['admin'] },
+  { index: '/orders', title: '订单管理', icon: markRaw(Box), roles: ['admin'], permission: 'order:admin' },
+  { index: '/tasks', title: '任务管理', icon: markRaw(Briefcase), roles: ['admin'], permission: 'task:admin' },
+  { index: '/forum', title: '论坛管理', icon: markRaw(ChatDotRound), roles: ['admin'], permission: 'forum:moderate' },
+  { index: '/services', title: '客服管理', icon: markRaw(Service), roles: ['admin'], permission: 'system:manage' },
   {
     index: '/service',
     title: '客服中心',
@@ -363,10 +373,11 @@ const menuConfig = [
       { index: '/service/after-sales', title: '售后管理', icon: markRaw(ShoppingCart) },
     ],
   },
-  { index: '/analytics', title: '数据分析', icon: markRaw(TrendCharts), roles: ['admin'] },
-  { index: '/finance', title: '财务中心', icon: markRaw(Money), roles: ['admin'] },
-  { index: '/system', title: '系统设置', icon: markRaw(Setting), roles: ['admin'] },
-  { index: '/system/audit', title: '审计日志', icon: markRaw(Document), roles: ['admin'] },
+  { index: '/analytics', title: '数据分析', icon: markRaw(TrendCharts), roles: ['admin'], permission: 'analytics:read' },
+  { index: '/finance', title: '财务中心', icon: markRaw(Money), roles: ['admin'], permission: 'analytics:read' },
+  { index: '/system', title: '系统设置', icon: markRaw(Setting), roles: ['admin'], permission: 'system:manage' },
+  { index: '/system/admins', title: '管理员权限', icon: markRaw(User), roles: ['admin'], permission: 'system:manage' },
+  { index: '/system/audit', title: '审计日志', icon: markRaw(Document), roles: ['admin'], permission: 'audit:read' },
 ]
 
 const activeMenu = computed(() => {
@@ -380,6 +391,7 @@ const breadcrumbs = computed(() => {
     services: '客服管理',
     deliverers: '配送员管理',
     orders: '订单管理',
+    reviews: '审核工作台',
     tasks: '任务管理',
     forum: '论坛管理',
     service: '客服中心',
@@ -389,6 +401,7 @@ const breadcrumbs = computed(() => {
     analytics: '数据分析',
     finance: '财务中心',
     system: '系统设置',
+    admins: '管理员权限',
     'system-audit': '审计日志',
   }
 
@@ -402,7 +415,22 @@ const unreadCount = computed(() => {
 })
 
 const visibleMenus = computed(() =>
-  menuConfig.filter((item) => item.roles.includes(adminStore.userType || 'admin')),
+  menuConfig
+    .filter((item) => canAccessMenuItem(adminStore.userType || 'admin', adminStore.admin, item))
+    .map((item) => {
+      if (!item.children) return item
+      const children = item.children.filter((child) =>
+        canAccessMenuItem(adminStore.userType || 'admin', adminStore.admin, {
+          ...child,
+          roles: item.roles,
+        }),
+      )
+      return {
+        ...item,
+        children,
+      }
+    })
+    .filter((item) => !item.children || item.children.length > 0),
 )
 
 const displayUserName = computed(
@@ -410,9 +438,18 @@ const displayUserName = computed(
 )
 const displayUserAvatar = computed(() => adminStore.admin?.avatar || '')
 
-const userRoleLabel = computed(() =>
-  adminStore.userType === 'service' ? '客服专员' : '超级管理员',
-)
+const userRoleLabel = computed(() => {
+  if (adminStore.userType === 'service') return '客服专员'
+  const role = adminStore.admin?.role
+  return (
+    {
+      super_admin: '超级管理员',
+      admin: '管理员',
+      moderator: '版主',
+      service: '客服',
+    }[role] || '管理员'
+  )
+})
 
 const currentAuthApi = computed(() =>
   adminStore.userType === 'service' ? serviceAuthApi : authApi,

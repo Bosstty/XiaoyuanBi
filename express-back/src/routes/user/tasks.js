@@ -26,6 +26,7 @@ router.delete('/:id', TaskController.deleteTask);
 
 // 取消发布任务
 router.post('/:id/cancel', TaskController.cancelTask);
+router.post('/:id/report', TaskController.createReport);
 
 // 申请任务
 router.post('/:id/apply', TaskController.applyForTask);

@@ -201,7 +201,8 @@ export const analyticsApi = {
   getRevenueStats: (params) => apiClient.get('/admin/analytics/revenue', params),
   getRevenueDetailItems: (params) => apiClient.get('/admin/analytics/revenue/details', params),
   // 异常订单预警
-  getAbnormalOrderAlerts: (params) => apiClient.get('/admin/analytics/alerts/abnormal-orders', params),
+  getAbnormalOrderAlerts: (params) =>
+    apiClient.get('/admin/analytics/alerts/abnormal-orders', params),
 }
 
 // 兼容旧版本命名
@@ -236,6 +237,18 @@ export const adminServiceApi = {
   createService: (data) => apiClient.post('/admin/services', data),
   updateService: (id, data) => apiClient.put(`/admin/services/${id}`, data),
   updateServiceStatus: (id, status) => apiClient.patch(`/admin/services/${id}/status`, { status }),
+}
+
+export const reviewWorkbenchApi = {
+  getWorkbench: (params) => apiClient.get('/admin/reviews/workbench', params),
+  handleReport: (id, action, reason) =>
+    apiClient.patch(`/admin/reviews/workbench/reports/${id}`, { action, reason }),
+}
+
+export const adminManagementApi = {
+  getAdmins: () => apiClient.get('/admin/admins'),
+  createAdmin: (data) => apiClient.post('/admin/admins', data),
+  updateAdmin: (id, data) => apiClient.put(`/admin/admins/${id}`, data),
 }
 
 // =========================================
@@ -301,7 +314,8 @@ export const financeManagementApi = {
   getDelivererDebts: (params) => apiClient.get('/admin/finance/debts', params),
   getDelivererDebtDetail: (id) => apiClient.get(`/admin/finance/debts/${id}`),
   getSystemAccountOverview: () => apiClient.get('/admin/finance/system-account/overview'),
-  getSystemAccountAnalysis: (params) => apiClient.get('/admin/finance/system-account/analysis', params),
+  getSystemAccountAnalysis: (params) =>
+    apiClient.get('/admin/finance/system-account/analysis', params),
   getSystemAccountTransactions: (params) =>
     apiClient.get('/admin/finance/system-account/transactions', params),
 }
@@ -374,7 +388,8 @@ export const serviceChatApi = {
   // 获取可转接客服列表
   getAvailableServices: () => apiClient.get('/service/chat/services'),
   // 转接会话
-  transferConversation: (id, data) => apiClient.post(`/service/chat/conversations/${id}/transfer`, data),
+  transferConversation: (id, data) =>
+    apiClient.post(`/service/chat/conversations/${id}/transfer`, data),
   // 获取消息列表
   getMessages: (params) => apiClient.get('/service/chat/messages', params),
   // 发送消息
