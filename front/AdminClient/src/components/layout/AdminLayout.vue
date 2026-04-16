@@ -377,7 +377,7 @@ const menuConfig = [
     title: '审核工作台',
     icon: markRaw(Checked),
     roles: ['admin'],
-    permission: ['review:view_all', 'review:student', 'review:deliverer', 'review:forum', 'review:task', 'review:report'],
+    permission: ['review:student', 'review:deliverer', 'review:forum', 'review:task', 'review:report'],
   },
   { index: '/users', title: '用户管理', icon: markRaw(User), roles: ['admin'], permission: 'user:admin_read' },
   {

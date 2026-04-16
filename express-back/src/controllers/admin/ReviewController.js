@@ -9,11 +9,7 @@ const DEFAULT_LIMIT = 6;
 function hasReviewAccess(user, codes = []) {
     const directPermissions = Array.isArray(user?.permissions) ? user.permissions : [];
 
-    if (
-        user?.role === 'super_admin' ||
-        directPermissions.includes('all') ||
-        directPermissions.includes('review:view_all')
-    ) {
+    if (user?.role === 'super_admin' || directPermissions.includes('all')) {
         return true;
     }
 
