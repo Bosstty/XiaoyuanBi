@@ -6,7 +6,7 @@ const {
     Wallet,
     Transaction,
 } = require('../../models');
-const { responseUtils, paginationUtils } = require('../../utils');
+const { responseUtils, paginationUtils, requestUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const SecurityService = require('../../services/SecurityService');
 
@@ -305,6 +305,7 @@ class DelivererOrderController {
             const { id } = req.params;
             const userId = req.user.id;
             const delivererId = req.user.deliverer_id;
+            const clientIp = requestUtils.getClientIp(req);
             const deliverer = await Deliverer.findByPk(delivererId, {
                 attributes: ['id', 'is_online', 'application_status', 'verified', 'status'],
             });
@@ -354,7 +355,7 @@ class DelivererOrderController {
             // 异常行为检测
             await SecurityService.detectAnomalousActivity(userId, 'accept_order', {
                 order_id: id,
-                ip: req.ip,
+                ip: clientIp,
                 userAgent: req.get('User-Agent'),
             });
 

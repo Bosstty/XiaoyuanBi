@@ -1,5 +1,5 @@
 const { ForumPost, ForumComment, User, ContentReport } = require('../../models');
-const { responseUtils } = require('../../utils');
+const { responseUtils, requestUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const ContentModerationService = require('../../services/ContentModerationService');
 
@@ -370,6 +370,7 @@ class ForumController {
             const { id } = req.params; // post_id
             const userId = req.user.id;
             const commentData = req.body;
+            const clientIp = requestUtils.getClientIp(req);
 
             const post = await ForumPost.findByPk(id);
 
@@ -380,7 +381,7 @@ class ForumController {
             const comment = await ForumComment.create({
                 post_id: id,
                 author_id: userId,
-                ip_address: req.ip,
+                ip_address: clientIp,
                 ...commentData,
             });
 

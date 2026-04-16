@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const { Wallet, Transaction, Deliverer, PickupOrder, Task, User, DelivererDebt } = require('../../models');
-const { responseUtils, paginationUtils, timeUtils, cryptoUtils } = require('../../utils');
+const { responseUtils, paginationUtils, timeUtils, cryptoUtils, requestUtils } = require('../../utils');
 const DebtSettlementService = require('../../services/DebtSettlementService');
 const emailService = require('../../../services/emailService');
 
@@ -942,6 +942,7 @@ class WalletController {
     static async setPaymentPassword(req, res) {
         try {
             const { payment_password, account_password } = req.body;
+            const clientIp = requestUtils.getClientIp(req);
 
             if (!req.user.email || !req.user.email_verified) {
                 return res.status(400).json(responseUtils.error('请先完成邮箱验证后再设置或修改支付密码'));
@@ -980,7 +981,7 @@ class WalletController {
                             value: req.user.username || req.user.email || `用户 ${req.user.id}`,
                         },
                         { label: '操作时间', value: formatSecurityTime() },
-                        { label: 'IP 地址', value: req.ip || '未知' },
+                        { label: 'IP 地址', value: clientIp || '未知' },
                         { label: '设备信息', value: req.get('User-Agent') || '未知设备' },
                     ],
                     footerNote: '支付密码将用于余额支付、订单冻结和提现校验。如非本人操作，请立即修改登录密码并联系平台。',

@@ -1,5 +1,5 @@
 const { Admin } = require('../../models');
-const { jwtUtils, responseUtils } = require('../../utils');
+const { jwtUtils, responseUtils, requestUtils } = require('../../utils');
 const SecurityService = require('../../services/SecurityService');
 
 class AdminAuthController {
@@ -7,6 +7,7 @@ class AdminAuthController {
     static async login(req, res) {
         try {
             const { username, password } = req.body;
+            const clientIp = requestUtils.getClientIp(req);
 
             // 查找管理员
             const admin = await Admin.findOne({
@@ -25,14 +26,14 @@ class AdminAuthController {
 
             // 异常行为检测
             await SecurityService.detectAnomalousActivity(admin.id, 'admin_login', {
-                ip: req.ip,
+                ip: clientIp,
                 userAgent: req.get('User-Agent'),
             });
 
             // 更新登录信息
             await admin.update({
                 last_login_at: new Date(),
-                last_login_ip: req.ip,
+                last_login_ip: clientIp,
             });
 
             // 生成JWT令牌

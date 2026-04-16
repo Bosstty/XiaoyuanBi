@@ -9,7 +9,7 @@ const {
     Transaction,
     SystemSetting,
 } = require('../../models');
-const { orderUtils, responseUtils, paginationUtils, cryptoUtils } = require('../../utils');
+const { orderUtils, responseUtils, paginationUtils, cryptoUtils, requestUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 const SecurityService = require('../../services/SecurityService');
@@ -707,6 +707,7 @@ class UserOrderController {
     static async createOrder(req, res) {
         try {
             const userId = req.user.id;
+            const clientIp = requestUtils.getClientIp(req);
             const {
                 type,
                 title,
@@ -751,7 +752,7 @@ class UserOrderController {
             // 异常行为检测
             await SecurityService.detectAnomalousActivity(userId, 'create_order', {
                 amount: price,
-                ip: req.ip,
+                ip: clientIp,
                 userAgent: req.get('User-Agent'),
             });
 

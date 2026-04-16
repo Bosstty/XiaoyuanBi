@@ -1,4 +1,5 @@
 const winston = require('winston');
+const { requestUtils } = require('../utils');
 
 // 配置日志记录器
 const logger = winston.createLogger({
@@ -32,7 +33,7 @@ const errorHandler = (error, req, res, next) => {
         stack: error.stack,
         url: req.url,
         method: req.method,
-        ip: req.ip,
+        ip: requestUtils.getClientIp(req),
         userAgent: req.headers['user-agent'],
         userId: req.userId,
     });

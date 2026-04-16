@@ -7,6 +7,11 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const app = express();
 const { APP_ROOT, getUploadRoot } = require('./src/utils/uploads');
 const { createHttpServer, initSocket } = require('./config/socket');
+const SecurityMiddleware = require('./src/middleware/securityMiddleware');
+
+// 信任本机/内网反向代理，确保 req.ip 能正确读取 X-Forwarded-For
+app.set('trust proxy', process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal');
+app.disable('x-powered-by');
 
 // 导入主路由
 const mainRouter = require('./src/routes/main');
@@ -20,6 +25,8 @@ const legacyUploadsDir = path.join(APP_ROOT, 'uploads');
 // 全局中间件3
 app.use(cors());
 app.use(morgan('combined'));
+app.use(SecurityMiddleware.attachSecurityHeaders);
+app.use(SecurityMiddleware.blockSuspiciousRequests);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));

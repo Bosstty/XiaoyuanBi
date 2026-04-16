@@ -1,5 +1,5 @@
 const { User, Deliverer, PickupOrder, Task, Wallet, DelivererDebt } = require('../../models');
-const { jwtUtils, responseUtils, validationUtils, cryptoUtils } = require('../../utils');
+const { jwtUtils, responseUtils, validationUtils, cryptoUtils, requestUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 const SecurityService = require('../../services/SecurityService');
@@ -101,6 +101,7 @@ class UserAuthController {
     // 用户注册
     static async register(req, res) {
         try {
+            const clientIp = requestUtils.getClientIp(req);
             const {
                 student_id,
                 username,
@@ -158,7 +159,7 @@ class UserAuthController {
 
             // 异常行为检测
             await SecurityService.detectAnomalousActivity(user.id, 'register', {
-                ip: req.ip,
+                ip: clientIp,
                 userAgent: req.get('User-Agent'),
             });
 
@@ -181,6 +182,7 @@ class UserAuthController {
     static async login(req, res) {
         try {
             const { email, password } = req.body;
+            const clientIp = requestUtils.getClientIp(req);
 
             // 查找用户
             const user = await User.findOne({
@@ -206,14 +208,14 @@ class UserAuthController {
 
             // 异常行为检测
             await SecurityService.detectAnomalousActivity(user.id, 'login', {
-                ip: req.ip,
+                ip: clientIp,
                 userAgent: req.get('User-Agent'),
             });
 
             // 更新登录信息
             await user.update({
                 last_login_at: new Date(),
-                last_login_ip: req.ip,
+                last_login_ip: clientIp,
             });
 
             // 生成JWT令牌
@@ -304,6 +306,7 @@ class UserAuthController {
     static async changePassword(req, res) {
         try {
             const user = req.user;
+            const clientIp = requestUtils.getClientIp(req);
             const { old_password, new_password } = req.body;
 
             if (!user.email || !user.email_verified) {
@@ -329,7 +332,7 @@ class UserAuthController {
                     details: [
                         { label: '账号', value: user.username || user.email || `用户 ${user.id}` },
                         { label: '操作时间', value: formatSecurityTime() },
-                        { label: 'IP 地址', value: req.ip || '未知' },
+                        { label: 'IP 地址', value: clientIp || '未知' },
                         { label: '设备信息', value: req.get('User-Agent') || '未知设备' },
                     ],
                     footerNote: '如果不是你本人修改，请尽快使用找回密码功能重置密码，并检查账号登录状态。',

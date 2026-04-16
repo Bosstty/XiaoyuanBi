@@ -1,5 +1,5 @@
 const Redis = require('ioredis');
-const { responseUtils } = require('../utils');
+const { responseUtils, requestUtils } = require('../utils');
 
 // Redis 客户端 (假设已配置)
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
@@ -11,7 +11,7 @@ class RateLimitMiddleware {
             windowMs = 60 * 1000, // 1分钟
             maxRequests = 100,    // 最大请求数
             message = '请求过于频繁，请稍后再试',
-            keyGenerator = (req) => req.ip,
+            keyGenerator = req => requestUtils.getClientIp(req) || 'unknown',
             skipSuccessfulRequests = false,
             skipFailedRequests = false
         } = options;
@@ -52,7 +52,8 @@ class RateLimitMiddleware {
         windowMs: 15 * 60 * 1000, // 15分钟
         maxRequests: 5,           // 最多5次登录尝试
         message: '登录尝试过于频繁，请15分钟后再试',
-        keyGenerator: (req) => `login:${req.ip}:${req.body.email || req.body.phone || req.body.username}`
+        keyGenerator: req =>
+            `login:${requestUtils.getClientIp(req) || 'unknown'}:${req.body.email || req.body.phone || req.body.username}`
     });
 
     // 注册限流
@@ -60,7 +61,7 @@ class RateLimitMiddleware {
         windowMs: 60 * 60 * 1000, // 1小时
         maxRequests: 3,           // 最多3次注册
         message: '注册过于频繁，请1小时后再试',
-        keyGenerator: (req) => `register:${req.ip}`
+        keyGenerator: req => `register:${requestUtils.getClientIp(req) || 'unknown'}`
     });
 
     // SMS验证码限流
@@ -92,7 +93,8 @@ class RateLimitMiddleware {
         windowMs: 60 * 1000,  // 1分钟
         maxRequests: 20,      // 1分钟最多20次上传
         message: '文件上传过于频繁，请稍后再试',
-        keyGenerator: (req) => `upload:${req.user ? req.user.id : req.ip}`
+        keyGenerator: req =>
+            `upload:${req.user ? req.user.id : requestUtils.getClientIp(req) || 'unknown'}`
     });
 
     // API总体限流
@@ -100,7 +102,8 @@ class RateLimitMiddleware {
         windowMs: 60 * 1000,  // 1分钟
         maxRequests: 1000,    // 1分钟最多1000次请求
         message: 'API请求过于频繁，请稍后再试',
-        keyGenerator: (req) => req.user ? `user:${req.user.id}` : `ip:${req.ip}`
+        keyGenerator: req =>
+            req.user ? `user:${req.user.id}` : `ip:${requestUtils.getClientIp(req) || 'unknown'}`
     });
 }
 

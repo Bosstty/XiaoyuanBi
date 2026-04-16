@@ -1,6 +1,50 @@
 const { AuditLog } = require('../models');
+const { requestUtils } = require('../utils');
 
 class AuditMiddleware {
+    static decodeUrlSafely(url) {
+        try {
+            return decodeURIComponent(url || '');
+        } catch (_error) {
+            return String(url || '');
+        }
+    }
+
+    static isNoiseScanRequest(req, res) {
+        if (res.statusCode !== 404) {
+            return false;
+        }
+
+        if (req.user || req.admin) {
+            return false;
+        }
+
+        const rawUrl = req.originalUrl || req.url || '';
+        const normalizedUrl = AuditMiddleware.decodeUrlSafely(rawUrl).toLowerCase();
+
+        const suspiciousPatterns = [
+            '/../',
+            '..\\',
+            '/.env',
+            '/etc/passwd',
+            '/wp-admin',
+            '/wp-login',
+            '/phpmyadmin',
+            '/cgi-bin',
+            '/vendor/phpunit',
+            '/actuator',
+            '/boaform',
+            '/login.action',
+            '/swagger',
+            '/config.',
+        ];
+
+        const isSuspiciousProbe = suspiciousPatterns.some(pattern => normalizedUrl.includes(pattern));
+        const isNonApiPath = !normalizedUrl.startsWith('/api/');
+
+        return isSuspiciousProbe || isNonApiPath;
+    }
+
     // 数据脱敏函数
     static sanitizeData(data, sensitiveFields = []) {
         if (!data || typeof data !== 'object') return data;
@@ -104,6 +148,7 @@ class AuditMiddleware {
 
         return (req, res, next) => {
             const startTime = Date.now();
+            const clientIp = requestUtils.getClientIp(req);
 
             // 检查是否需要跳过日志
             if (excludePaths.some(path => req.path.startsWith(path))) {
@@ -131,6 +176,11 @@ class AuditMiddleware {
                         return;
                     }
 
+                    // 忽略公网常见的未登录 404 探测请求，避免污染管理审计列表
+                    if (AuditMiddleware.isNoiseScanRequest(req, res)) {
+                        return;
+                    }
+
                     const logData = {
                         // 管理员请求应写入 admin_id，避免把管理员ID写到 user_id 触发外键
                         user_id: req.admin ? null : req.user?.id || null,
@@ -140,7 +190,7 @@ class AuditMiddleware {
                         resource_id: req.params?.id || req.params?.resource_id || null,
                         method: req.method,
                         url: req.originalUrl || req.url,
-                        ip_address: req.ip || req.connection.remoteAddress,
+                        ip_address: clientIp,
                         user_agent: req.get('User-Agent'),
                         request_body: logRequests
                             ? AuditMiddleware.sanitizeData(req.body, sensitiveFields)

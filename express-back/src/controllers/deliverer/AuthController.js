@@ -1,5 +1,5 @@
 const { Deliverer, User } = require('../../models');
-const { jwtUtils, responseUtils } = require('../../utils');
+const { jwtUtils, responseUtils, requestUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const SecurityService = require('../../services/SecurityService');
 
@@ -8,6 +8,7 @@ class DelivererAuthController {
     static async login(req, res) {
         try {
             const { email, password } = req.body;
+            const clientIp = requestUtils.getClientIp(req);
 
             // 查找用户
             const user = await User.findOne({
@@ -44,14 +45,14 @@ class DelivererAuthController {
 
             // 异常行为检测
             await SecurityService.detectAnomalousActivity(user.id, 'deliverer_login', {
-                ip: req.ip,
+                ip: clientIp,
                 userAgent: req.get('User-Agent'),
             });
 
             // 更新登录信息
             await user.update({
                 last_login_at: new Date(),
-                last_login_ip: req.ip,
+                last_login_ip: clientIp,
             });
 
             // 生成JWT令牌
