@@ -112,7 +112,12 @@ adminRoutes.use(
 adminRoutes.use('/admins', adminAuthMiddleware, require('./admin/admins'));
 
 // 客服管理 - /api/admin/services/*
-adminRoutes.use('/services', adminAuthMiddleware, require('./admin/services'));
+adminRoutes.use(
+    '/services',
+    adminAuthMiddleware,
+    permissionMiddleware.checkPermission('system', 'manage'),
+    require('./admin/services')
+);
 
 // 订单管理 - /api/admin/orders/*
 adminRoutes.use(

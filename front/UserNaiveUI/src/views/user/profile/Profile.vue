@@ -166,27 +166,6 @@
 
         <section class="account-center__section">
             <div class="account-center__section-head">
-                <h3>账户资产</h3>
-                <button type="button" @click="handleMenuClick('/wallet')">查看钱包</button>
-            </div>
-            <div class="account-center__overview-grid">
-                <article
-                    v-for="card in overviewCards"
-                    :key="card.title"
-                    class="account-center__overview-card"
-                >
-                    <div class="account-center__overview-icon" :style="{ background: card.tint }">
-                        <NIcon :size="20"><component :is="card.icon" /></NIcon>
-                    </div>
-                    <strong>{{ card.value }}</strong>
-                    <h4>{{ card.title }}</h4>
-                    <p>{{ card.note }}</p>
-                </article>
-            </div>
-        </section>
-
-        <section class="account-center__section">
-            <div class="account-center__section-head">
                 <h3>常用入口</h3>
                 <button type="button" @click="handleMenuClick('/settings')">账户设置</button>
             </div>
@@ -441,10 +420,8 @@ import {
     FlashOutline,
     MoonOutline,
     PersonOutline,
-    ReceiptOutline,
     RibbonOutline,
     StarOutline,
-    WalletOutline,
 } from '@vicons/ionicons5';
 import { DelivererApplicationApi, WalletApi, type DelivererApplicationPayload } from '@/api';
 import type { DelivererApplication, WalletOverview } from '@/types';
@@ -628,42 +605,6 @@ const profileStats = computed(() => {
         { label: '完成任务', value: userStore.user.completed_tasks || 0 },
         { label: '账户评分', value: Number(userStore.user.rating || 5).toFixed(1) },
         { label: '当前等级', value: `Lv.${userStore.user.level || 1}` },
-    ];
-});
-
-const overviewCards = computed(() => {
-    const stats = userStore.userStats;
-    const user = userStore.user;
-
-    return [
-        {
-            title: '订单发布',
-            value: stats?.orders.published ?? '--',
-            note: '查看你发起的校园服务订单',
-            icon: markRaw(ReceiptOutline),
-            tint: 'linear-gradient(135deg, rgba(47,107,255,0.16), rgba(75,184,255,0.18))',
-        },
-        {
-            title: '任务协作',
-            value: stats?.tasks.completed ?? user?.completed_tasks ?? '--',
-            note: '参与完成的校园协作任务',
-            icon: markRaw(DocumentTextOutline),
-            tint: 'linear-gradient(135deg, rgba(25,179,107,0.16), rgba(120,224,171,0.18))',
-        },
-        {
-            title: '论坛互动',
-            value: stats?.forum.posts ?? user?.level ?? '--',
-            note: '帖子发布与内容参与表现',
-            icon: markRaw(ChatbubblesOutline),
-            tint: 'linear-gradient(135deg, rgba(255,155,61,0.18), rgba(247,199,95,0.2))',
-        },
-        {
-            title: '钱包与积分',
-            value: userStore.isAuthenticated ? `¥${Number(user?.balance || 0).toFixed(0)}` : '--',
-            note: `${user?.points || 0} 积分可用于活跃度展示`,
-            icon: markRaw(WalletOutline),
-            tint: 'linear-gradient(135deg, rgba(23,48,79,0.16), rgba(47,107,255,0.14))',
-        },
     ];
 });
 

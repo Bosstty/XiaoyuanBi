@@ -140,6 +140,47 @@ function buildVerifyCodeEmail(code) {
     });
 }
 
+function buildAdminActionNoticeEmail({ title, intro, actionLabel, details = [], footerNote }) {
+    const detailRows = details
+        .filter(item => item && item.label && item.value)
+        .map(
+            item => `
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;font-size:12px;color:#9ca3af;width:110px;">
+          ${escapeHtml(item.label)}
+        </td>
+        <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;font-size:14px;font-weight:600;color:#111827;">
+          ${escapeHtml(item.value)}
+        </td>
+      </tr>
+    `
+        )
+        .join('');
+
+    return buildEmailLayout({
+        eyebrow: 'Admin Notice',
+        title,
+        intro,
+        body: `
+      <p style="margin:0 0 12px 0;color:#6b7280;">本次处理结果如下：</p>
+
+      <div style="margin:0 0 16px;padding:20px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;text-align:center;">
+        <div style="font-size:24px;font-weight:700;letter-spacing:2px;color:#111827;">
+          ${escapeHtml(actionLabel)}
+        </div>
+      </div>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px;border-collapse:collapse;">
+        ${detailRows}
+      </table>
+
+      <p style="margin:0 0 16px;color:#6b7280;">如对本次处理有疑问，请联系平台客服核实。</p>
+    `,
+        footerNote:
+            footerNote || '该邮件用于通知管理员处理结果，请以站内消息和平台页面展示信息为准。',
+    });
+}
+
 function buildResetPasswordEmail(resetUrl, expireMinutes) {
     return buildEmailLayout({
         eyebrow: 'Password Recovery',
@@ -295,10 +336,41 @@ async function sendSecurityNotice(email, { subject, title, intro, details = [], 
     return true;
 }
 
+async function sendAdminActionNotice(
+    email,
+    { subject, title, intro, actionLabel, details = [], text, footerNote }
+) {
+    const normalizedEmail = normalizeEmail(email);
+    const from = process.env.MAIL_FROM || process.env.MAIL_USER;
+
+    if (!normalizedEmail || !from) {
+        return false;
+    }
+
+    await transporter.sendMail({
+        from,
+        to: normalizedEmail,
+        subject,
+        text:
+            text ||
+            `${title}\n${intro}\n${details.map(item => `${item.label}: ${item.value}`).join('\n')}\n如有疑问，请联系平台客服。`,
+        html: buildAdminActionNoticeEmail({
+            title,
+            intro,
+            actionLabel,
+            details,
+            footerNote,
+        }),
+    });
+
+    return true;
+}
+
 module.exports = {
     sendVerifyCode,
     verifyCode,
     ServiceError,
     buildResetPasswordEmail,
     sendSecurityNotice,
+    sendAdminActionNotice,
 };

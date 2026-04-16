@@ -16,10 +16,29 @@ const SecurityService = require('../../services/SecurityService');
 const FinanceAccountService = require('../../services/FinanceAccountService');
 const PickupSettlementService = require('../../services/PickupSettlementService');
 const PointsService = require('../../services/PointsService');
+const ContentModerationService = require('../../services/ContentModerationService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
 const roundMoney = value => Number(parseAmount(value).toFixed(2));
 const roundRating = value => Number(Number(value || 0).toFixed(2));
+
+function buildPickupOrderModerationPayload(payload = {}, expressItems = []) {
+    const expressItemTexts = Array.isArray(expressItems)
+        ? expressItems.map(item =>
+              [item.pickup_code, item.phone_tail, item.size]
+                  .filter(value => value !== null && value !== undefined && String(value).trim())
+                  .join(' ')
+          )
+        : [];
+
+    return {
+        title: payload.title,
+        description: payload.description,
+        requirements: payload.notes,
+        location: [payload.pickup_location, payload.delivery_location].filter(Boolean).join(' '),
+        tags: expressItemTexts,
+    };
+}
 
 async function findActiveDamageTicket(orderId, transaction) {
     return ServiceTicket.findOne({
@@ -757,8 +776,28 @@ class UserOrderController {
             });
 
             const totalAmount = parseAmount(price) + parseAmount(tip);
-            const dbTransaction = await PickupOrder.sequelize.transaction();
             const expressItems = normalizeExpressItemsInput(req.body.items);
+            const moderationResult = await ContentModerationService.review(
+                buildPickupOrderModerationPayload(req.body, expressItems),
+                {
+                    label: '订单内容',
+                    scene: 'content',
+                }
+            );
+
+            if (moderationResult.action === 'reject' || moderationResult.action === 'review') {
+                return res
+                    .status(400)
+                    .json(
+                        responseUtils.error(
+                            ContentModerationService.buildUserFacingMessage(moderationResult, {
+                                label: '订单内容',
+                            })
+                        )
+                    );
+            }
+
+            const dbTransaction = await PickupOrder.sequelize.transaction();
 
             let order;
 

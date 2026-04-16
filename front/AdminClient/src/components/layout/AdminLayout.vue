@@ -616,9 +616,10 @@ async function submitProfileDialog() {
             avatar: profileDialog.value.form.avatar,
           }
         : {
-            real_name: profileDialog.value.form.name,
+            name: profileDialog.value.form.name,
             phone: profileDialog.value.form.phone,
             email: profileDialog.value.form.email,
+            avatar: profileDialog.value.form.avatar,
           }
 
     const response = await currentAuthApi.value.updateProfile(payload)

@@ -1,5 +1,6 @@
 const { ForumPost: Post, ForumComment: Comment, User, ContentReport } = require('../../models');
 const { Op } = require('sequelize');
+const AdminActionNotificationService = require('../../services/AdminActionNotificationService');
 
 /**
  * 论坛管理控制器
@@ -228,7 +229,18 @@ class ForumController {
 
       await post.save();
 
-      // TODO: 发送通知给作者
+      if (['reject', 'hide', 'pin', 'unpin', 'restore', 'approve'].includes(action)) {
+        await AdminActionNotificationService.notifyUser({
+          userId: post.author_id,
+          adminUser,
+          entityType: 'forum_post',
+          entityId: post.id,
+          entityTitle: post.title,
+          action,
+          reason,
+          remark
+        });
+      }
 
       return res.json({
         success: true,
@@ -287,7 +299,15 @@ class ForumController {
       await post.save();
 
       // TODO: 同时删除相关评论和举报记录
-      // TODO: 发送通知给作者
+      await AdminActionNotificationService.notifyUser({
+        userId: post.author_id,
+        adminUser,
+        entityType: 'forum_post',
+        entityId: post.id,
+        entityTitle: post.title,
+        action: 'delete',
+        reason
+      });
 
       return res.json({
         success: true,

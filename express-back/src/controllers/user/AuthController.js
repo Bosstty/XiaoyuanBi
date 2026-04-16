@@ -1,5 +1,11 @@
 const { User, Deliverer, PickupOrder, Task, Wallet, DelivererDebt } = require('../../models');
-const { jwtUtils, responseUtils, validationUtils, cryptoUtils, requestUtils } = require('../../utils');
+const {
+    jwtUtils,
+    responseUtils,
+    validationUtils,
+    cryptoUtils,
+    requestUtils,
+} = require('../../utils');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../config/database');
 const SecurityService = require('../../services/SecurityService');
@@ -335,7 +341,8 @@ class UserAuthController {
                         { label: 'IP 地址', value: clientIp || '未知' },
                         { label: '设备信息', value: req.get('User-Agent') || '未知设备' },
                     ],
-                    footerNote: '如果不是你本人修改，请尽快使用找回密码功能重置密码，并检查账号登录状态。',
+                    footerNote:
+                        '如果不是你本人修改，请尽快使用找回密码功能重置密码，并检查账号登录状态。',
                 });
             } catch (mailError) {
                 console.error('发送登录密码修改通知邮件失败:', mailError);
@@ -666,7 +673,9 @@ class UserAuthController {
             res.json(responseUtils.success(result, '验证码发送成功'));
         } catch (error) {
             console.error('发送验证码失败:', error);
-            res.status(error.status || 500).json(responseUtils.error(error.message || '发送验证码失败'));
+            res.status(error.status || 500).json(
+                responseUtils.error(error.message || '发送验证码失败')
+            );
         }
     }
 
@@ -791,7 +800,12 @@ class UserAuthController {
             const resetToken = cryptoUtils.randomString(24);
             const resetUrl = buildResetPasswordUrl(resetToken);
 
-            await redis.set(getResetTokenKey(resetToken), String(user.id), 'EX', RESET_PASSWORD_TTL);
+            await redis.set(
+                getResetTokenKey(resetToken),
+                String(user.id),
+                'EX',
+                RESET_PASSWORD_TTL
+            );
 
             const transporter = require('../../../config/mail');
             const from = process.env.MAIL_FROM || process.env.MAIL_USER;
@@ -808,14 +822,18 @@ class UserAuthController {
                 responseUtils.success(
                     {
                         expires_in: RESET_PASSWORD_TTL,
-                        ...(process.env.NODE_ENV !== 'production' ? { reset_token: resetToken } : {}),
+                        ...(process.env.NODE_ENV !== 'production'
+                            ? { reset_token: resetToken }
+                            : {}),
                     },
                     '密码重置邮件已发送'
                 )
             );
         } catch (error) {
             console.error('发送密码重置邮件失败:', error);
-            res.status(error.status || 500).json(responseUtils.error(error.message || '发送密码重置邮件失败'));
+            res.status(error.status || 500).json(
+                responseUtils.error(error.message || '发送密码重置邮件失败')
+            );
         }
     }
 
@@ -840,7 +858,9 @@ class UserAuthController {
     // 重置密码
     static async resetPassword(req, res) {
         try {
-            const token = String(req.body.token || req.body.resetToken || req.body.reset_token || '').trim();
+            const token = String(
+                req.body.token || req.body.resetToken || req.body.reset_token || ''
+            ).trim();
             const newPassword = req.body.new_password || req.body.newPassword;
 
             const userId = token ? await redis.get(getResetTokenKey(token)) : null;

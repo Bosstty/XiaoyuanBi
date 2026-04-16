@@ -168,9 +168,21 @@ export const validators = {
 
 // 权限检查工具
 export const hasPermission = (userPermissions, requiredPermission) => {
-  if (!Array.isArray(userPermissions)) return false
-  if (userPermissions.includes('all')) return true
-  return userPermissions.includes(requiredPermission)
+  const permissions = Array.isArray(userPermissions)
+    ? userPermissions
+    : typeof userPermissions === 'string' && userPermissions.trim()
+      ? (() => {
+          try {
+            const parsed = JSON.parse(userPermissions)
+            return Array.isArray(parsed) ? parsed : []
+          } catch {
+            return []
+          }
+        })()
+      : []
+
+  if (permissions.includes('all')) return true
+  return permissions.includes(requiredPermission)
 }
 
 // 数据导出工具

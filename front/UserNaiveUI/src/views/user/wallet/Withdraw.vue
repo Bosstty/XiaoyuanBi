@@ -1,5 +1,5 @@
 <template>
-    <div class="wallet-action-page">
+    <div class="wallet-action-page" :class="{ 'is-dark': appStore.isDark }">
         <section class="wallet-action-page__topbar">
             <button type="button" class="wallet-action-page__back" @click="router.back()">
                 <NIcon :size="18"><ChevronBackOutline /></NIcon>
@@ -170,7 +170,7 @@ import {
 import { ChevronBackOutline } from '@vicons/ionicons5';
 import { WalletApi } from '@/api';
 import PaymentPasswordInput from '@/components/payment/PaymentPasswordInput.vue';
-import { useUserStore } from '@/stores';
+import { useAppStore, useUserStore } from '@/stores';
 import {
     alipayPhonePattern,
     bankCardPattern,
@@ -183,6 +183,7 @@ import {
 
 const router = useRouter();
 const message = useMessage();
+const appStore = useAppStore();
 const userStore = useUserStore();
 const formRef = ref<FormInst | null>(null);
 const confirmModalVisible = ref(false);
@@ -358,6 +359,11 @@ onMounted(async () => {
     background: linear-gradient(180deg, #f4f7fb 0%, #eef3fb 100%);
 }
 
+.wallet-action-page.is-dark {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    color: #e2e8f0;
+}
+
 .wallet-action-page__topbar {
     display: flex;
     align-items: center;
@@ -370,6 +376,15 @@ onMounted(async () => {
     font-size: 17px;
     font-weight: 700;
     color: #172033;
+}
+
+.wallet-action-page.is-dark .wallet-action-page__topbar h1,
+.wallet-action-page.is-dark .wallet-action-page__method-card strong,
+.wallet-action-page.is-dark .wallet-action-page__summary strong,
+.wallet-action-page.is-dark .wallet-action-page__confirm-panel strong,
+.wallet-action-page.is-dark .wallet-action-page__modal-head h3,
+.wallet-action-page.is-dark .wallet-action-page__password-block span {
+    color: #f8fafc;
 }
 
 .wallet-action-page__back,
@@ -388,6 +403,11 @@ onMounted(async () => {
     padding: 0 14px;
     font-size: 14px;
     font-weight: 600;
+}
+
+.wallet-action-page.is-dark .wallet-action-page__back,
+.wallet-action-page.is-dark .wallet-action-page__record {
+    color: #cbd5e1;
 }
 
 .wallet-action-page__hero {
@@ -429,6 +449,11 @@ onMounted(async () => {
     box-shadow: 0 8px 24px rgba(20, 46, 88, 0.06);
 }
 
+.wallet-action-page.is-dark .wallet-action-page__card {
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: none;
+}
+
 .wallet-action-page__section-title {
     margin-bottom: 14px;
 }
@@ -460,6 +485,11 @@ onMounted(async () => {
     cursor: pointer;
 }
 
+.wallet-action-page.is-dark .wallet-action-page__method-card {
+    border-color: rgba(71, 85, 105, 0.7);
+    background: rgba(15, 23, 42, 0.55);
+}
+
 .wallet-action-page__method-card input {
     position: absolute;
     opacity: 0;
@@ -470,6 +500,10 @@ onMounted(async () => {
     border-color: #2f6bff;
     background: #eef4ff;
     box-shadow: inset 0 0 0 1px rgba(47, 107, 255, 0.14);
+}
+
+.wallet-action-page.is-dark .wallet-action-page__method-card.is-active {
+    background: rgba(37, 99, 235, 0.16);
 }
 
 .wallet-action-page__method-card strong {
@@ -485,6 +519,14 @@ onMounted(async () => {
     color: #6c7890;
 }
 
+.wallet-action-page.is-dark .wallet-action-page__method-card p,
+.wallet-action-page.is-dark .wallet-action-page__summary span,
+.wallet-action-page.is-dark .wallet-action-page__confirm-panel span,
+.wallet-action-page.is-dark .wallet-action-page__hint,
+.wallet-action-page.is-dark .wallet-action-page__modal-head p {
+    color: #94a3b8;
+}
+
 .wallet-action-page__summary,
 .wallet-action-page__confirm-panel {
     display: grid;
@@ -493,6 +535,11 @@ onMounted(async () => {
     padding: 14px;
     border-radius: 14px;
     background: #f6f8fc;
+}
+
+.wallet-action-page.is-dark .wallet-action-page__summary,
+.wallet-action-page.is-dark .wallet-action-page__confirm-panel {
+    background: rgba(15, 23, 42, 0.55);
 }
 
 .wallet-action-page__summary span,
@@ -519,6 +566,17 @@ onMounted(async () => {
     font-size: 13px;
     font-weight: 600;
     color: #48627f;
+}
+
+.wallet-action-page :deep(.n-input-wrapper),
+.wallet-action-page :deep(.n-base-selection) {
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.wallet-action-page.is-dark :deep(.n-input-wrapper),
+.wallet-action-page.is-dark :deep(.n-base-selection) {
+    background: rgba(15, 23, 42, 0.7);
+    box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.7);
 }
 
 .wallet-action-page__hint {

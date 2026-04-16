@@ -408,7 +408,7 @@ const fetchOrderDetail = async () => {
       if (order.value.pickup_complete_time) {
         timeline.value.push({
           timestamp: order.value.pickup_complete_time,
-          status: 'picking_up',
+          status: 'picking',
           title: '取货完成',
           description: '已取到货物',
         })

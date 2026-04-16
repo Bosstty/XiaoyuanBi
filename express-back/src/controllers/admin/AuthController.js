@@ -1,4 +1,5 @@
 const { Admin } = require('../../models');
+const { Op } = require('sequelize');
 const { jwtUtils, responseUtils, requestUtils } = require('../../utils');
 const SecurityService = require('../../services/SecurityService');
 
@@ -83,7 +84,8 @@ class AdminAuthController {
     static async updateProfile(req, res) {
         try {
             const admin = req.user;
-            const { real_name, phone, email, department, avatar } = req.body;
+            const { name, real_name, phone, email, department, avatar } = req.body;
+            const nextName = name !== undefined ? name : real_name;
 
             // 检查邮箱是否已被其他管理员使用
             if (email && email !== admin.email) {
@@ -101,7 +103,7 @@ class AdminAuthController {
 
             // 更新管理员信息
             await admin.update({
-                real_name,
+                ...(nextName !== undefined ? { name: String(nextName).trim() } : {}),
                 phone,
                 email,
                 department,
@@ -160,15 +162,16 @@ class AdminAuthController {
     static async getPermissions(req, res) {
         try {
             const admin = req.user;
+            const directPermissions = Array.isArray(admin.permissions) ? admin.permissions : [];
 
             const permissions = {
                 role: admin.role,
-                permissions: admin.permissions,
-                can_manage_users: admin.permissions.includes('user_management'),
-                can_manage_orders: admin.permissions.includes('order_management'),
-                can_manage_system: admin.permissions.includes('system_management'),
-                can_view_analytics: admin.permissions.includes('analytics_view'),
-                can_manage_finance: admin.permissions.includes('finance_management'),
+                permissions: directPermissions,
+                can_manage_users: directPermissions.includes('all') || directPermissions.includes('user:admin_read'),
+                can_manage_orders: directPermissions.includes('all') || directPermissions.includes('order:admin'),
+                can_manage_system: directPermissions.includes('all') || directPermissions.includes('system:manage'),
+                can_view_analytics: directPermissions.includes('all') || directPermissions.includes('analytics:read'),
+                can_manage_finance: directPermissions.includes('all') || directPermissions.includes('analytics:read'),
             };
 
             res.json(responseUtils.success(permissions, '获取权限信息成功'));

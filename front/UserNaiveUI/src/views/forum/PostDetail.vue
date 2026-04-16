@@ -1,16 +1,19 @@
 <template>
     <div class="post-detail-page" :class="{ 'is-dark': appStore.isDark }">
-        <header class="detail-nav">
-            <button type="button" class="icon-btn" @click="router.back()" aria-label="返回">
-                <svg viewBox="0 0 24 24" width="22" height="22">
-                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor" />
+        <header class="top-nav">
+            <button type="button" class="nav-btn" @click="router.back()" aria-label="返回">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path
+                        d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"
+                        fill="currentColor"
+                    />
                 </svg>
             </button>
-            <h1>帖子详情</h1>
+            <span class="nav-title">帖子</span>
             <button
                 v-if="post && Number(post.author_id) === Number(userStore.user?.id)"
                 type="button"
-                class="icon-btn icon-btn--danger"
+                class="nav-btn nav-btn--danger"
                 @click="handleDelete"
                 aria-label="删除"
             >
@@ -21,253 +24,291 @@
                     />
                 </svg>
             </button>
-            <div v-else class="nav-spacer"></div>
+            <button
+                v-else-if="canReportPost"
+                type="button"
+                class="nav-btn nav-btn--warn"
+                :disabled="post?.has_reported"
+                @click="openReportPostModal"
+                aria-label="举报"
+            >
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path
+                        d="M12 2 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-3zm0 10h-2V7h2v5zm0 4h-2v-2h2v2z"
+                        fill="currentColor"
+                    />
+                </svg>
+            </button>
+            <span v-else class="nav-btn nav-btn--ghost"></span>
         </header>
 
-        <main class="detail-shell">
+        <main class="page-body">
             <div v-if="loading" class="state-box">
                 <NSpin size="large" />
                 <p>加载中...</p>
             </div>
 
             <template v-else-if="post">
-                <article class="post-card">
-                    <div class="post-head">
-                        <div class="chip-row">
-                            <span class="category-chip" :data-type="post.category">
-                                <i></i>
-                                {{ getCategoryLabel(post.category) }}
-                            </span>
-                            <span class="status-chip" :data-status="post.status">
-                                {{ getStatusLabel(post.status) }}
-                            </span>
-                        </div>
-                        <span class="muted">
-                            {{ formatTime(post.createdAt || post.created_at) }}
+                <article class="article">
+                    <div class="article-meta">
+                        <span class="category-tag" :data-type="post.category">
+                            {{ getCategoryLabel(post.category) }}
+                        </span>
+                        <span>{{ formatTime(post.createdAt || post.created_at) }}</span>
+                        <span
+                            v-if="post.status !== 'published'"
+                            class="status-tag"
+                            :data-status="post.status"
+                        >
+                            {{ getStatusLabel(post.status) }}
                         </span>
                     </div>
 
-                    <h1 class="post-title">{{ post.title }}</h1>
-
-                    <div class="author-card">
-                        <div class="avatar">
-                            <img
-                                v-if="resolveAvatarUrl(post.author?.avatar)"
-                                :src="resolveAvatarUrl(post.author?.avatar)"
-                                :alt="authorName"
-                            />
-                            <span v-else>{{ authorName.charAt(0) }}</span>
-                        </div>
-                        <div class="author-copy">
-                            <strong>{{ authorName }}</strong>
-                            <span>
-                                {{ post.author?.college || '未填写学院' }}
-                                <template v-if="post.author?.major">
-                                    · {{ post.author.major }}
-                                </template>
-                            </span>
+                    <div class="author-row">
+                        <div class="author-main">
+                            <div class="avatar">
+                                <img
+                                    v-if="resolveAvatarUrl(post.author?.avatar)"
+                                    :src="resolveAvatarUrl(post.author?.avatar)"
+                                    :alt="authorName"
+                                />
+                                <span v-else>{{ authorName.charAt(0) }}</span>
+                            </div>
+                            <div class="author-copy">
+                                <strong>{{ authorName }}</strong>
+                                <span>
+                                    {{ post.author?.college || '校园用户' }}
+                                    <template v-if="post.author?.major">
+                                        · {{ post.author.major }}
+                                    </template>
+                                </span>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="content-block">
-                        <p v-if="post.summary" class="summary">{{ post.summary }}</p>
-                        <div class="content-text">{{ post.content }}</div>
-                    </div>
+                    <h1 class="article-title">{{ post.title }}</h1>
 
-                    <div v-if="post.images?.length" class="gallery">
+                    <p v-if="post.summary" class="article-summary">{{ post.summary }}</p>
+
+                    <div class="article-content">{{ post.content }}</div>
+
+                    <div v-if="post.images?.length" class="image-grid">
                         <button
                             v-for="(img, idx) in post.images"
                             :key="idx"
                             type="button"
-                            class="gallery-item"
+                            class="image-item"
                             @click="previewingImage = resolveAssetUrl(img)"
                         >
                             <img :src="resolveAssetUrl(img)" :alt="`帖子图片 ${idx + 1}`" />
                         </button>
                     </div>
 
-                    <div v-if="post.tags?.length" class="tags">
-                        <span v-for="tag in post.tags" :key="tag" class="tag">#{{ tag }}</span>
-                    </div>
-
-                    <div class="stats">
-                        <span class="stat-pill">
-                            {{ post.viewCount || post.view_count || 0 }} 浏览
-                        </span>
-                        <span class="stat-pill">
-                            {{ post.commentCount || post.comment_count || 0 }} 评论
-                        </span>
-                        <span v-if="post.report_count" class="stat-pill">
-                            {{ post.report_count }} 举报
-                        </span>
-                        <button
-                            type="button"
-                            class="like-pill"
-                            :class="{ 'is-liked': isLiked }"
-                            @click="handleLikePost"
-                        >
-                            {{ post.likeCount || post.like_count || 0 }} 点赞
-                        </button>
-                        <button
-                            v-if="canReportPost"
-                            type="button"
-                            class="minor-btn report-pill"
-                            :disabled="post.has_reported"
-                            @click="openReportPostModal"
-                        >
-                            {{ post.has_reported ? '已举报' : '举报' }}
-                        </button>
+                    <div v-if="post.tags?.length" class="tag-list">
+                        <span v-for="tag in post.tags" :key="tag" class="tag-item">#{{ tag }}</span>
                     </div>
                 </article>
 
-                <section class="comments-card">
-                    <div class="section-head">
-                        <h2>
-                            评论
-                            <span>{{ comments.length }}</span>
-                        </h2>
+                <section class="discussion">
+                    <div class="article-stats article-stats--discussion">
+                        <button
+                            type="button"
+                            class="stat-link"
+                            :class="{ 'is-active': isLiked }"
+                            @click="handleLikePost"
+                        >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    d="M12.1 21.35l-1.1-1C5.14 15.24 2 12.39 2 8.86 2 6 4.24 4 7.05 4c1.54 0 3.02.73 3.95 1.88C11.93 4.73 13.41 4 14.95 4 17.76 4 20 6 20 8.86c0 3.53-3.14 6.38-8.99 11.49l-1.11 1z"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                            <span>{{ post.likeCount || post.like_count || 0 }}</span>
+                        </button>
+                        <div class="stat-link">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    d="M12 5c-5.5 0-9.5 4.3-10.8 6 .4.54 1.08 1.33 2 2.15C5 14.74 8.02 17 12 17s7-2.26 8.8-3.85c.92-.82 1.6-1.61 2-2.15C21.5 9.3 17.5 5 12 5zm0 10c-2.2 0-4-1.79-4-4s1.8-4 4-4 4 1.79 4 4-1.8 4-4 4zm0-2.2A1.8 1.8 0 1012 9.2a1.8 1.8 0 000 3.6z"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                            <span>{{ post.viewCount || post.view_count || 0 }}</span>
+                        </div>
+                        <div class="stat-link">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    d="M4 5.5A2.5 2.5 0 016.5 3h11A2.5 2.5 0 0120 5.5v7A2.5 2.5 0 0117.5 15H9l-4.5 4v-4A2.5 2.5 0 012 12.5v-7A2.5 2.5 0 014.5 3H5"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                            <span>{{ post.commentCount || post.comment_count || 0 }}</span>
+                        </div>
                     </div>
 
-                    <div class="composer">
-                        <div class="avatar avatar--self">
-                            {{
-                                userStore.user?.real_name?.charAt(0) ||
-                                userStore.user?.username?.charAt(0) ||
-                                '我'
-                            }}
+                    <div class="discussion-head">
+                        <div>
+                            <h2>评论区</h2>
                         </div>
-                        <div class="composer-main">
-                            <div v-if="replyTarget" class="reply-banner">
-                                <span>正在回复 {{ getCommentAuthor(replyTarget) }}</span>
-                                <button type="button" @click="clearReplyTarget">取消</button>
-                            </div>
-                            <NInput
-                                ref="commentInputRef"
-                                v-model:value="commentInput"
-                                type="textarea"
-                                :autosize="{ minRows: 2, maxRows: 5 }"
-                                :placeholder="composerPlaceholder"
-                            />
-                            <div class="composer-actions">
-                                <span>
-                                    {{
-                                        replyTarget
-                                            ? '将作为回复发送到评论区'
-                                            : '文明评论，友善交流'
-                                    }}
-                                </span>
-                                <NButton
-                                    type="primary"
-                                    :loading="commentSubmitting"
-                                    :disabled="!commentInput.trim()"
-                                    @click="handleCreateComment"
-                                >
-                                    {{ replyTarget ? '回复' : '发布' }}
-                                </NButton>
-                            </div>
-                        </div>
+                        <span>{{ comments.length }} 条</span>
                     </div>
 
                     <div v-if="threadedComments.length" class="comment-list">
                         <article
                             v-for="comment in threadedComments"
                             :key="comment.id"
-                            class="comment-card"
+                            class="comment-item"
                         >
-                            <div class="avatar avatar--comment">
-                                <img
-                                    v-if="resolveAvatarUrl(comment.author?.avatar)"
-                                    :src="resolveAvatarUrl(comment.author?.avatar)"
-                                    :alt="getCommentAuthor(comment)"
-                                />
-                                <span v-else>{{ getCommentAuthor(comment).charAt(0) }}</span>
-                            </div>
-                            <div class="comment-main">
-                                <div class="comment-head">
-                                    <div class="author-line">
-                                        <strong>{{ getCommentAuthor(comment) }}</strong>
-                                        <span
-                                            v-if="isPostAuthor(comment.author_id)"
-                                            class="identity-badge"
-                                        >
-                                            楼主
-                                        </span>
-                                    </div>
-                                    <span>
-                                        {{ formatTime(comment.createdAt || comment.created_at) }}
+                            <div class="comment-shell">
+                                <div class="avatar avatar--small avatar--comment">
+                                    <img
+                                        v-if="resolveAvatarUrl(comment.author?.avatar)"
+                                        :src="resolveAvatarUrl(comment.author?.avatar)"
+                                        :alt="getCommentAuthor(comment)"
+                                    />
+                                    <span v-else>
+                                        {{ getCommentAuthor(comment).charAt(0) }}
                                     </span>
                                 </div>
-                                <div class="comment-content">{{ comment.content }}</div>
-                                <div class="comment-actions">
-                                    <button
-                                        type="button"
-                                        class="minor-btn"
-                                        :class="{ 'is-liked': likedComments.has(comment.id) }"
-                                        @click="handleLikeComment(comment.id)"
-                                    >
-                                        点赞 {{ comment.likeCount || comment.like_count || 0 }}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="minor-btn"
-                                        @click="handleReply(comment)"
-                                    >
-                                        回复
-                                    </button>
-                                </div>
-
-                                <div v-if="comment.replies?.length" class="reply-list">
-                                    <article
-                                        v-for="reply in comment.replies"
-                                        :key="reply.id"
-                                        class="reply-item"
-                                    >
-                                        <div class="reply-head">
-                                            <div class="author-line">
-                                                <strong>{{ getCommentAuthor(reply) }}</strong>
-                                                <span
-                                                    v-if="isPostAuthor(reply.author_id)"
-                                                    class="identity-badge"
-                                                >
-                                                    楼主
-                                                </span>
-                                            </div>
-                                            <span>
-                                                {{
-                                                    formatTime(reply.createdAt || reply.created_at)
-                                                }}
+                                <div class="comment-body">
+                                    <div class="comment-author-copy">
+                                        <div class="comment-name-row">
+                                            <strong>{{ getCommentAuthor(comment) }}</strong>
+                                            <span
+                                                v-if="isPostAuthor(comment.author_id)"
+                                                class="identity-badge"
+                                            >
+                                                楼主
                                             </span>
                                         </div>
-                                        <div class="comment-content">
-                                            <template v-if="reply.replyToUser">
-                                                <em>
-                                                    回复 @{{
-                                                        reply.replyToUser.real_name ||
-                                                        reply.replyToUser.username
-                                                    }}
-                                                </em>
-                                                {{ reply.content }}
-                                            </template>
-                                            <template v-else>{{ reply.content }}</template>
+                                        <div class="comment-meta">
                                         </div>
-                                        <div class="comment-actions">
-                                            <button
-                                                type="button"
-                                                class="minor-btn"
-                                                :class="{ 'is-liked': likedComments.has(reply.id) }"
-                                                @click="handleLikeComment(reply.id)"
-                                            >
-                                                点赞 {{ reply.likeCount || reply.like_count || 0 }}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                class="minor-btn"
-                                                @click="handleReply(reply)"
-                                            >
-                                                回复
-                                            </button>
-                                        </div>
-                                    </article>
+                                    </div>
+
+                                    <div class="comment-content">{{ comment.content }}</div>
+
+                                    <div class="comment-actions">
+                                        <span class="comment-time">
+                                            {{
+                                                formatTime(
+                                                    comment.createdAt || comment.created_at
+                                                )
+                                            }}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            class="text-action"
+                                            @click="handleReply(comment)"
+                                        >
+                                            回复
+                                        </button>
+                                    </div>
+
+                                    <div v-if="comment.replies?.length" class="reply-block">
+                                        <article
+                                            v-for="reply in comment.replies"
+                                            :key="reply.id"
+                                            class="reply-item"
+                                        >
+                                            <div class="reply-shell">
+                                                <div class="avatar avatar--xsmall avatar--comment">
+                                                    <img
+                                                        v-if="resolveAvatarUrl(reply.author?.avatar)"
+                                                        :src="resolveAvatarUrl(reply.author?.avatar)"
+                                                        :alt="getCommentAuthor(reply)"
+                                                    />
+                                                    <span v-else>
+                                                        {{ getCommentAuthor(reply).charAt(0) }}
+                                                    </span>
+                                                </div>
+                                                <div class="reply-main">
+                                                    <div class="reply-author">
+                                                        <div class="comment-name-row">
+                                                            <strong>
+                                                                {{ getCommentAuthor(reply) }}
+                                                            </strong>
+                                                            <template v-if="reply.replyToUser">
+                                                                <span class="reply-target-arrow">▸</span>
+                                                                <span class="reply-target-name">
+                                                                    {{
+                                                                        reply.replyToUser.real_name ||
+                                                                        reply.replyToUser.username
+                                                                    }}
+                                                                </span>
+                                                            </template>
+                                                            <span
+                                                                v-if="isPostAuthor(reply.author_id)"
+                                                                class="identity-badge"
+                                                            >
+                                                                楼主
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="comment-content">
+                                                        {{ reply.content }}
+                                                    </div>
+                                                    <div class="reply-actions">
+                                                        <span class="comment-time">
+                                                            {{
+                                                                formatTime(
+                                                                    reply.createdAt ||
+                                                                        reply.created_at
+                                                                )
+                                                            }}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            class="text-action"
+                                                            @click="handleReply(reply)"
+                                                        >
+                                                            回复
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    class="icon-action"
+                                                    :class="{
+                                                        'is-active': likedComments.has(reply.id),
+                                                    }"
+                                                    @click="handleLikeComment(reply.id)"
+                                                    aria-label="点赞回复"
+                                                >
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path
+                                                            d="M12.1 21.35l-1.1-1C5.14 15.24 2 12.39 2 8.86 2 6 4.24 4 7.05 4c1.54 0 3.02.73 3.95 1.88C11.93 4.73 13.41 4 14.95 4 17.76 4 20 6 20 8.86c0 3.53-3.14 6.38-8.99 11.49l-1.11 1z"
+                                                            fill="currentColor"
+                                                        />
+                                                    </svg>
+                                                    <span>
+                                                        {{
+                                                            reply.likeCount || reply.like_count || 0
+                                                        }}
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </article>
+                                    </div>
+                                </div>
+                                <div class="comment-side">
+                                    <button
+                                        type="button"
+                                        class="icon-action"
+                                        :class="{
+                                            'is-active': likedComments.has(comment.id),
+                                        }"
+                                        @click="handleLikeComment(comment.id)"
+                                        aria-label="点赞评论"
+                                    >
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path
+                                                d="M12.1 21.35l-1.1-1C5.14 15.24 2 12.39 2 8.86 2 6 4.24 4 7.05 4c1.54 0 3.02.73 3.95 1.88C11.93 4.73 13.41 4 14.95 4 17.76 4 20 6 20 8.86c0 3.53-3.14 6.38-8.99 11.49l-1.11 1z"
+                                                fill="currentColor"
+                                            />
+                                        </svg>
+                                        <span>
+                                            {{ comment.likeCount || comment.like_count || 0 }}
+                                        </span>
+                                    </button>
                                 </div>
                             </div>
                         </article>
@@ -275,7 +316,7 @@
 
                     <div v-else class="empty-box">
                         <p>还没有评论</p>
-                        <span>成为第一个回复的人</span>
+                        <span>这条帖子还在等第一条认真回复</span>
                     </div>
                 </section>
             </template>
@@ -286,16 +327,55 @@
             </div>
         </main>
 
+        <div v-if="post" class="floating-composer-shell">
+            <div class="floating-composer">
+                <div class="composer-main">
+                    <div v-if="replyTarget" class="reply-banner">
+                        <span>回复 {{ getCommentAuthor(replyTarget) }}</span>
+                        <button type="button" @click="clearReplyTarget">取消</button>
+                    </div>
+                    <div class="composer-row">
+                        <NInput
+                            ref="commentInputRef"
+                            v-model:value="commentInput"
+                            type="textarea"
+                            :autosize="{ minRows: 1, maxRows: 3 }"
+                            :placeholder="composerPlaceholder"
+                        />
+                        <NButton
+                            type="primary"
+                            class="composer-submit"
+                            :loading="commentSubmitting"
+                            :disabled="!commentInput.trim()"
+                            @click="handleCreateComment"
+                        >
+                            {{ replyTarget ? '回复' : '发布' }}
+                        </NButton>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div v-if="previewingImage" class="preview-mask" @click="previewingImage = ''">
             <button type="button" class="preview-close" @click="previewingImage = ''">×</button>
             <img :src="previewingImage" alt="预览图片" />
         </div>
 
-        <div v-if="showReportPostModal" class="preview-mask" @click.self="showReportPostModal = false">
+        <div
+            v-if="showReportPostModal"
+            class="preview-mask"
+            @click.self="showReportPostModal = false"
+        >
             <div class="report-modal">
-                <div class="section-head">
+                <div class="report-modal__head">
                     <h2>举报帖子</h2>
-                    <button type="button" class="preview-close preview-close--static" @click="showReportPostModal = false">×</button>
+                    <button
+                        type="button"
+                        class="preview-close preview-close--static"
+                        @click="showReportPostModal = false"
+                    >
+                        ×
+                    </button>
                 </div>
                 <p class="report-modal__hint">举报会进入管理员审核工作台，请仅举报真实违规内容。</p>
                 <NSelect
@@ -312,7 +392,12 @@
                 />
                 <div class="report-modal__actions">
                     <NButton round @click="showReportPostModal = false">取消</NButton>
-                    <NButton type="warning" round :loading="submittingPostReport" @click="submitPostReport">
+                    <NButton
+                        type="warning"
+                        round
+                        :loading="submittingPostReport"
+                        @click="submitPostReport"
+                    >
                         提交举报
                     </NButton>
                 </div>
@@ -596,500 +681,658 @@ onMounted(() => {
 <style scoped>
 .post-detail-page {
     min-height: 100vh;
-    background:
-        radial-gradient(circle at top right, rgba(75, 184, 255, 0.08), transparent 28%),
-        linear-gradient(180deg, #f4f7fb 0%, #edf2fa 100%);
-    color: #172033;
+    background: #f8fafc;
+    color: #0f172a;
 }
+
 .is-dark {
-    background: linear-gradient(180deg, #0f172a 0%, #162336 100%);
+    background: #0f172a;
     color: #e2e8f0;
 }
-.detail-nav {
+
+.top-nav {
     position: sticky;
     top: 0;
     z-index: 20;
-    display: flex;
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
     align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    background: rgba(255, 255, 255, 0.88);
+    gap: 12px;
+    padding: 10px 16px;
+    background: rgba(248, 250, 252, 0.92);
     backdrop-filter: blur(14px);
-    border-bottom: 1px solid rgba(23, 32, 51, 0.06);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
 }
-.is-dark .detail-nav {
-    background: rgba(15, 23, 42, 0.88);
-    border-color: rgba(255, 255, 255, 0.06);
+
+.is-dark .top-nav {
+    background: rgba(15, 23, 42, 0.92);
+    border-color: rgba(148, 163, 184, 0.12);
 }
-.detail-nav h1 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-}
-.icon-btn,
-.nav-spacer {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    flex-shrink: 0;
-}
-.icon-btn {
-    border: none;
+
+.nav-btn,
+.nav-placeholder {
+    width: 40px;
+    height: 40px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #4a5d79;
 }
-.icon-btn--danger {
-    color: #ef4444;
+
+.nav-btn {
+    border: none;
+    color: #334155;
 }
-.detail-shell {
-    max-width: 860px;
+
+.is-dark .nav-btn {
+    background: rgba(30, 41, 59, 0.96);
+    color: #e2e8f0;
+}
+
+.nav-btn--danger {
+    color: #dc2626;
+}
+
+.nav-btn--warn {
+    color: #ea580c;
+}
+
+.nav-title {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.page-body {
+    max-width: 760px;
     margin: 0 auto;
-    padding: 18px 16px 40px;
+    padding: 18px 16px 176px;
 }
+
 .state-box {
-    min-height: 55vh;
+    min-height: 56vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 12px;
-    color: #738198;
+    color: #64748b;
 }
-.post-card,
-.comments-card {
-    background: rgba(255, 255, 255, 0.96);
-    border-radius: 24px;
-    box-shadow: 0 16px 40px rgba(23, 48, 79, 0.08);
+
+.article {
+    padding: 8px 0 0;
 }
-.is-dark .post-card,
-.is-dark .comments-card {
-    background: rgba(30, 41, 59, 0.96);
-    box-shadow: none;
-}
-.post-card {
-    padding: 22px;
-}
-.post-head,
-.comment-head,
-.reply-head,
-.composer-actions,
-.reply-banner,
-.section-head,
-.author-card,
-.stats,
-.comment-actions,
-.author-line {
+
+.article-meta {
     display: flex;
     align-items: center;
-}
-.post-head,
-.section-head,
-.composer-actions,
-.reply-banner {
-    justify-content: space-between;
-}
-.post-head {
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: #64748b;
+    font-size: 12px;
     margin-bottom: 14px;
 }
-.chip-row,
-.tags,
-.stats,
-.comment-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.category-chip,
-.status-chip,
-.stat-pill,
-.like-pill,
-.tag,
-.minor-btn {
+
+.category-tag,
+.status-tag,
+.tag-item,
+.inline-action,
+.text-action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 999px;
     font-weight: 700;
 }
-.category-chip,
-.status-chip {
-    min-height: 34px;
-    padding: 0 14px;
-    font-size: 13px;
+
+.category-tag {
+    min-height: 28px;
+    padding: 0 12px;
+    background: #dbeafe;
+    color: #1d4ed8;
 }
-.category-chip {
-    gap: 8px;
-    background: #f1f5fb;
-    color: #52627c;
+
+.category-tag[data-type='life'] {
+    background: #ffedd5;
+    color: #c2410c;
 }
-.category-chip i {
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: #2f6bff;
+
+.category-tag[data-type='campus'] {
+    background: #dcfce7;
+    color: #15803d;
 }
-.category-chip[data-type='life'] i {
-    background: #ff9b3d;
+
+.category-tag[data-type='task'] {
+    background: #e0e7ff;
+    color: #4338ca;
 }
-.category-chip[data-type='campus'] i {
-    background: #19b36b;
+
+.category-tag[data-type='skill'] {
+    background: #cffafe;
+    color: #0f766e;
 }
-.category-chip[data-type='task'] i {
-    background: #4b6bff;
+
+.status-tag {
+    min-height: 26px;
+    padding: 0 10px;
+    background: #fef3c7;
+    color: #b45309;
 }
-.category-chip[data-type='skill'] i {
-    background: #4bb8ff;
-}
-.status-chip {
-    background: #ddfce7;
-    color: #179954;
-}
-.status-chip[data-status='pending_review'] {
-    background: #fff4d6;
-    color: #d97706;
-}
-.status-chip[data-status='draft'] {
-    background: #eef2f7;
+
+.status-tag[data-status='draft'] {
+    background: #e2e8f0;
     color: #64748b;
 }
-.status-chip[data-status='rejected'],
-.status-chip[data-status='hidden'] {
+
+.status-tag[data-status='rejected'],
+.status-tag[data-status='hidden'] {
     background: #fee2e2;
     color: #dc2626;
 }
-.muted {
-    font-size: 13px;
-    color: #8a96aa;
+
+.article-title {
+    margin: 20px 0 0;
+    max-width: 15ch;
+    font-size: clamp(2.2rem, 4vw, 3.2rem);
+    line-height: 1.08;
+    letter-spacing: -0.05em;
+    font-weight: 900;
 }
-.post-title {
-    margin: 0;
-    font-size: 34px;
-    line-height: 1.28;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+
+.author-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 8px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
 }
-.author-card {
+
+.author-main {
+    display: flex;
+    align-items: center;
     gap: 12px;
-    margin: 20px 0 18px;
-    padding: 14px 16px;
-    border-radius: 18px;
-    background: #f6f8fc;
+    min-width: 0;
 }
-.is-dark .author-card {
-    background: rgba(255, 255, 255, 0.05);
-}
-.meta-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    margin: 0 0 18px;
-}
-.meta-item {
-    padding: 14px 12px;
-    border-radius: 18px;
-    background: #f8fbff;
-    border: 1px solid #e6edf7;
-}
-.meta-item span {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 12px;
-    color: #8a96aa;
-}
-.meta-item strong {
-    font-size: 16px;
-    color: #172033;
-}
-.is-dark .meta-item {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.06);
-}
-.is-dark .meta-item strong {
-    color: #f8fafc;
-}
+
 .avatar {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 999px;
-    background: linear-gradient(135deg, #2f6bff, #77b5ff);
+    background: linear-gradient(135deg, #cbd5e1, #94a3b8);
     color: #fff;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 800;
     overflow: hidden;
     flex-shrink: 0;
 }
+
 .avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
-.avatar--self,
+
+.avatar--small {
+    width: 38px;
+    height: 38px;
+}
+
+.avatar--xsmall {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+}
+
 .avatar--comment {
-    width: 44px;
-    height: 44px;
+    background: #dbeafe;
+    color: #2563eb;
 }
-.avatar--comment {
-    background: linear-gradient(135deg, #dbeafe, #dbe7ff);
-    color: #2f6bff;
-}
-.author-copy,
-.comment-main {
-    min-width: 0;
-    flex: 1;
-}
+
 .author-copy strong {
     display: block;
     font-size: 15px;
-    color: #172033;
+    font-weight: 800;
 }
-.is-dark .author-copy strong {
-    color: #f8fafc;
-}
-.author-copy span,
-.comment-head span,
-.reply-head span {
+
+.author-copy span {
     display: block;
+    margin-top: 3px;
     font-size: 13px;
-    color: #8a96aa;
+    color: #64748b;
 }
-.content-block {
-    display: grid;
-    gap: 14px;
+
+.article-stats {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 14px;
 }
-.summary {
-    margin: 0;
-    padding: 16px 18px;
-    border-radius: 18px;
-    background: linear-gradient(90deg, rgba(47, 107, 255, 0.08), rgba(75, 184, 255, 0.04));
-    border-left: 4px solid #2f6bff;
-    font-size: 15px;
-    line-height: 1.7;
-    color: #44607f;
+
+.article-stats--discussion {
+    margin-top: 0;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
 }
-.content-text {
-    font-size: 16px;
+
+.stat-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    padding: 0;
+    background: transparent;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.stat-link svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.stat-link.is-active {
+    color: #be123c;
+}
+
+.stat-link span {
+    font-size: 14px;
+}
+
+.article-summary {
+    margin: 24px 0 0;
+    max-width: 54ch;
+    color: #475569;
+    font-size: 1rem;
     line-height: 1.9;
-    color: #334155;
+}
+
+.article-content {
+    margin-top: 24px;
+    max-width: 42rem;
+    color: #1e293b;
+    font-size: 1.08rem;
+    line-height: 2;
     white-space: pre-wrap;
     word-break: break-word;
 }
-.is-dark .content-text,
+
+.is-dark .article-content,
 .is-dark .comment-content {
-    color: #d2deec;
+    color: #dbe4ef;
 }
-.gallery {
+
+.image-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
-    gap: 12px;
-    margin-top: 4px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 28px;
 }
-.gallery-item {
-    aspect-ratio: 1;
+
+.image-item {
+    aspect-ratio: 1.12;
     border: none;
     padding: 0;
     border-radius: 16px;
     overflow: hidden;
-    background: #dbe7f7;
+    background: #e2e8f0;
 }
-.gallery-item img {
+
+.image-item img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
-.tags {
-    margin-top: 18px;
-}
-.tag {
-    padding: 8px 14px;
-    background: #f1f5fb;
-    font-size: 13px;
-    color: #607089;
-}
-.stats {
-    gap: 14px;
+
+.tag-list {
+    display: flex;
     flex-wrap: wrap;
-    margin-top: 22px;
-    padding-top: 18px;
-    border-top: 1px solid #e6edf7;
-}
-.stat-pill,
-.like-pill {
-    min-height: 40px;
-    padding: 0 14px;
-    font-size: 14px;
-}
-.stat-pill {
-    background: #f6f8fc;
-    color: #66758e;
-}
-.like-pill {
-    margin-left: auto;
-    border: none;
-    background: #ffe4e6;
-    color: #ef4444;
-}
-.report-pill {
-    background: #fff4d6;
-    color: #d97706;
-}
-.like-pill.is-liked {
-    background: #ef4444;
-    color: #fff;
-}
-.comments-card {
+    gap: 8px;
     margin-top: 18px;
-    padding: 20px;
 }
-.section-head h2 {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0 0 16px;
-    font-size: 22px;
+
+.tag-item {
+    min-height: 32px;
+    padding: 0 12px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 13px;
+}
+
+.discussion {
+    margin-top: 42px;
+    padding-top: 22px;
+}
+
+.discussion-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.discussion-head h2 {
+    margin: 0;
+    font-size: 20px;
     font-weight: 800;
 }
-.section-head span {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 30px;
-    height: 30px;
-    padding: 0 10px;
-    border-radius: 999px;
-    background: #dbe6f5;
-    color: #5a6b86;
-    font-size: 14px;
+
+.discussion-head span,
+.discussion-head p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
 }
-.composer {
+
+.floating-composer-shell {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 24;
+    pointer-events: none;
+    padding: 0 12px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(
+        180deg,
+        rgba(248, 250, 252, 0) 0%,
+        rgba(248, 250, 252, 0.92) 36%,
+        #f8fafc 100%
+    );
+}
+
+.is-dark .floating-composer-shell {
+    background: linear-gradient(
+        180deg,
+        rgba(15, 23, 42, 0) 0%,
+        rgba(15, 23, 42, 0.9) 36%,
+        #0f172a 100%
+    );
+}
+
+.floating-composer {
     display: flex;
     gap: 12px;
+    max-width: 760px;
+    margin: 0 auto;
     padding: 16px;
-    border-radius: 20px;
-    background: #f8fbff;
-    border: 1px solid #e6edf7;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(226, 232, 240, 0.92);
+    box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.08);
+    pointer-events: auto;
 }
+
+.is-dark .floating-composer {
+    background: rgba(17, 24, 39, 0.74);
+    border-color: rgba(51, 65, 85, 0.9);
+    box-shadow: 0 -8px 30px rgba(2, 6, 23, 0.28);
+}
+
 .composer-main {
     flex: 1;
+    min-width: 0;
 }
+
+.composer-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.composer-row :deep(.n-input) {
+    flex: 1;
+}
+
+.composer-submit {
+    flex-shrink: 0;
+    min-width: 84px;
+    height: 42px;
+}
+
 .reply-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 12px;
     margin-bottom: 10px;
     padding: 10px 12px;
-    border-radius: 14px;
-    background: #eef4ff;
-    color: #436388;
+    border-radius: 12px;
+    background: #eff6ff;
+    color: #1d4ed8;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
 }
+
 .reply-banner button {
     border: none;
     background: transparent;
-    color: #2f6bff;
+    color: #2563eb;
     font-size: 13px;
 }
-.composer-actions {
-    gap: 12px;
-    margin-top: 10px;
-}
-.composer-actions span {
-    font-size: 12px;
-    color: #8a96aa;
-}
+
 .comment-list {
     display: grid;
     gap: 14px;
     margin-top: 18px;
 }
-.comment-card {
+
+.comment-item {
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.comment-item:last-child {
+    border-bottom: none;
+}
+
+.comment-shell {
     display: flex;
+    align-items: flex-start;
     gap: 12px;
-    padding: 16px;
-    border-radius: 20px;
-    background: #fbfdff;
-    border: 1px solid #e8eff8;
 }
-.comment-head,
-.reply-head {
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 8px;
+
+.comment-body {
+    flex: 1;
+    min-width: 0;
 }
-.author-line {
+
+.comment-side {
+    width: 32px;
+    display: flex;
+    justify-content: center;
+    flex-shrink: 0;
+    padding-top: 2px;
+}
+
+.comment-side--reply {
+    width: 28px;
+    padding-top: 0;
+    margin-left: auto;
+}
+
+.reply-shell {
+    display: flex;
+    align-items: flex-start;
     gap: 8px;
+    width: 100%;
 }
+
+.reply-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.comment-top,
+.reply-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.comment-author-copy {
+    min-width: 0;
+}
+
+.comment-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.reply-target-arrow {
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.reply-target-name {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.comment-author-copy strong,
+.reply-author strong {
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.comment-meta,
+.reply-author {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 0;
+    color: #64748b;
+    font-size: 12px;
+}
+
 .identity-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 22px;
+    min-height: 22px;
     padding: 0 8px;
     border-radius: 999px;
-    background: #e8f3ff;
-    color: #2f6bff;
+    background: #dbeafe;
+    color: #2563eb;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 800;
 }
-.comment-head strong {
-    font-size: 15px;
+
+.comment-time {
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1;
 }
-.reply-head strong {
-    font-size: 13px;
+
+.comment-actions,
+.reply-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
 }
-.comment-content {
-    font-size: 14px;
-    line-height: 1.75;
-    color: #40516a;
-    word-break: break-word;
-}
-.minor-btn {
-    min-height: 32px;
-    padding: 0 12px;
+
+.text-action {
+    min-height: 24px;
+    padding: 0;
     border: none;
-    background: #eef3fb;
-    color: #6c7c95;
+    background: transparent;
+    color: #94a3b8;
     font-size: 12px;
 }
-.minor-btn.is-liked {
-    background: #ffe4e6;
+
+.icon-action {
+    min-height: auto;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.icon-action svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.icon-action span {
+    min-width: 10px;
+    line-height: 1;
+    text-align: center;
+}
+
+.icon-action.is-active {
     color: #ef4444;
 }
-.reply-list {
+
+.text-action.is-active {
+    color: #dc2626;
+}
+
+.comment-content {
+    margin-top: 6px;
+    color: #334155;
+    font-size: 14px;
+    line-height: 1.7;
+    word-break: break-word;
+}
+
+.reply-block {
     display: grid;
-    gap: 10px;
-    margin-top: 14px;
-    padding-left: 12px;
-    border-left: 2px solid #dbe6f6;
+    gap: 12px;
+    margin-top: 12px;
+    padding-left: 0;
+    border-left: none;
+    background: transparent;
 }
+
 .reply-item {
-    padding: 12px 14px;
-    border-radius: 16px;
-    background: #f4f8fd;
+    padding: 0;
 }
+
 .reply-item em {
     margin-right: 6px;
-    color: #2f6bff;
+    color: #2563eb;
     font-style: normal;
     font-weight: 700;
 }
+
 .empty-box {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 36px 20px;
-    color: #8a96aa;
+    padding: 40px 20px;
+    color: #64748b;
 }
+
 .empty-box p {
-    margin: 0 0 4px;
+    margin: 0 0 6px;
     font-size: 16px;
-    font-weight: 700;
-    color: #5e6f89;
+    font-weight: 800;
+    color: #334155;
 }
+
 .preview-mask {
     position: fixed;
     inset: 0;
@@ -1098,8 +1341,9 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background: rgba(0, 0, 0, 0.88);
+    background: rgba(2, 6, 23, 0.88);
 }
+
 .preview-close {
     position: absolute;
     top: 18px;
@@ -1112,12 +1356,14 @@ onMounted(() => {
     color: #fff;
     font-size: 24px;
 }
+
 .preview-mask img {
     max-width: 100%;
     max-height: 90vh;
     object-fit: contain;
     border-radius: 16px;
 }
+
 .report-modal {
     width: min(100%, 420px);
     padding: 20px;
@@ -1125,48 +1371,84 @@ onMounted(() => {
     background: #fff;
     color: #172033;
 }
+
+.report-modal__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.report-modal__head h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+}
+
 .report-modal__hint {
-    margin: 0 0 14px;
+    margin: 12px 0 14px;
     font-size: 13px;
     line-height: 1.7;
     color: #64748b;
 }
+
 .report-modal__actions {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
     margin-top: 14px;
 }
+
 .preview-close--static {
     position: static;
 }
+
 @media (max-width: 640px) {
-    .detail-shell {
-        padding: 14px 12px 32px;
+    .page-body {
+        padding: 16px 14px 188px;
     }
-    .post-card,
-    .comments-card {
-        border-radius: 20px;
+
+    .article-title {
+        max-width: none;
+        font-size: 2.2rem;
     }
-    .post-card {
-        padding: 18px;
-    }
-    .post-title {
-        font-size: 28px;
-    }
-    .meta-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .like-pill {
-        margin-left: 0;
-    }
-    .composer,
-    .comment-card {
-        padding: 14px;
-    }
-    .composer-actions {
+
+    .author-row,
+    .comment-top,
+    .reply-top {
         flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .article-stats {
+        gap: 16px;
+    }
+
+    .composer-row,
+    .comment-actions {
+        width: 100%;
+    }
+
+    .composer-row {
         align-items: stretch;
+    }
+
+    .comment-shell,
+    .reply-shell {
+        gap: 10px;
+    }
+
+    .floating-composer-shell {
+        padding: 0 10px calc(10px + env(safe-area-inset-bottom));
+    }
+
+    .floating-composer {
+        padding: 14px;
+        border-radius: 20px 20px 16px 16px;
+    }
+
+    .image-grid {
+        grid-template-columns: 1fr;
     }
 }
 </style>

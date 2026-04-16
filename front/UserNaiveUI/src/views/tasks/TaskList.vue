@@ -23,6 +23,21 @@
                         {{ tab.label }}
                     </button>
                 </div>
+                <NDropdown
+                    trigger="click"
+                    :options="sortOptions"
+                    :value="sortKey"
+                    @select="handleSortChange"
+                >
+                    <button type="button" class="sort-btn" aria-label="切换排序">
+                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                            <path
+                                d="M3 17h6v2H3v-2zm0-6h12v2H3v-2zm0-6h18v2H3V5zm14 14 4-4 4 4h-3v4h-2v-4h-3z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                    </button>
+                </NDropdown>
             </div>
 
             <!-- 分类筛选条 -->
@@ -48,7 +63,7 @@
 
             <template v-else-if="tasks.length > 0">
                 <article
-                    v-for="(task, index) in tasks"
+                    v-for="(task, index) in sortedTasks"
                     :key="task.id"
                     class="task-card"
                     :style="{ animationDelay: `${index * 0.05}s` }"
@@ -203,7 +218,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { NButton, NIcon, NSpin, useDialog, useMessage } from 'naive-ui';
+import { NButton, NDropdown, NIcon, NSpin, useDialog, useMessage } from 'naive-ui';
 import { AddOutline } from '@vicons/ionicons5';
 import { TaskApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
@@ -225,6 +240,7 @@ const loadingMore = ref(false);
 const tasks = ref<Task[]>([]);
 const currentView = ref<ViewKey>('all');
 const currentCategory = ref<CategoryKey>('all');
+const sortKey = ref<string>((route.query.sort as string) || 'created_desc');
 const currentPage = ref(1);
 const totalPages = ref(1);
 const latestRequestId = ref(0);
@@ -240,6 +256,13 @@ const categoryTabs: Array<{ key: CategoryKey; label: string }> = [
     { key: 'life', label: '生活服务类' },
 ];
 
+const sortOptions = [
+    { label: '最晚发布', key: 'created_desc' },
+    { label: '最早发布', key: 'created_asc' },
+    { label: '价格最高', key: 'price_desc' },
+    { label: '价格最低', key: 'price_asc' },
+];
+
 const parseCategoryFromRoute = (value: unknown): CategoryKey => {
     if (typeof value === 'string' && categoryTabs.some(tab => tab.key === value)) {
         return value as CategoryKey;
@@ -248,6 +271,27 @@ const parseCategoryFromRoute = (value: unknown): CategoryKey => {
 };
 
 const hasNextPage = computed(() => currentPage.value < totalPages.value);
+const sortedTasks = computed(() => {
+    const list = [...tasks.value];
+    if (sortKey.value === 'price_desc') {
+        return list.sort((left, right) => Number(right.price || 0) - Number(left.price || 0));
+    }
+    if (sortKey.value === 'price_asc') {
+        return list.sort((left, right) => Number(left.price || 0) - Number(right.price || 0));
+    }
+    if (sortKey.value === 'created_asc') {
+        return list.sort((left, right) => {
+            const leftTime = new Date(left.createdAt || 0).getTime();
+            const rightTime = new Date(right.createdAt || 0).getTime();
+            return leftTime - rightTime;
+        });
+    }
+    return list.sort((left, right) => {
+        const rightTime = new Date(right.createdAt || 0).getTime();
+        const leftTime = new Date(left.createdAt || 0).getTime();
+        return rightTime - leftTime;
+    });
+});
 
 const getCategoryLabel = (cat: string) =>
     ({
@@ -351,7 +395,21 @@ const handleCategoryChange = (key: CategoryKey) => {
 
     router.replace({
         path: '/tasks/list',
-        query: key === 'all' ? {} : { category: key },
+        query: {
+            ...(key === 'all' ? {} : { category: key }),
+            ...(sortKey.value !== 'created_desc' ? { sort: sortKey.value } : {}),
+        },
+    });
+};
+
+const handleSortChange = (key: string) => {
+    sortKey.value = key;
+    router.replace({
+        path: '/tasks/list',
+        query: {
+            ...(currentCategory.value === 'all' ? {} : { category: currentCategory.value }),
+            ...(key !== 'created_desc' ? { sort: key } : {}),
+        },
     });
 };
 
@@ -442,15 +500,17 @@ const handleCancelPublish = (task: Task) => {
 
 onMounted(() => {
     currentCategory.value = parseCategoryFromRoute(route.query.category);
+    sortKey.value = (route.query.sort as string) || 'created_desc';
     fetchTasks(1, false);
 });
 
 watch(
-    () => route.query.category,
-    newCategory => {
+    () => [route.query.category, route.query.sort],
+    ([newCategory, newSort]) => {
         const nextCategory = parseCategoryFromRoute(newCategory);
         if (route.name !== 'TaskList') return;
         currentCategory.value = nextCategory;
+        sortKey.value = (newSort as string) || 'created_desc';
         fetchTasks(1, false);
     }
 );
@@ -531,6 +591,19 @@ watch(
 .view-tab.active {
     color: var(--text);
     font-weight: 700;
+}
+
+.sort-btn {
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    color: var(--sub);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
 /* ── 分类筛选条 ── */

@@ -1,5 +1,5 @@
 <template>
-    <div class="wallet-transactions-page">
+    <div class="wallet-transactions-page" :class="{ 'is-dark': appStore.isDark }">
         <section class="wallet-transactions-page__topbar">
             <button type="button" class="wallet-transactions-page__back" @click="router.back()">
                 <NIcon :size="18"><ChevronBackOutline /></NIcon>
@@ -94,9 +94,11 @@ import {
 } from '@vicons/ionicons5';
 import { WalletApi } from '@/api';
 import type { PaginationMeta, WalletActivity } from '@/types';
+import { useAppStore } from '@/stores';
 import { formatThirdPartyAccount } from './walletShared';
 
 const router = useRouter();
+const appStore = useAppStore();
 const activities = ref<WalletActivity[]>([]);
 const activitiesPagination = ref<PaginationMeta | null>(null);
 const activeFilter = ref<'all' | 'in' | 'out' | 'recharge' | 'withdraw'>('all');
@@ -307,6 +309,11 @@ watch(
     background: linear-gradient(180deg, #f4f7fb 0%, #eef3fb 100%);
 }
 
+.wallet-transactions-page.is-dark {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    color: #e2e8f0;
+}
+
 .wallet-transactions-page__topbar {
     display: flex;
     align-items: center;
@@ -326,6 +333,10 @@ watch(
     justify-content: center;
 }
 
+.wallet-transactions-page.is-dark .wallet-transactions-page__back {
+    color: #cbd5e1;
+}
+
 .wallet-transactions-page__filters {
     display: inline-flex;
     gap: 8px;
@@ -334,6 +345,11 @@ watch(
     background: #fff;
     box-shadow: 0 10px 24px rgba(20, 46, 88, 0.06);
     overflow-x: auto;
+}
+
+.wallet-transactions-page.is-dark .wallet-transactions-page__filters {
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: none;
 }
 
 .wallet-transactions-page__filter {
@@ -366,6 +382,11 @@ watch(
     color: #6c7890;
 }
 
+.wallet-transactions-page.is-dark .wallet-transactions-page__state {
+    background: rgba(30, 41, 59, 0.96);
+    color: #94a3b8;
+}
+
 .wallet-transactions-page__bill-list {
     display: grid;
     gap: 12px;
@@ -381,6 +402,12 @@ watch(
     background: #f8fbff;
     border: 1px solid #e7eef9;
     box-shadow: 0 10px 28px rgba(20, 46, 88, 0.06);
+}
+
+.wallet-transactions-page.is-dark .wallet-transactions-page__bill-card {
+    background: rgba(30, 41, 59, 0.96);
+    border-color: rgba(71, 85, 105, 0.7);
+    box-shadow: none;
 }
 
 .wallet-transactions-page__bill-main {
@@ -411,6 +438,10 @@ watch(
     color: #172033;
 }
 
+.wallet-transactions-page.is-dark .wallet-transactions-page__bill-copy strong {
+    color: #f8fafc;
+}
+
 .wallet-transactions-page__bill-copy p {
     margin: 6px 0 4px;
     font-size: 12px;
@@ -421,6 +452,11 @@ watch(
 .wallet-transactions-page__bill-copy span {
     font-size: 12px;
     color: #8c96a8;
+}
+
+.wallet-transactions-page.is-dark .wallet-transactions-page__bill-copy p,
+.wallet-transactions-page.is-dark .wallet-transactions-page__bill-copy span {
+    color: #94a3b8;
 }
 
 .wallet-transactions-page__bill-meta {
@@ -456,6 +492,11 @@ watch(
     background: #eef4ff;
     color: #2f6bff;
     font-weight: 600;
+}
+
+.wallet-transactions-page.is-dark .wallet-transactions-page__more {
+    background: rgba(37, 99, 235, 0.16);
+    color: #93c5fd;
 }
 
 .wallet-filter-next-enter-active,

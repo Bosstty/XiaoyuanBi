@@ -1,6 +1,7 @@
 const { PickupOrder, User, Deliverer } = require('../../models');
 const { Op } = require('sequelize');
 const PickupSettlementService = require('../../services/PickupSettlementService');
+const AdminActionNotificationService = require('../../services/AdminActionNotificationService');
 
 /**
  * 订单管理控制器
@@ -230,7 +231,18 @@ class OrderController {
 
             await order.save();
 
-            // TODO: 发送通知给用户和配送员
+            if (status === 'cancelled') {
+                await AdminActionNotificationService.notifyUser({
+                    userId: order.user_id,
+                    adminUser,
+                    entityType: 'pickup_order',
+                    entityId: order.id,
+                    entityTitle: order.title,
+                    action: 'cancelled',
+                    reason,
+                    remark,
+                });
+            }
 
             return res.json({
                 success: true,
@@ -341,7 +353,6 @@ class OrderController {
         try {
             const { id } = req.params;
             const { reason } = req.body;
-            const adminUser = req.user;
 
             if (!id) {
                 return res.status(400).json({
@@ -373,20 +384,50 @@ class OrderController {
                 });
             }
 
-            // 更新订单状态为已取消
-            order.status = 'cancelled';
-            order.cancel_reason = reason;
-            order.cancel_time = new Date();
+            const transaction = await PickupOrder.sequelize.transaction();
 
-            await order.save();
+            try {
+                const lockedOrder = await PickupOrder.findByPk(id, {
+                    transaction,
+                    lock: transaction.LOCK.UPDATE,
+                });
 
-            // TODO: 处理退款逻辑
-            // TODO: 发送通知给用户和配送员
+                if (!lockedOrder) {
+                    throw new Error('订单不存在');
+                }
+
+                if (['completed', 'cancelled'].includes(lockedOrder.status)) {
+                    throw new Error('该状态的订单不能取消');
+                }
+
+                await PickupSettlementService.refundUncompletedOrder(
+                    lockedOrder,
+                    reason || '管理员取消订单',
+                    transaction
+                );
+
+                await transaction.commit();
+            } catch (error) {
+                await transaction.rollback();
+                throw error;
+            }
+
+            const latestOrder = await PickupOrder.findByPk(id);
+
+            await AdminActionNotificationService.notifyUser({
+                userId: latestOrder?.user_id || order.user_id,
+                adminUser: req.user,
+                entityType: 'pickup_order',
+                entityId: latestOrder?.id || order.id,
+                entityTitle: latestOrder?.title || order.title,
+                action: 'cancelled',
+                reason,
+            });
 
             return res.json({
                 success: true,
                 message: '订单已取消',
-                data: order,
+                data: latestOrder,
             });
         } catch (error) {
             console.error('Cancel order error:', error);

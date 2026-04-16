@@ -3,6 +3,43 @@ const { responseUtils, requestUtils } = require('../../utils');
 const { Op } = require('sequelize');
 const ContentModerationService = require('../../services/ContentModerationService');
 
+function getRequestedPostStatus(payload = {}) {
+    return String(payload?.status || '').trim().toLowerCase();
+}
+
+function getPostPublishPayload(payload = {}, moderationResult) {
+    return {
+        category: payload.category,
+        title: payload.title,
+        summary: payload.summary,
+        content: payload.content,
+        tags: payload.tags,
+        images: payload.images,
+        attachments: payload.attachments,
+        is_anonymous: payload.is_anonymous,
+        status: 'pending_review',
+        rejectReason:
+            moderationResult.action === 'review'
+                ? ContentModerationService.buildReason(moderationResult)
+                : null,
+    };
+}
+
+function getPostDraftPayload(payload = {}) {
+    return {
+        category: payload.category,
+        title: payload.title,
+        summary: payload.summary,
+        content: payload.content,
+        tags: payload.tags,
+        images: payload.images,
+        attachments: payload.attachments,
+        is_anonymous: payload.is_anonymous,
+        status: 'draft',
+        rejectReason: null,
+    };
+}
+
 class ForumController {
     static async createReport(req, res) {
         try {
@@ -90,6 +127,34 @@ class ForumController {
         try {
             const userId = req.user.id;
             const postData = req.body;
+            const requestedStatus = getRequestedPostStatus(postData);
+
+            if (requestedStatus === 'draft') {
+                const post = await ForumPost.create({
+                    author_id: userId,
+                    ...getPostDraftPayload(postData),
+                });
+
+                const postWithAuthor = await ForumPost.findByPk(post.id, {
+                    include: [
+                        {
+                            model: User,
+                            as: 'author',
+                            attributes: [
+                                'id',
+                                'username',
+                                'real_name',
+                                'avatar',
+                                'college',
+                                'major',
+                            ],
+                        },
+                    ],
+                });
+
+                return res.json(responseUtils.success(postWithAuthor, '草稿保存成功'));
+            }
+
             const moderationResult = await ContentModerationService.review(postData, {
                 label: '帖子内容',
                 scene: 'content',
@@ -100,21 +165,16 @@ class ForumController {
                     .status(400)
                     .json(
                         responseUtils.error(
-                            `${ContentModerationService.buildReason(
-                                moderationResult
-                            )}，请修改后重新提交`
+                            ContentModerationService.buildUserFacingMessage(moderationResult, {
+                                label: '帖子内容',
+                            })
                         )
                     );
             }
 
             const post = await ForumPost.create({
                 author_id: userId,
-                ...postData,
-                status: moderationResult.action === 'review' ? 'pending_review' : 'published',
-                rejectReason:
-                    moderationResult.action === 'review'
-                        ? ContentModerationService.buildReason(moderationResult)
-                        : null,
+                ...getPostPublishPayload(postData, moderationResult),
             });
 
             // 获取包含作者信息的帖子详情
@@ -130,8 +190,10 @@ class ForumController {
 
             const message =
                 moderationResult.action === 'review'
-                    ? '帖子已提交，因命中敏感词进入人工审核'
-                    : '帖子创建成功';
+                    ? ContentModerationService.buildUserFacingMessage(moderationResult, {
+                          label: '帖子内容',
+                      })
+                    : '帖子已提交，正在审核中';
             res.json(responseUtils.success(postWithAuthor, message));
         } catch (error) {
             console.error('创建帖子失败:', error);
@@ -286,6 +348,7 @@ class ForumController {
             const { id } = req.params;
             const userId = req.user.id;
             const updateData = req.body;
+            const requestedStatus = getRequestedPostStatus(updateData);
 
             const post = await ForumPost.findByPk(id);
 
@@ -298,7 +361,28 @@ class ForumController {
                 return res.status(403).json(responseUtils.error('无权限更新此帖子'));
             }
 
-            await post.update(updateData);
+            if (requestedStatus === 'draft') {
+                await post.update(getPostDraftPayload(updateData));
+            } else {
+                const moderationResult = await ContentModerationService.review(updateData, {
+                    label: '帖子内容',
+                    scene: 'content',
+                });
+
+                if (moderationResult.action === 'reject') {
+                    return res
+                        .status(400)
+                        .json(
+                            responseUtils.error(
+                                ContentModerationService.buildUserFacingMessage(moderationResult, {
+                                    label: '帖子内容',
+                                })
+                            )
+                        );
+                }
+
+                await post.update(getPostPublishPayload(updateData, moderationResult));
+            }
 
             const updatedPost = await ForumPost.findByPk(id, {
                 include: [
@@ -310,7 +394,8 @@ class ForumController {
                 ],
             });
 
-            res.json(responseUtils.success(updatedPost, '帖子更新成功'));
+            const message = requestedStatus === 'draft' ? '草稿保存成功' : '帖子已提交，正在审核中';
+            res.json(responseUtils.success(updatedPost, message));
         } catch (error) {
             console.error('更新帖子失败:', error);
             return res.status(500).json(responseUtils.error('更新帖子失败'));

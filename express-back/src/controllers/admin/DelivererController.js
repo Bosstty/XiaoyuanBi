@@ -75,7 +75,13 @@ class DelivererController {
             const where = { isDeleted: false };
 
             // 构建查询条件
-            if (status) where.status = status;
+            if (status) {
+                if (status === 'banned') {
+                    where.application_status = 'banned';
+                } else {
+                    where.status = status;
+                }
+            }
             if (application_status) where.application_status = application_status;
             if (verified !== undefined && verified !== '') where.verified = verified === 'true';
             if (online !== undefined && online !== '') where.is_online = online === 'true';
@@ -346,10 +352,19 @@ class DelivererController {
 
             // 更新状态
             const oldStatus = deliverer.status;
-            deliverer.status = status;
+            deliverer.status = status === 'banned' ? 'suspended' : status;
             deliverer.statusReason = reason;
             deliverer.statusUpdatedAt = new Date();
             deliverer.statusUpdatedBy = adminUser.id;
+
+            if (status === 'banned') {
+                deliverer.application_status = 'banned';
+                deliverer.verified = false;
+                deliverer.is_online = false;
+            } else if (deliverer.application_status === 'banned' && status === 'active') {
+                deliverer.application_status = 'approved';
+                deliverer.verified = true;
+            }
 
             if (status === 'suspended' || status === 'banned') {
                 deliverer.suspendedAt = new Date();
@@ -413,7 +428,7 @@ class DelivererController {
             const ongoingOrders = await PickupOrder.count({
                 where: {
                     deliverer_id: id,
-                    status: { [Op.in]: ['confirmed', 'processing'] },
+                    status: { [Op.in]: ['accepted', 'picking', 'delivering'] },
                 },
             });
 

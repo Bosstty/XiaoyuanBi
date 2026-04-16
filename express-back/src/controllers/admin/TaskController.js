@@ -1,5 +1,6 @@
 const { Task, User, TaskApplication, Wallet, ContentReport } = require('../../models');
 const { Op } = require('sequelize');
+const AdminActionNotificationService = require('../../services/AdminActionNotificationService');
 
 const parseAmount = value => Number(value || 0);
 
@@ -318,6 +319,19 @@ class TaskController {
                 }
 
                 await dbTransaction.commit();
+
+                if (['cancelled', 'expired', 'published'].includes(status)) {
+                    await AdminActionNotificationService.notifyUser({
+                        userId: lockedTask.publisher_id,
+                        adminUser: req.user,
+                        entityType: 'task',
+                        entityId: lockedTask.id,
+                        entityTitle: lockedTask.title,
+                        action: status,
+                        reason,
+                    });
+                }
+
                 return res.json({
                     success: true,
                     message: '任务状态更新成功',
@@ -387,6 +401,16 @@ class TaskController {
                 await dbTransaction.rollback();
                 throw error;
             }
+
+            await AdminActionNotificationService.notifyUser({
+                userId: task.publisher_id,
+                adminUser: req.user,
+                entityType: 'task',
+                entityId: task.id,
+                entityTitle: task.title,
+                action: 'delete',
+                reason,
+            });
 
             return res.json({
                 success: true,
@@ -463,7 +487,7 @@ class TaskController {
             const pendingApproval = await Task.count({
                 where: {
                     ...where,
-                    status: 'published',
+                    status: 'pending',
                 },
             });
 

@@ -1,5 +1,5 @@
 <template>
-    <div class="profile-settings">
+    <div class="profile-settings" :class="{ 'is-dark': appStore.isDark }">
         <header class="top-nav">
             <div class="nav-back-group" @click="router.back()">
                 <svg viewBox="0 0 24 24" class="back-icon">
@@ -229,12 +229,13 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NInput, NModal, NSelect, useMessage } from 'naive-ui';
-import { useUserStore } from '@/stores';
+import { useAppStore, useUserStore } from '@/stores';
 import { UserApi } from '@/api';
 import type { User } from '@/types';
 
 const router = useRouter();
 const message = useMessage();
+const appStore = useAppStore();
 const userStore = useUserStore();
 
 const avatarInputRef = ref<HTMLInputElement | null>(null);
@@ -501,11 +502,24 @@ onBeforeUnmount(() => {
         linear-gradient(180deg, #f4f7fb 0%, #eef5fb 100%);
 }
 
+.profile-settings.is-dark {
+    background:
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 24%),
+        linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    color: #e2e8f0;
+}
+
 .profile-settings__panel {
     border-radius: 26px;
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid rgba(23, 48, 79, 0.06);
     box-shadow: 0 14px 34px rgba(23, 48, 79, 0.08);
+}
+
+.profile-settings.is-dark .profile-settings__panel {
+    background: rgba(30, 41, 59, 0.96);
+    border-color: rgba(71, 85, 105, 0.36);
+    box-shadow: none;
 }
 
 .top-nav {
@@ -517,6 +531,11 @@ onBeforeUnmount(() => {
     padding: 16px 0 14px;
     margin: 0 -16px 18px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.profile-settings.is-dark .top-nav {
+    background: rgba(15, 23, 42, 0.84);
+    border-bottom-color: rgba(71, 85, 105, 0.36);
 }
 
 .nav-back-group {
@@ -539,6 +558,15 @@ onBeforeUnmount(() => {
     font-weight: 700;
     color: #1a1a1a;
     margin-left: 6px;
+}
+
+.profile-settings.is-dark .back-icon,
+.profile-settings.is-dark .nav-title,
+.profile-settings.is-dark .profile-settings__avatar-copy strong,
+.profile-settings.is-dark .profile-settings__section-head h3,
+.profile-settings.is-dark .profile-settings__status-card strong,
+.profile-settings.is-dark .profile-settings__email-modal-copy strong {
+    color: #f8fafc;
 }
 
 .profile-settings__panel {
@@ -592,6 +620,14 @@ onBeforeUnmount(() => {
     margin: 6px 0 0;
     font-size: 13px;
     color: #6c7890;
+}
+
+.profile-settings.is-dark .profile-settings__avatar-copy p,
+.profile-settings.is-dark .profile-settings__avatar-actions span,
+.profile-settings.is-dark .profile-settings__status-card span,
+.profile-settings.is-dark .profile-settings__status-card p,
+.profile-settings.is-dark .profile-settings__email-modal-copy p {
+    color: #94a3b8;
 }
 
 .profile-settings__avatar-actions {
@@ -652,6 +688,10 @@ onBeforeUnmount(() => {
     color: #5f78a8;
 }
 
+.profile-settings.is-dark .profile-settings__field span {
+    color: #cbd5e1;
+}
+
 .profile-settings__status-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -662,6 +702,10 @@ onBeforeUnmount(() => {
     padding: 16px;
     border-radius: 20px;
     background: linear-gradient(180deg, #f8fbff 0%, #eef4fd 100%);
+}
+
+.profile-settings.is-dark .profile-settings__status-card {
+    background: rgba(15, 23, 42, 0.55);
 }
 
 .profile-settings__status-card span {
@@ -704,6 +748,11 @@ onBeforeUnmount(() => {
     border-radius: 24px;
 }
 
+.profile-settings.is-dark :deep(.n-card) {
+    background: rgba(30, 41, 59, 0.98);
+    color: #e2e8f0;
+}
+
 .profile-settings__email-modal-copy {
     margin-bottom: 18px;
 }
@@ -744,6 +793,30 @@ onBeforeUnmount(() => {
 
 .profile-settings__safe-space {
     height: calc(108px + var(--safe-area-bottom, 0px));
+}
+
+.profile-settings :deep(.n-input-wrapper),
+.profile-settings :deep(.n-base-selection) {
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.profile-settings.is-dark :deep(.n-input-wrapper),
+.profile-settings.is-dark :deep(.n-base-selection) {
+    background: rgba(15, 23, 42, 0.7);
+    box-shadow: none;
+    border: none;
+}
+
+.profile-settings.is-dark :deep(.n-input__input-el),
+.profile-settings.is-dark :deep(.n-input__placeholder),
+.profile-settings.is-dark :deep(.n-base-selection-label),
+.profile-settings.is-dark :deep(.n-button__content),
+.profile-settings.is-dark :deep(.n-card-header__main) {
+    color: #f8fafc;
+}
+
+.profile-settings.is-dark :deep(.n-input__placeholder) {
+    opacity: 0.7;
 }
 
 @media (max-width: 768px) {

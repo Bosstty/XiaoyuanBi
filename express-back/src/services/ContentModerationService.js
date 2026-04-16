@@ -38,12 +38,19 @@ const DEFAULT_REJECT_WORDS = [
 ];
 
 function parseWordList(value, fallback) {
+    if (Array.isArray(value)) {
+        const normalized = value
+            .map(item => String(item || '').trim().toLowerCase())
+            .filter(Boolean);
+        return normalized.length ? normalized : fallback;
+    }
+
     if (!value || !String(value).trim()) {
         return fallback;
     }
 
     return String(value)
-        .split(/[,\n]/)
+        .split(/[\n,，、；;]+/)
         .map(item => item.trim().toLowerCase())
         .filter(Boolean);
 }
@@ -155,6 +162,24 @@ class ContentModerationService {
             ? `：${result.matchedWords.slice(0, 5).join('、')}`
             : '';
         return `${result.reason}${suffix}`;
+    }
+
+    static buildUserFacingMessage(result, options = {}) {
+        const label = options.label || '内容';
+
+        if (!result || result.action === 'allow') {
+            return `${label}提交成功`;
+        }
+
+        if (result.action === 'reject') {
+            return `${label}包含不适宜发布的信息，请调整后重新提交`;
+        }
+
+        if (result.action === 'review') {
+            return `${label}已提交，正在审核中`;
+        }
+
+        return `${label}提交失败，请稍后重试`;
     }
 }
 

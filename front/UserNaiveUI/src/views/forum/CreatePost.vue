@@ -186,7 +186,7 @@ const handleSubmit = async () => {
             throw new Error(res.message || '发布失败');
         }
 
-        message.success('发布成功');
+        message.success(res.message || '帖子已提交，正在审核中');
         router.replace(`/forum/${res.data.id}`);
     } catch (error: any) {
         message.error(error?.message || '发布失败');
@@ -217,7 +217,7 @@ const handleSaveDraft = async () => {
             throw new Error(res.message || '保存草稿失败');
         }
 
-        message.success('草稿保存成功');
+        message.success(res.message || '草稿保存成功');
         router.back();
     } catch (error: any) {
         message.error(error?.message || '保存草稿失败');
