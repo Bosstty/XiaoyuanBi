@@ -4,7 +4,6 @@ const redis = require('../config/redis');
 const VERIFY_CODE_TTL = Number(process.env.VERIFICATION_CODE_TTL || 300);
 const VERIFY_CODE_COOLDOWN = Number(process.env.VERIFICATION_CODE_COOLDOWN || 60);
 
-
 class ServiceError extends Error {
     constructor(message, status = 500, extra = {}) {
         super(message);
@@ -310,7 +309,10 @@ async function verifyCode(email, code) {
     };
 }
 
-async function sendSecurityNotice(email, { subject, title, intro, details = [], text, footerNote }) {
+async function sendSecurityNotice(
+    email,
+    { subject, title, intro, details = [], text, footerNote }
+) {
     const normalizedEmail = normalizeEmail(email);
     const from = process.env.MAIL_FROM || process.env.MAIL_USER;
 
