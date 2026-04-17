@@ -130,7 +130,7 @@
         <NModal
             v-model:show="confirmModalVisible"
             preset="card"
-            class="wallet-action-page__modal"
+            :class="['wallet-action-page__modal', { 'is-dark': appStore.isDark }]"
             :bordered="false"
         >
             <div class="wallet-action-page__modal-head">
@@ -396,6 +396,7 @@ onMounted(async () => {
 }
 
 .wallet-action-page.is-dark .wallet-action-page__topbar h1,
+.wallet-action-page.is-dark .wallet-action-page__section-title h2,
 .wallet-action-page.is-dark .wallet-action-page__method-card strong,
 .wallet-action-page.is-dark .wallet-action-page__summary strong,
 .wallet-action-page.is-dark .wallet-action-page__confirm-panel strong,
@@ -600,6 +601,24 @@ onMounted(async () => {
     box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.7);
 }
 
+.wallet-action-page.is-dark :deep(.n-input__input-el),
+.wallet-action-page.is-dark :deep(.n-input__placeholder),
+.wallet-action-page.is-dark :deep(.n-form-item-label__text),
+.wallet-action-page.is-dark :deep(.n-base-selection-label),
+.wallet-action-page.is-dark :deep(.n-base-selection-placeholder),
+.wallet-action-page.is-dark :deep(.n-base-selection-placeholder__inner),
+.wallet-action-page.is-dark :deep(.n-base-selection-input__content),
+.wallet-action-page.is-dark :deep(.n-base-selection-input),
+.wallet-action-page.is-dark :deep(.n-button__content) {
+    color: #f8fafc;
+}
+
+.wallet-action-page.is-dark :deep(.n-input__placeholder),
+.wallet-action-page.is-dark :deep(.n-base-selection-placeholder),
+.wallet-action-page.is-dark :deep(.n-base-selection-placeholder__inner) {
+    opacity: 0.72;
+}
+
 .wallet-action-page__countdown {
     margin: 16px 0 10px;
     text-align: center;
@@ -637,6 +656,31 @@ onMounted(async () => {
     font-size: 13px;
     line-height: 1.6;
     color: #5b667a;
+}
+
+.wallet-action-page__modal.is-dark :deep(.n-card) {
+    background: rgba(15, 23, 42, 0.98);
+    color: #e2e8f0;
+    box-shadow: 0 20px 48px rgba(2, 6, 23, 0.48);
+}
+
+.wallet-action-page__modal.is-dark :deep(.n-card-header__main),
+.wallet-action-page__modal.is-dark :deep(.n-base-close) {
+    color: #f8fafc;
+}
+
+.wallet-action-page__modal.is-dark .wallet-action-page__modal-head h3,
+.wallet-action-page__modal.is-dark .wallet-action-page__confirm-panel strong {
+    color: #f8fafc;
+}
+
+.wallet-action-page__modal.is-dark .wallet-action-page__modal-head p,
+.wallet-action-page__modal.is-dark .wallet-action-page__confirm-panel span {
+    color: #94a3b8;
+}
+
+.wallet-action-page__modal.is-dark .wallet-action-page__confirm-panel {
+    background: rgba(15, 23, 42, 0.55);
 }
 
 .wallet-action-page__modal-actions {

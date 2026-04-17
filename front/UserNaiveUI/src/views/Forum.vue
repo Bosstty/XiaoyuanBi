@@ -1,5 +1,5 @@
 <template>
-    <div class="forum-home">
+    <div class="forum-home" :class="{ 'is-dark': appStore.isDark }">
         <section class="hero-card">
             <div>
                 <span class="hero-kicker">Campus Forum</span>
@@ -96,9 +96,11 @@ import {
 } from '@vicons/ionicons5';
 import type { ForumPost } from '@/types';
 import { forumApi } from '@/api';
+import { useAppStore } from '@/stores';
 
 const router = useRouter();
 const message = useMessage();
+const appStore = useAppStore();
 
 const loading = ref(false);
 const hotPosts = ref<ForumPost[]>([]);
@@ -202,6 +204,13 @@ onMounted(() => {
     background:
         radial-gradient(circle at top left, rgba(255, 155, 61, 0.16), transparent 24%),
         linear-gradient(180deg, #f6f8fc 0%, #eef4fb 100%);
+}
+
+.forum-home.is-dark {
+    background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.14), transparent 24%),
+        linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    color: #e2e8f0;
 }
 
 .hero-card,
@@ -392,5 +401,41 @@ onMounted(() => {
     display: flex;
     justify-content: center;
     padding: 64px 0;
+}
+
+.forum-home.is-dark .section-card,
+.forum-home.is-dark .post-card {
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: 0 16px 36px rgba(2, 6, 23, 0.28);
+}
+
+.forum-home.is-dark .section-head h2,
+.forum-home.is-dark .section-copy strong,
+.forum-home.is-dark .post-card h3 {
+    color: #f8fafc;
+}
+
+.forum-home.is-dark .section-head button,
+.forum-home.is-dark .section-copy p,
+.forum-home.is-dark .post-card p,
+.forum-home.is-dark .post-footer {
+    color: #94a3b8;
+}
+
+.forum-home.is-dark .section-copy span {
+    color: #93c5fd;
+}
+
+.forum-home.is-dark .section-arrow {
+    color: #64748b;
+}
+
+.forum-home.is-dark .post-category {
+    background: rgba(37, 99, 235, 0.18);
+    color: #93c5fd;
+}
+
+.forum-home.is-dark :deep(.n-empty-description) {
+    color: #94a3b8;
 }
 </style>

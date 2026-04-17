@@ -23,12 +23,17 @@
                             alt="avatar"
                             class="profile-settings__avatar-image"
                         />
-                        <span v-else class="profile-settings__avatar-fallback">{{ userInitial }}</span>
+                        <span v-else class="profile-settings__avatar-fallback">
+                            {{ userInitial }}
+                        </span>
                     </div>
                 </div>
                 <div class="profile-settings__avatar-copy">
                     <strong>{{ userStore.userName }}</strong>
-                    <p>{{ form.college || '未设置学院' }}<span v-if="form.major"> · {{ form.major }}</span></p>
+                    <p>
+                        {{ form.college || '未设置学院' }}
+                        <span v-if="form.major">· {{ form.major }}</span>
+                    </p>
                     <div class="profile-settings__avatar-actions">
                         <button
                             type="button"
@@ -127,15 +132,25 @@
                     <span>邮箱</span>
                     <strong>{{ userStore.user?.email || '--' }}</strong>
                     <p>{{ userStore.user?.email_verified ? '已验证' : '未验证' }}</p>
-                    <button
-                        v-if="userStore.user?.email && !userStore.user?.email_verified"
-                        type="button"
-                        class="profile-settings__verify-button"
-                        :disabled="emailSending"
-                        @click="openEmailVerificationModal"
-                    >
-                        {{ emailSending ? '发送中...' : '验证邮箱' }}
-                    </button>
+                    <div class="profile-settings__status-actions">
+                        <button
+                            v-if="userStore.user?.email && !userStore.user?.email_verified"
+                            type="button"
+                            class="profile-settings__verify-button"
+                            :disabled="emailSending"
+                            @click="openEmailVerificationModal"
+                        >
+                            {{ emailSending ? '发送中...' : '验证邮箱' }}
+                        </button>
+                        <button
+                            v-if="userStore.user?.email"
+                            type="button"
+                            class="profile-settings__verify-button"
+                            @click="openEmailChangeModal"
+                        >
+                            更换邮箱
+                        </button>
+                    </div>
                 </article>
                 <article class="profile-settings__status-card">
                     <span>学生认证</span>
@@ -222,6 +237,148 @@
                 </div>
             </template>
         </NModal>
+
+        <NModal
+            v-model:show="emailChangeVisible"
+            preset="card"
+            class="profile-settings__email-modal"
+            title="更换邮箱"
+            :bordered="false"
+            :mask-closable="
+                !(emailChangeVerifyingIdentity || emailChangeSendingNewCode || emailChangeSaving)
+            "
+        >
+            <template v-if="emailChangeStep === 1">
+                <div class="profile-settings__field">
+                    <span>验证方式</span>
+                    <NSelect
+                        v-model:value="emailChangeAuthMethod"
+                        :options="emailChangeAuthOptions"
+                        placeholder="请选择验证方式"
+                    />
+                </div>
+
+                <div v-if="emailChangeAuthMethod === 'password'" class="profile-settings__field">
+                    <span>登录密码</span>
+                    <NInput
+                        v-model:value="emailChangePassword"
+                        type="password"
+                        show-password-on="click"
+                        placeholder="请输入当前登录密码"
+                    />
+                </div>
+
+                <template v-else>
+                    <div class="profile-settings__field">
+                        <span>当前邮箱验证码</span>
+                        <div class="profile-settings__code-row">
+                            <NInput
+                                v-model:value="emailChangeCurrentCode"
+                                placeholder="请输入 6 位验证码"
+                                maxlength="6"
+                            />
+                            <NButton
+                                type="primary"
+                                secondary
+                                :disabled="
+                                    emailChangeSendingCurrentCode ||
+                                    emailChangeCurrentCountdown > 0 ||
+                                    !userStore.user?.email
+                                "
+                                @click="sendEmailChangeCurrentCode"
+                            >
+                                {{
+                                    emailChangeCurrentCountdown > 0
+                                        ? `${emailChangeCurrentCountdown}s 后重发`
+                                        : '发送验证码'
+                                }}
+                            </NButton>
+                        </div>
+                    </div>
+                </template>
+            </template>
+
+            <template v-else>
+                <div class="profile-settings__email-modal-copy">
+                    <p>请输入新的邮箱地址，系统会先检查是否可用，再发送验证码确认</p>
+                    <strong>{{ emailChangeNewEmail || '填写新邮箱后发送验证码' }}</strong>
+                </div>
+
+                <div class="profile-settings__field">
+                    <span>新邮箱</span>
+                    <NInput v-model:value="emailChangeNewEmail" placeholder="请输入新的邮箱地址" />
+                </div>
+
+                <div class="profile-settings__field">
+                    <span>新邮箱验证码</span>
+                    <div class="profile-settings__code-row">
+                        <NInput
+                            v-model:value="emailChangeNewCode"
+                            placeholder="请输入 6 位验证码"
+                            maxlength="6"
+                        />
+                        <NButton
+                            type="primary"
+                            secondary
+                            :disabled="
+                                emailChangeCheckingAvailability ||
+                                emailChangeSendingNewCode ||
+                                emailChangeNewCountdown > 0 ||
+                                !emailChangeToken
+                            "
+                            @click="sendNewEmailVerificationCode"
+                        >
+                            {{
+                                emailChangeNewCountdown > 0
+                                    ? `${emailChangeNewCountdown}s 后重发`
+                                    : '检查并发送'
+                            }}
+                        </NButton>
+                    </div>
+                </div>
+            </template>
+
+            <template #footer>
+                <div class="profile-settings__email-modal-actions">
+                    <NButton
+                        quaternary
+                        @click="
+                            emailChangeStep === 1
+                                ? closeEmailChangeModal()
+                                : backToEmailChangeIdentityStep()
+                        "
+                    >
+                        {{ emailChangeStep === 1 ? '取消' : '上一步' }}
+                    </NButton>
+                    <NButton
+                        v-if="emailChangeStep === 1"
+                        type="primary"
+                        :loading="emailChangeVerifyingIdentity"
+                        :disabled="
+                            emailChangeAuthMethod === 'password'
+                                ? !emailChangePassword.trim()
+                                : emailChangeCurrentCode.trim().length !== 6
+                        "
+                        @click="handleEmailChangeIdentityVerify"
+                    >
+                        验证身份
+                    </NButton>
+                    <NButton
+                        v-else
+                        type="primary"
+                        :loading="emailChangeSaving"
+                        :disabled="
+                            !emailChangeToken ||
+                            !emailChangeNewEmail.trim() ||
+                            emailChangeNewCode.trim().length !== 6
+                        "
+                        @click="handleEmailChangeConfirm"
+                    >
+                        保存新邮箱
+                    </NButton>
+                </div>
+            </template>
+        </NModal>
     </div>
 </template>
 
@@ -251,6 +408,23 @@ const emailSending = ref(false);
 const emailVerifying = ref(false);
 const countdown = ref(0);
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
+const emailChangeVisible = ref(false);
+const emailChangeStep = ref<1 | 2>(1);
+const emailChangeAuthMethod = ref<'password' | 'email_code'>('password');
+const emailChangePassword = ref('');
+const emailChangeCurrentCode = ref('');
+const emailChangeCurrentCountdown = ref(0);
+const emailChangeVerifyingIdentity = ref(false);
+const emailChangeSendingCurrentCode = ref(false);
+const emailChangeToken = ref('');
+const emailChangeNewEmail = ref('');
+const emailChangeNewCode = ref('');
+const emailChangeNewCountdown = ref(0);
+const emailChangeCheckingAvailability = ref(false);
+const emailChangeSendingNewCode = ref(false);
+const emailChangeSaving = ref(false);
+let emailChangeCurrentTimer: ReturnType<typeof setInterval> | null = null;
+let emailChangeNewTimer: ReturnType<typeof setInterval> | null = null;
 
 const form = reactive({
     username: '',
@@ -270,9 +444,16 @@ const genderOptions = [
     { label: '其他', value: 'other' },
 ];
 
+const emailChangeAuthOptions = [
+    { label: '登录密码验证', value: 'password' },
+    { label: '当前邮箱验证码', value: 'email_code' },
+];
+
 const userInitial = computed(() => userStore.userName?.slice(0, 1).toUpperCase() || 'U');
 const studentVerificationStatus = computed(
-    () => userStore.user?.verification_data?.status || (userStore.user?.student_verified ? 'approved' : 'none')
+    () =>
+        userStore.user?.verification_data?.status ||
+        (userStore.user?.student_verified ? 'approved' : 'none')
 );
 const studentVerificationLabel = computed(() => {
     if (userStore.user?.student_verified) return '已认证';
@@ -288,7 +469,9 @@ const studentVerificationHint = computed(() => {
         return '学生证已提交，等待管理员审核';
     }
     if (studentVerificationStatus.value === 'rejected') {
-        return userStore.user?.verification_data?.review_reason || '学生认证未通过，可重新上传学生证';
+        return (
+            userStore.user?.verification_data?.review_reason || '学生认证未通过，可重新上传学生证'
+        );
     }
     return '上传学生证后提交审核';
 });
@@ -307,20 +490,32 @@ const syncFormFromUser = () => {
     form.dormitory = user.dormitory || '';
     form.bio = user.bio || '';
     skillsInput.value = Array.isArray(user.skills) ? user.skills.join('，') : '';
-}
+};
 
 const triggerAvatarUpload = () => {
     avatarInputRef.value?.click();
-}
+};
 
 const triggerStudentCardUpload = () => {
     studentCardInputRef.value?.click();
-}
+};
 
 const clearCountdown = () => {
     if (countdownTimer) {
         clearInterval(countdownTimer);
         countdownTimer = null;
+    }
+};
+
+const clearEmailChangeTimer = (type: 'current' | 'new') => {
+    if (type === 'current' && emailChangeCurrentTimer) {
+        clearInterval(emailChangeCurrentTimer);
+        emailChangeCurrentTimer = null;
+    }
+
+    if (type === 'new' && emailChangeNewTimer) {
+        clearInterval(emailChangeNewTimer);
+        emailChangeNewTimer = null;
     }
 };
 
@@ -334,6 +529,33 @@ const startCountdown = () => {
             return;
         }
         countdown.value -= 1;
+    }, 1000);
+};
+
+const startEmailChangeCountdown = (type: 'current' | 'new') => {
+    clearEmailChangeTimer(type);
+
+    if (type === 'current') {
+        emailChangeCurrentCountdown.value = 60;
+        emailChangeCurrentTimer = setInterval(() => {
+            if (emailChangeCurrentCountdown.value <= 1) {
+                emailChangeCurrentCountdown.value = 0;
+                clearEmailChangeTimer('current');
+                return;
+            }
+            emailChangeCurrentCountdown.value -= 1;
+        }, 1000);
+        return;
+    }
+
+    emailChangeNewCountdown.value = 60;
+    emailChangeNewTimer = setInterval(() => {
+        if (emailChangeNewCountdown.value <= 1) {
+            emailChangeNewCountdown.value = 0;
+            clearEmailChangeTimer('new');
+            return;
+        }
+        emailChangeNewCountdown.value -= 1;
     }, 1000);
 };
 
@@ -396,6 +618,180 @@ const handleEmailVerification = async () => {
     }
 };
 
+const resetEmailChangeFlow = () => {
+    emailChangeStep.value = 1;
+    emailChangeAuthMethod.value = 'password';
+    emailChangePassword.value = '';
+    emailChangeCurrentCode.value = '';
+    emailChangeToken.value = '';
+    emailChangeNewEmail.value = '';
+    emailChangeNewCode.value = '';
+    emailChangeCurrentCountdown.value = 0;
+    emailChangeNewCountdown.value = 0;
+    clearEmailChangeTimer('current');
+    clearEmailChangeTimer('new');
+};
+
+const openEmailChangeModal = () => {
+    if (!userStore.user?.email) {
+        message.error('当前账号未绑定邮箱');
+        return;
+    }
+
+    resetEmailChangeFlow();
+    emailChangeVisible.value = true;
+};
+
+const closeEmailChangeModal = () => {
+    if (
+        emailChangeVerifyingIdentity.value ||
+        emailChangeSendingNewCode.value ||
+        emailChangeSaving.value
+    ) {
+        return;
+    }
+
+    emailChangeVisible.value = false;
+    resetEmailChangeFlow();
+};
+
+const backToEmailChangeIdentityStep = () => {
+    emailChangeStep.value = 1;
+    emailChangeNewEmail.value = '';
+    emailChangeNewCode.value = '';
+    emailChangeNewCountdown.value = 0;
+    clearEmailChangeTimer('new');
+};
+
+const sendEmailChangeCurrentCode = async () => {
+    if (!userStore.user?.email || emailChangeSendingCurrentCode.value) {
+        return;
+    }
+
+    emailChangeSendingCurrentCode.value = true;
+    try {
+        await userStore.sendVerificationCode('email', userStore.user.email);
+        startEmailChangeCountdown('current');
+        message.success('验证码已发送到当前邮箱');
+    } catch (error) {
+        message.error(error instanceof Error ? error.message : '验证码发送失败');
+    } finally {
+        emailChangeSendingCurrentCode.value = false;
+    }
+};
+
+const handleEmailChangeIdentityVerify = async () => {
+    emailChangeVerifyingIdentity.value = true;
+    try {
+        const response = await UserApi.verifyEmailChangeIdentity(
+            emailChangeAuthMethod.value === 'password'
+                ? {
+                      auth_method: 'password',
+                      password: emailChangePassword.value,
+                  }
+                : {
+                      auth_method: 'email_code',
+                      code: emailChangeCurrentCode.value.trim(),
+                  }
+        );
+
+        if (!response.success || !response.data?.change_token) {
+            throw new Error(response.message || '身份验证失败');
+        }
+
+        emailChangeToken.value = response.data.change_token;
+        emailChangeStep.value = 2;
+        emailChangePassword.value = '';
+        emailChangeCurrentCode.value = '';
+
+        if (emailChangeAuthMethod.value === 'email_code' && userStore.user) {
+            userStore.user.email_verified = true;
+            localStorage.setItem('user', JSON.stringify(userStore.user));
+        }
+
+        message.success('身份验证成功，请填写新邮箱');
+    } catch (error) {
+        message.error(error instanceof Error ? error.message : '身份验证失败');
+    } finally {
+        emailChangeVerifyingIdentity.value = false;
+    }
+};
+
+const sendNewEmailVerificationCode = async () => {
+    const newEmail = emailChangeNewEmail.value.trim().toLowerCase();
+    if (!emailChangeToken.value || !newEmail) {
+        message.error('请先填写新邮箱');
+        return;
+    }
+
+    emailChangeCheckingAvailability.value = true;
+    try {
+        const availabilityResponse = await UserApi.checkEmailChangeAvailability({
+            new_email: newEmail,
+        });
+
+        if (!availabilityResponse.success) {
+            throw new Error(availabilityResponse.message || '新邮箱不可用');
+        }
+
+        emailChangeSendingNewCode.value = true;
+        const response = await UserApi.sendEmailChangeCode({
+            change_token: emailChangeToken.value,
+            new_email: newEmail,
+        });
+
+        if (!response.success) {
+            throw new Error(response.message || '新邮箱验证码发送失败');
+        }
+
+        startEmailChangeCountdown('new');
+        message.success('新邮箱验证码已发送');
+    } catch (error) {
+        message.error(error instanceof Error ? error.message : '新邮箱验证码发送失败');
+    } finally {
+        emailChangeCheckingAvailability.value = false;
+        emailChangeSendingNewCode.value = false;
+    }
+};
+
+const handleEmailChangeConfirm = async () => {
+    const newEmail = emailChangeNewEmail.value.trim().toLowerCase();
+    const code = emailChangeNewCode.value.trim();
+
+    if (!emailChangeToken.value || !newEmail) {
+        message.error('请先完成身份验证并填写新邮箱');
+        return;
+    }
+
+    if (code.length !== 6) {
+        message.error('请输入 6 位验证码');
+        return;
+    }
+
+    emailChangeSaving.value = true;
+    try {
+        const response = await UserApi.confirmEmailChange({
+            change_token: emailChangeToken.value,
+            new_email: newEmail,
+            code,
+        });
+
+        if (!response.success || !response.data) {
+            throw new Error(response.message || '邮箱修改失败');
+        }
+
+        userStore.user = response.data;
+        localStorage.setItem('user', JSON.stringify(response.data));
+        message.success('邮箱修改成功');
+        emailChangeVisible.value = false;
+        resetEmailChangeFlow();
+    } catch (error) {
+        message.error(error instanceof Error ? error.message : '邮箱修改失败');
+    } finally {
+        emailChangeSaving.value = false;
+    }
+};
+
 const handleAvatarChange = async (event: Event) => {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -417,7 +813,7 @@ const handleAvatarChange = async (event: Event) => {
         avatarUploading.value = false;
         input.value = '';
     }
-}
+};
 
 const handleSave = async () => {
     saving.value = true;
@@ -444,7 +840,7 @@ const handleSave = async () => {
     } finally {
         saving.value = false;
     }
-}
+};
 
 const handleStudentCardChange = async (event: Event) => {
     const input = event.target as HTMLInputElement;
@@ -471,7 +867,7 @@ const handleStudentCardChange = async (event: Event) => {
         studentVerificationUploading.value = false;
         input.value = '';
     }
-}
+};
 
 watch(
     () => userStore.user,
@@ -479,18 +875,20 @@ watch(
         syncFormFromUser();
     },
     { immediate: true }
-)
+);
 
 onMounted(async () => {
     if (userStore.isAuthenticated && !userStore.user) {
         await userStore.fetchUserProfile();
     }
     syncFormFromUser();
-})
+});
 
 onBeforeUnmount(() => {
     clearCountdown();
-})
+    clearEmailChangeTimer('current');
+    clearEmailChangeTimer('new');
+});
 </script>
 
 <style scoped>
@@ -730,10 +1128,10 @@ onBeforeUnmount(() => {
 
 .profile-settings__verify-button {
     margin-top: 12px;
-    border: 0;
+    border: 1px solid rgba(47, 107, 255, 0.18);
     border-radius: 999px;
     padding: 9px 14px;
-    background: rgba(47, 107, 255, 0.12);
+    background: transparent;
     color: #2f6bff;
     font-size: 13px;
     font-weight: 700;
@@ -741,6 +1139,13 @@ onBeforeUnmount(() => {
 
 .profile-settings__verify-button:disabled {
     opacity: 0.7;
+}
+
+.profile-settings__status-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
 }
 
 .profile-settings__email-modal {
@@ -772,10 +1177,43 @@ onBeforeUnmount(() => {
     word-break: break-all;
 }
 
+.profile-settings__auth-methods {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.profile-settings__auth-method {
+    border: 1px solid rgba(47, 107, 255, 0.18);
+    border-radius: 16px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.94);
+    color: #4c648e;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.profile-settings__auth-method.is-active {
+    border-color: transparent;
+    background: linear-gradient(135deg, #17304f, #2f6bff);
+    color: #ffffff;
+}
+
+.profile-settings__auth-method:disabled {
+    opacity: 0.5;
+}
+
 .profile-settings__code-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
+}
+
+.profile-settings__code-row :deep(.n-button) {
+    min-width: 108px;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 .profile-settings__email-modal-actions {
@@ -798,6 +1236,56 @@ onBeforeUnmount(() => {
 .profile-settings :deep(.n-input-wrapper),
 .profile-settings :deep(.n-base-selection) {
     background: rgba(255, 255, 255, 0.96);
+}
+
+.profile-settings.is-dark .profile-settings__email-step {
+    color: #cbd5e1;
+    background: transparent;
+    border: none;
+}
+
+.profile-settings.is-dark .profile-settings__email-step-index {
+    background: rgba(15, 23, 42, 0.72);
+    color: #e2e8f0;
+}
+
+.profile-settings.is-dark .profile-settings__email-step.is-active {
+    color: #f8fafc;
+}
+
+.profile-settings.is-dark
+    .profile-settings__email-step.is-active
+    .profile-settings__email-step-index {
+    background: #3b82f6;
+    color: #ffffff;
+}
+
+.profile-settings.is-dark .profile-settings__email-step.is-done {
+    color: #93c5fd;
+}
+
+.profile-settings.is-dark
+    .profile-settings__email-step.is-done
+    .profile-settings__email-step-index {
+    background: transparent;
+    color: #bfdbfe;
+}
+
+.profile-settings.is-dark .profile-settings__verify-button {
+    background: transparent;
+    color: #93c5fd;
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.profile-settings.is-dark .profile-settings__auth-method {
+    background: rgba(15, 23, 42, 0.7);
+    color: #cbd5e1;
+    border-color: rgba(71, 85, 105, 0.5);
+}
+
+.profile-settings.is-dark .profile-settings__auth-method.is-active {
+    color: #ffffff;
+    border-color: transparent;
 }
 
 .profile-settings.is-dark :deep(.n-input-wrapper),
@@ -828,10 +1316,6 @@ onBeforeUnmount(() => {
 
     .profile-settings__avatar-row {
         align-items: flex-start;
-    }
-
-    .profile-settings__code-row {
-        grid-template-columns: 1fr;
     }
 
     .profile-settings__email-modal-actions {

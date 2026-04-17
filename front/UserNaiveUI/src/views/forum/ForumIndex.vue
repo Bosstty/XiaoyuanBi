@@ -420,9 +420,6 @@ watch(
     width: 32px;
     height: 32px;
     padding: 0;
-    border: none;
-    border-radius: 10px;
-    background: transparent;
     color: #1e293b;
     display: flex;
     align-items: center;
@@ -447,7 +444,6 @@ watch(
 }
 
 .is-dark .back-btn {
-    background: rgba(30, 41, 59, 0.92);
     color: #e2e8f0;
     box-shadow: none;
 }
@@ -468,6 +464,10 @@ watch(
     line-height: 1.2;
     font-weight: 700;
     letter-spacing: -0.02em;
+}
+
+.is-dark .nav-copy strong {
+    color: #f8fafc;
 }
 
 .nav-row .sort-btn {
@@ -548,12 +548,25 @@ watch(
     border: none;
 }
 
+.is-dark .search-input :deep(.n-input__input-el),
+.is-dark .search-input :deep(.n-input__placeholder) {
+    color: #f8fafc;
+}
+
+.is-dark .search-input :deep(.n-input__placeholder) {
+    opacity: 0.72;
+}
+
 .search-btn {
     border: none;
     background: transparent;
     color: #677a98;
     font-size: 13px;
     font-weight: 700;
+}
+
+.is-dark .search-btn {
+    color: #cbd5e1;
 }
 
 .list-area {
@@ -657,6 +670,17 @@ watch(
     font-weight: 600;
 }
 
+.is-dark .publisher,
+.is-dark .cat-tag,
+.is-dark .card-desc,
+.is-dark .tag-pill--soft,
+.is-dark .stat-link,
+.is-dark .time-meta,
+.is-dark .empty-text,
+.is-dark .state-box {
+    color: #94a3b8;
+}
+
 .pub-avatar {
     width: 28px;
     height: 28px;
@@ -695,6 +719,10 @@ watch(
     font-weight: 600;
 }
 
+.is-dark .tag-pill {
+    color: #93c5fd;
+}
+
 .tag-pill--soft {
     color: #64748b;
 }
@@ -705,6 +733,10 @@ watch(
     padding-top: 14px;
     border-top: 1px solid rgba(226, 232, 240, 0.9);
     justify-content: space-between;
+}
+
+.is-dark .card-foot {
+    border-color: rgba(71, 85, 105, 0.5);
 }
 
 .foot-info {
@@ -734,6 +766,10 @@ watch(
 
 .stat-link--like {
     color: #2563eb;
+}
+
+.is-dark .stat-link--like {
+    color: #93c5fd;
 }
 
 .time-meta {

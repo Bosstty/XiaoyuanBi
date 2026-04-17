@@ -239,7 +239,16 @@
         </section>
 
         <section v-if="userStore.isAuthenticated" class="account-center__section">
-            <NButton type="error" round block size="large" @click="handleLogout">退出登录</NButton>
+            <NButton
+                type="error"
+                round
+                block
+                size="large"
+                class="logout-button"
+                @click="handleLogout"
+            >
+                退出登录
+            </NButton>
         </section>
 
         <NModal
@@ -856,6 +865,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.logout-button :deep(.n-button__content) {
+    color: #ffffff;
+}
+
 .courier-application-modal__grid :deep(.n-form-item) {
     margin-bottom: 0;
 }

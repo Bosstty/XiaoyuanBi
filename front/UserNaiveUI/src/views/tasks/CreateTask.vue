@@ -178,7 +178,6 @@
                                 :rows="3"
                             />
                         </div>
-
                     </div>
                 </section>
             </div>
@@ -241,7 +240,8 @@
                     <span class="payment-sheet__check">✓</span>
                     <strong>余额 + 积分抵扣</strong>
                     <span v-if="pointsPaymentAvailable">
-                        余额 ¥{{ cashToFreeze }} + 积分 {{ normalizedPointsToUse || maxUsablePoints }}
+                        余额 ¥{{ cashToFreeze }} + 积分
+                        {{ normalizedPointsToUse || maxUsablePoints }}
                     </span>
                     <span v-else>积分不足</span>
                 </button>
@@ -251,7 +251,9 @@
                     class="payment-sheet__points"
                 >
                     <p class="payment-sheet__hint">
-                        本次自动抵扣 {{ normalizedPointsToUse }} 积分，抵扣 ¥{{ pointsDiscountAmount }}
+                        本次自动抵扣 {{ normalizedPointsToUse }} 积分，抵扣 ¥{{
+                            pointsDiscountAmount
+                        }}
                     </p>
                 </div>
 
@@ -560,6 +562,11 @@ const submitTask = async () => {
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
+.campus-create-task.is-dark .campus-nav-sticky {
+    background: rgba(15, 23, 42, 0.92);
+    border-bottom-color: rgba(71, 85, 105, 0.38);
+}
+
 .nav-back-group {
     display: flex;
     align-items: center;
@@ -599,6 +606,10 @@ const submitTask = async () => {
     padding: 24px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
     animation: slide-up 0.5s ease-out both;
+}
+
+.campus-create-task.is-dark .form-card {
+    box-shadow: 0 16px 36px rgba(2, 6, 23, 0.28);
 }
 
 .field-node {
@@ -650,12 +661,44 @@ const submitTask = async () => {
     color: var(--muted);
     font-size: 13px;
     font-weight: 700;
+    transition:
+        border-color 0.18s ease,
+        background-color 0.18s ease,
+        color 0.18s ease,
+        transform 0.18s ease;
+}
+
+.campus-create-task.is-dark .category-chip {
+    border-color: rgba(71, 85, 105, 0.52);
+    color: #cbd5e1;
 }
 
 .category-chip.active {
     color: #fff;
     border-color: transparent;
     background: var(--grad);
+}
+
+.category-chip:hover:not(.active) {
+    border-color: rgba(59, 130, 246, 0.3);
+    background: rgba(59, 130, 246, 0.06);
+    color: #3b82f6;
+}
+
+.category-chip:active:not(.active) {
+    transform: scale(0.98);
+}
+
+.campus-create-task.is-dark .category-chip:hover:not(.active) {
+    border-color: rgba(96, 165, 250, 0.56);
+    background: rgba(37, 99, 235, 0.16);
+    color: #dbeafe;
+}
+
+.campus-create-task.is-dark .category-chip:active:not(.active) {
+    border-color: rgba(96, 165, 250, 0.62);
+    background: rgba(37, 99, 235, 0.2);
+    color: #eff6ff;
 }
 
 .option-row {
@@ -688,6 +731,10 @@ const submitTask = async () => {
     color: var(--muted);
 }
 
+.campus-create-task.is-dark .advanced-trigger {
+    background: rgba(15, 23, 42, 0.72);
+}
+
 .advanced-trigger i {
     width: 6px;
     height: 6px;
@@ -709,12 +756,20 @@ const submitTask = async () => {
     animation: fade-in 0.4s ease-out;
 }
 
+.campus-create-task.is-dark .advanced-pane {
+    border-top-color: rgba(71, 85, 105, 0.46);
+}
+
 .action-footer {
     margin-top: 32px;
     background: var(--card);
     border-radius: 28px;
     padding: 24px;
     box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.04);
+}
+
+.campus-create-task.is-dark .action-footer {
+    box-shadow: 0 -12px 28px rgba(2, 6, 23, 0.24);
 }
 
 .summary-line {
@@ -863,6 +918,67 @@ const submitTask = async () => {
     color: var(--text);
 }
 
+.campus-create-task.is-dark .payment-sheet__option {
+    border-color: rgba(71, 85, 105, 0.46);
+    background: rgba(15, 23, 42, 0.72);
+}
+
+.campus-create-task.is-dark .payment-sheet__option.is-active,
+.campus-create-task.is-dark .payment-sheet__points,
+.campus-create-task.is-dark .payment-sheet__summary {
+    background: rgba(37, 99, 235, 0.12);
+}
+
+.campus-create-task.is-dark .payment-sheet__check {
+    background: rgba(30, 41, 59, 0.96);
+    border-color: rgba(71, 85, 105, 0.52);
+}
+
+.campus-create-task.is-dark :deep(.n-input-wrapper),
+.campus-create-task.is-dark :deep(.n-input-number),
+.campus-create-task.is-dark :deep(.n-input-number-input),
+.campus-create-task.is-dark :deep(.n-base-selection),
+.campus-create-task.is-dark :deep(.n-date-picker),
+.campus-create-task.is-dark :deep(.n-checkbox-box) {
+    background: rgba(15, 23, 42, 0.72);
+    box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.58);
+}
+
+.campus-create-task.is-dark :deep(.n-input-number .n-input-wrapper),
+.campus-create-task.is-dark :deep(.n-date-picker .n-input-wrapper) {
+    background: rgba(15, 23, 42, 0.72);
+}
+
+.campus-create-task.is-dark :deep(.n-input__input-el),
+.campus-create-task.is-dark :deep(.n-input__textarea-el),
+.campus-create-task.is-dark :deep(.n-input__placeholder),
+.campus-create-task.is-dark :deep(.n-input-number-input input),
+.campus-create-task.is-dark :deep(.n-base-selection-label),
+.campus-create-task.is-dark :deep(.n-base-selection-placeholder),
+.campus-create-task.is-dark :deep(.n-base-selection-placeholder__inner),
+.campus-create-task.is-dark :deep(.n-base-selection-input),
+.campus-create-task.is-dark :deep(.n-base-selection-input__content),
+.campus-create-task.is-dark :deep(.n-input-number-suffix),
+.campus-create-task.is-dark :deep(.n-input-number-prefix),
+.campus-create-task.is-dark :deep(.n-button__content),
+.campus-create-task.is-dark :deep(.n-checkbox__label) {
+    color: #f8fafc;
+}
+
+.campus-create-task.is-dark :deep(.n-input__placeholder),
+.campus-create-task.is-dark :deep(.n-base-selection-placeholder),
+.campus-create-task.is-dark :deep(.n-base-selection-placeholder__inner) {
+    opacity: 0.7;
+}
+
+.campus-create-task.is-dark :deep(.n-input-number-button) {
+    background: rgba(30, 41, 59, 0.96);
+    color: #cbd5e1;
+}
+
+.campus-create-task.is-dark :deep(.n-checkbox-box) {
+    border-color: rgba(71, 85, 105, 0.58);
+}
 
 .mt-16 {
     margin-top: 16px;

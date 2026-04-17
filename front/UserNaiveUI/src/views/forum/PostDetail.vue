@@ -180,8 +180,7 @@
                                                 楼主
                                             </span>
                                         </div>
-                                        <div class="comment-meta">
-                                        </div>
+                                        <div class="comment-meta"></div>
                                     </div>
 
                                     <div class="comment-content">{{ comment.content }}</div>
@@ -189,9 +188,7 @@
                                     <div class="comment-actions">
                                         <span class="comment-time">
                                             {{
-                                                formatTime(
-                                                    comment.createdAt || comment.created_at
-                                                )
+                                                formatTime(comment.createdAt || comment.created_at)
                                             }}
                                         </span>
                                         <button
@@ -212,8 +209,12 @@
                                             <div class="reply-shell">
                                                 <div class="avatar avatar--xsmall avatar--comment">
                                                     <img
-                                                        v-if="resolveAvatarUrl(reply.author?.avatar)"
-                                                        :src="resolveAvatarUrl(reply.author?.avatar)"
+                                                        v-if="
+                                                            resolveAvatarUrl(reply.author?.avatar)
+                                                        "
+                                                        :src="
+                                                            resolveAvatarUrl(reply.author?.avatar)
+                                                        "
                                                         :alt="getCommentAuthor(reply)"
                                                     />
                                                     <span v-else>
@@ -227,10 +228,13 @@
                                                                 {{ getCommentAuthor(reply) }}
                                                             </strong>
                                                             <template v-if="reply.replyToUser">
-                                                                <span class="reply-target-arrow">▸</span>
+                                                                <span class="reply-target-arrow">
+                                                                    ▸
+                                                                </span>
                                                                 <span class="reply-target-name">
                                                                     {{
-                                                                        reply.replyToUser.real_name ||
+                                                                        reply.replyToUser
+                                                                            .real_name ||
                                                                         reply.replyToUser.username
                                                                     }}
                                                                 </span>
@@ -724,7 +728,6 @@ onMounted(() => {
 }
 
 .is-dark .nav-btn {
-    background: rgba(30, 41, 59, 0.96);
     color: #e2e8f0;
 }
 
@@ -1096,6 +1099,11 @@ onMounted(() => {
     height: 42px;
 }
 
+.composer-submit :deep(.n-button__content) {
+    color: #ffffff;
+    font-weight: 700;
+}
+
 .reply-banner {
     display: flex;
     align-items: center;
@@ -1390,6 +1398,44 @@ onMounted(() => {
     font-size: 13px;
     line-height: 1.7;
     color: #64748b;
+}
+
+.is-dark .report-modal {
+    background: rgba(15, 23, 42, 0.98);
+    color: #f8fafc;
+    box-shadow: 0 20px 48px rgba(2, 6, 23, 0.42);
+}
+
+.is-dark .report-modal__head h2 {
+    color: #f8fafc;
+}
+
+.is-dark .report-modal__hint {
+    color: #94a3b8;
+}
+
+.is-dark .report-modal :deep(.n-base-selection),
+.is-dark .report-modal :deep(.n-input-wrapper) {
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.68);
+}
+
+.is-dark .report-modal :deep(.n-base-selection-label),
+.is-dark .report-modal :deep(.n-base-selection-placeholder),
+.is-dark .report-modal :deep(.n-base-selection-placeholder__inner),
+.is-dark .report-modal :deep(.n-base-selection-input),
+.is-dark .report-modal :deep(.n-base-selection-input__content),
+.is-dark .report-modal :deep(.n-input__input-el),
+.is-dark .report-modal :deep(.n-input__textarea-el),
+.is-dark .report-modal :deep(.n-input__placeholder),
+.is-dark .report-modal :deep(.n-button__content) {
+    color: #f8fafc;
+}
+
+.is-dark .report-modal :deep(.n-base-selection-placeholder),
+.is-dark .report-modal :deep(.n-base-selection-placeholder__inner),
+.is-dark .report-modal :deep(.n-input__placeholder) {
+    opacity: 0.72;
 }
 
 .report-modal__actions {

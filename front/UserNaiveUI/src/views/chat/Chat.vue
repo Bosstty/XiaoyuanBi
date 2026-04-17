@@ -4,13 +4,14 @@ import { useRoute, useRouter } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import type { Socket } from 'socket.io-client';
 import { chatApi } from '@/api';
-import { useUserStore } from '@/stores';
+import { useAppStore, useUserStore } from '@/stores';
 import { resolveAssetUrl } from '@/utils/apiBase';
 import { createChatSocket } from '@/utils/chatSocket';
 
 const router = useRouter();
 const route = useRoute();
 const message = useMessage();
+const appStore = useAppStore();
 const userStore = useUserStore();
 
 const conversations = ref<any[]>([]);
@@ -22,6 +23,7 @@ const sending = ref(false);
 const bootstrapping = ref(false);
 const uploading = ref(false);
 const showActionPanel = ref(false);
+const conversationOpenedFromList = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const previewImage = ref('');
 const previewScale = ref(1);
@@ -340,8 +342,9 @@ const openConversationById = async (conversationId?: number | null) => {
     }
 };
 
-const selectConversation = async (conversation: any) => {
+const selectConversation = async (conversation: any, options?: { fromList?: boolean }) => {
     currentConversation.value = conversation;
+    conversationOpenedFromList.value = Boolean(options?.fromList);
     conversation.unread_count = 0;
     showActionPanel.value = false;
 
@@ -364,6 +367,23 @@ const selectConversation = async (conversation: any) => {
     }
 
     await scrollToBottom();
+};
+
+const handleConversationBack = () => {
+    if (conversationOpenedFromList.value) {
+        conversationOpenedFromList.value = false;
+        currentConversation.value = null;
+        return;
+    }
+
+    const previousRoute = window.history.state?.back;
+    if (previousRoute) {
+        router.back();
+        return;
+    }
+
+    currentConversation.value = null;
+    router.replace({ path: '/chat' });
 };
 
 const sendMessage = async () => {
@@ -639,7 +659,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="chat-page" :class="{ 'chat-page--conversation': currentConversation }">
+    <div
+        class="chat-page"
+        :class="{ 'chat-page--conversation': currentConversation, 'is-dark': appStore.isDark }"
+    >
         <div class="conversation-list" :class="{ active: !currentConversation }">
             <div class="list-header">
                 <span>消息</span>
@@ -662,7 +685,7 @@ onBeforeUnmount(() => {
                         active: currentConversation?.id === conv.id,
                         unread: conv.unread_count > 0,
                     }"
-                    @click="selectConversation(conv)"
+                    @click="selectConversation(conv, { fromList: true })"
                 >
                     <div class="avatar">
                         <img
@@ -694,7 +717,7 @@ onBeforeUnmount(() => {
         <transition name="conversation-slide">
             <div v-if="currentConversation" class="chat-window">
                 <div class="chat-header">
-                    <button class="back-btn" @click="currentConversation = null" aria-label="返回">
+                    <button class="back-btn" @click="handleConversationBack" aria-label="返回">
                         <svg viewBox="0 0 24 24" class="back-icon" aria-hidden="true">
                             <path
                                 d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
@@ -1336,5 +1359,98 @@ onBeforeUnmount(() => {
     padding: 0 14px;
     font-size: 14px;
     font-weight: 600;
+}
+
+.chat-page.is-dark {
+    background:
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 28%),
+        linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    color: #e2e8f0;
+}
+
+.chat-page.is-dark.chat-page--conversation {
+    background: #0f172a;
+}
+
+.chat-page.is-dark .list-header,
+.chat-page.is-dark .name,
+.chat-page.is-dark .title {
+    color: #f8fafc;
+}
+
+.chat-page.is-dark .loading,
+.chat-page.is-dark .empty,
+.chat-page.is-dark .time,
+.chat-page.is-dark .role,
+.chat-page.is-dark .preview,
+.chat-page.is-dark .system-note {
+    color: #94a3b8;
+}
+
+.chat-page.is-dark .conversation-item {
+    border-color: rgba(71, 85, 105, 0.5);
+    background: rgba(15, 23, 42, 0.78);
+    box-shadow: 0 14px 32px rgba(2, 6, 23, 0.28);
+}
+
+.chat-page.is-dark .conversation-item.active {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(59, 130, 246, 0.14));
+    border-color: rgba(96, 165, 250, 0.36);
+}
+
+.chat-page.is-dark .conversation-item.unread .preview {
+    color: #e2e8f0;
+}
+
+.chat-page.is-dark .chat-window {
+    background:
+        radial-gradient(circle at top center, rgba(30, 41, 59, 0.5), transparent 26%),
+        #0f172a;
+}
+
+.chat-page.is-dark .chat-header,
+.chat-page.is-dark .action-panel,
+.chat-page.is-dark .input-area {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(71, 85, 105, 0.45);
+}
+
+.chat-page.is-dark .back-btn,
+.chat-page.is-dark .action-card {
+    color: #cbd5e1;
+}
+
+.chat-page.is-dark .system-note {
+    background: rgba(51, 65, 85, 0.66);
+}
+
+.chat-page.is-dark .text,
+.chat-page.is-dark .image-card {
+    background: rgba(30, 41, 59, 0.96);
+    color: #e2e8f0;
+    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.24);
+}
+
+.chat-page.is-dark .message.mine .text {
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    color: #fff;
+}
+
+.chat-page.is-dark .action-icon {
+    background: rgba(30, 41, 59, 0.9);
+}
+
+.chat-page.is-dark .input-area input {
+    border-color: rgba(71, 85, 105, 0.6);
+    background: rgba(30, 41, 59, 0.96);
+    color: #f8fafc;
+}
+
+.chat-page.is-dark .input-area input::placeholder {
+    color: rgba(148, 163, 184, 0.88);
+}
+
+.chat-page.is-dark .input-area button:disabled {
+    background: #475569;
 }
 </style>

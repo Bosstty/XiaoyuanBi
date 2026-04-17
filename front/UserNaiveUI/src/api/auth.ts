@@ -135,4 +135,39 @@ export class UserApi {
             },
         });
     }
+
+    static async verifyEmailChangeIdentity(data: {
+        auth_method: 'password' | 'email_code';
+        password?: string;
+        code?: string;
+    }): Promise<
+        ApiResponse<{
+            change_token: string;
+            expires_in: number;
+            auth_method: 'password' | 'email_code';
+        }>
+    > {
+        return apiClient.post('/profile/email-change/verify-identity', data);
+    }
+
+    static async checkEmailChangeAvailability(data: {
+        new_email: string;
+    }): Promise<ApiResponse<{ email: string; available: boolean }>> {
+        return apiClient.post('/profile/email-change/check-availability', data);
+    }
+
+    static async sendEmailChangeCode(data: {
+        change_token: string;
+        new_email: string;
+    }): Promise<ApiResponse> {
+        return apiClient.post('/profile/email-change/send-code', data);
+    }
+
+    static async confirmEmailChange(data: {
+        change_token: string;
+        new_email: string;
+        code: string;
+    }): Promise<ApiResponse<User>> {
+        return apiClient.post('/profile/email-change/confirm', data);
+    }
 }

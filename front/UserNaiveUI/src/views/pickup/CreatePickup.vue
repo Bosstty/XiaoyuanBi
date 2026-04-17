@@ -1120,6 +1120,13 @@ watch(
     color: var(--text);
 }
 
+.campus-create.is-dark {
+    --surface: #0f172a;
+    --card: #1e293b;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+}
+
 /* 顶部导航 */
 .campus-nav-sticky {
     position: sticky;
@@ -1129,6 +1136,11 @@ watch(
     backdrop-filter: blur(12px);
     padding: 16px 16px 14px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.campus-create.is-dark .campus-nav-sticky {
+    background: rgba(15, 23, 42, 0.92);
+    border-bottom-color: rgba(71, 85, 105, 0.38);
 }
 
 .nav-back-group {
@@ -1171,6 +1183,10 @@ watch(
     padding: 24px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
     animation: slide-up 0.5s ease-out both;
+}
+
+.campus-create.is-dark .form-card {
+    box-shadow: 0 16px 36px rgba(2, 6, 23, 0.28);
 }
 
 /* 表单元素 */
@@ -1230,9 +1246,19 @@ watch(
     color: var(--primary);
 }
 
+.campus-create.is-dark .add-item-btn {
+    background: rgba(37, 99, 235, 0.18);
+    color: #93c5fd;
+}
+
 .remove-item-btn {
     background: rgba(148, 163, 184, 0.16);
     color: #64748b;
+}
+
+.campus-create.is-dark .remove-item-btn {
+    background: rgba(71, 85, 105, 0.36);
+    color: #cbd5e1;
 }
 
 .remove-item-btn:disabled {
@@ -1256,6 +1282,11 @@ watch(
     border-radius: 18px;
     background: rgba(148, 163, 184, 0.08);
     border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.campus-create.is-dark .express-item-card {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(71, 85, 105, 0.42);
 }
 
 .express-item-card__head {
@@ -1291,9 +1322,19 @@ watch(
     border: 1px solid rgba(59, 130, 246, 0.14);
 }
 
+.campus-create.is-dark .price-rule-card {
+    background: rgba(37, 99, 235, 0.12);
+    border-color: rgba(96, 165, 250, 0.24);
+}
+
 .price-rule-card.warning {
     background: rgba(245, 158, 11, 0.1);
     border-color: rgba(245, 158, 11, 0.2);
+}
+
+.campus-create.is-dark .price-rule-card.warning {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.28);
 }
 
 .price-rule-card strong {
@@ -1320,6 +1361,11 @@ watch(
     padding: 10px 12px;
     border-radius: 12px;
     background: rgba(254, 226, 226, 0.8);
+}
+
+.campus-create.is-dark .inline-error {
+    background: rgba(127, 29, 29, 0.28);
+    color: #fecaca;
 }
 
 .price-focus :deep(.n-input-number-input) {
@@ -1352,6 +1398,10 @@ watch(
     transition: all 0.3s;
 }
 
+.campus-create.is-dark .advanced-trigger {
+    background: rgba(15, 23, 42, 0.72);
+}
+
 .advanced-trigger i {
     width: 6px;
     height: 6px;
@@ -1373,6 +1423,10 @@ watch(
     animation: fade-in 0.4s ease-out;
 }
 
+.campus-create.is-dark .advanced-pane {
+    border-top-color: rgba(71, 85, 105, 0.46);
+}
+
 /* 底部结算区 */
 .action-footer {
     margin-top: 32px;
@@ -1380,6 +1434,10 @@ watch(
     border-radius: 28px;
     padding: 24px;
     box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.04);
+}
+
+.campus-create.is-dark .action-footer {
+    box-shadow: 0 -12px 28px rgba(2, 6, 23, 0.24);
 }
 
 .summary-line {
@@ -1502,6 +1560,68 @@ watch(
 .payment-sheet__summary strong {
     font-size: 18px;
     color: var(--text);
+}
+
+.campus-create.is-dark .payment-sheet__option {
+    border-color: rgba(71, 85, 105, 0.46);
+    background: rgba(15, 23, 42, 0.72);
+}
+
+.campus-create.is-dark .payment-sheet__option.is-active,
+.campus-create.is-dark .payment-sheet__points,
+.campus-create.is-dark .payment-sheet__summary {
+    background: rgba(37, 99, 235, 0.12);
+}
+
+.campus-create.is-dark .payment-sheet__check {
+    background: rgba(30, 41, 59, 0.96);
+    border-color: rgba(71, 85, 105, 0.52);
+}
+
+.campus-create.is-dark :deep(.n-input-wrapper),
+.campus-create.is-dark :deep(.n-input-number),
+.campus-create.is-dark :deep(.n-input-number-input),
+.campus-create.is-dark :deep(.n-base-selection),
+.campus-create.is-dark :deep(.n-date-picker),
+.campus-create.is-dark :deep(.n-checkbox-box) {
+    background: rgba(15, 23, 42, 0.72);
+    box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.58);
+}
+
+.campus-create.is-dark :deep(.n-input-number .n-input-wrapper),
+.campus-create.is-dark :deep(.n-date-picker .n-input-wrapper) {
+    background: rgba(15, 23, 42, 0.72);
+}
+
+.campus-create.is-dark :deep(.n-input__input-el),
+.campus-create.is-dark :deep(.n-input__textarea-el),
+.campus-create.is-dark :deep(.n-input__placeholder),
+.campus-create.is-dark :deep(.n-input-number-input input),
+.campus-create.is-dark :deep(.n-base-selection-label),
+.campus-create.is-dark :deep(.n-base-selection-placeholder),
+.campus-create.is-dark :deep(.n-base-selection-placeholder__inner),
+.campus-create.is-dark :deep(.n-base-selection-input),
+.campus-create.is-dark :deep(.n-base-selection-input__content),
+.campus-create.is-dark :deep(.n-input-number-suffix),
+.campus-create.is-dark :deep(.n-input-number-prefix),
+.campus-create.is-dark :deep(.n-button__content),
+.campus-create.is-dark :deep(.n-checkbox__label) {
+    color: #f8fafc;
+}
+
+.campus-create.is-dark :deep(.n-input__placeholder),
+.campus-create.is-dark :deep(.n-base-selection-placeholder),
+.campus-create.is-dark :deep(.n-base-selection-placeholder__inner) {
+    opacity: 0.7;
+}
+
+.campus-create.is-dark :deep(.n-input-number-button) {
+    background: rgba(30, 41, 59, 0.96);
+    color: #cbd5e1;
+}
+
+.campus-create.is-dark :deep(.n-checkbox-box) {
+    border-color: rgba(71, 85, 105, 0.58);
 }
 
 

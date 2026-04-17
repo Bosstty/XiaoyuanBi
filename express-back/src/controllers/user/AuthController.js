@@ -13,6 +13,7 @@ const redis = require('../../../config/redis');
 const emailService = require('../../../services/emailService');
 
 const RESET_PASSWORD_TTL = Number(process.env.RESET_PASSWORD_TOKEN_TTL || 1800);
+const EMAIL_CHANGE_AUTH_TTL = Number(process.env.EMAIL_CHANGE_AUTH_TTL || 900);
 
 function getResetTokenKey(token) {
     return `password_reset:token:${token}`;
@@ -28,6 +29,10 @@ function buildResetPasswordUrl(token) {
     return `${baseUrl}${separator}token=${encodeURIComponent(token)}`;
 }
 
+function getEmailChangeAuthKey(token) {
+    return `email_change:auth:${token}`;
+}
+
 function getRequestEmail(body = {}) {
     return String(body.email || body.target || '')
         .trim()
@@ -36,6 +41,24 @@ function getRequestEmail(body = {}) {
 
 function formatSecurityTime(date = new Date()) {
     return new Date(date).toLocaleString('zh-CN', { hour12: false });
+}
+
+async function getEmailChangeAuthPayload(token, userId) {
+    const payload = token ? await redis.get(getEmailChangeAuthKey(token)) : null;
+    if (!payload) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(payload);
+        if (Number(parsed.userId) !== Number(userId)) {
+            return null;
+        }
+
+        return parsed;
+    } catch (_error) {
+        return null;
+    }
 }
 
 async function buildUserResponse(user) {
@@ -305,6 +328,247 @@ class UserAuthController {
         } catch (error) {
             console.error('更新用户信息失败:', error);
             res.status(500).json(responseUtils.error('更新失败'));
+        }
+    }
+
+    static async verifyEmailChangeIdentity(req, res) {
+        try {
+            const user = req.user;
+            const authMethod = String(req.body.auth_method || '').trim();
+
+            if (!['password', 'email_code'].includes(authMethod)) {
+                return res.status(400).json(responseUtils.error('不支持的认证方式'));
+            }
+
+            if (authMethod === 'password') {
+                const password = String(req.body.password || '');
+                if (!password) {
+                    return res.status(400).json(responseUtils.error('请输入登录密码'));
+                }
+
+                const isPasswordValid = await user.comparePassword(password);
+                if (!isPasswordValid) {
+                    return res.status(400).json(responseUtils.error('登录密码错误'));
+                }
+            }
+
+            if (authMethod === 'email_code') {
+                if (!user.email) {
+                    return res.status(400).json(responseUtils.error('当前账号未绑定邮箱'));
+                }
+
+                const code = String(req.body.code || '').trim();
+                if (!/^\d{6}$/.test(code)) {
+                    return res.status(400).json(responseUtils.error('验证码必须为6位数字'));
+                }
+
+                await emailService.verifyCode(user.email, code);
+
+                if (!user.email_verified) {
+                    await user.update({ email_verified: true });
+                }
+            }
+
+            const changeToken = cryptoUtils.randomString(32);
+            await redis.set(
+                getEmailChangeAuthKey(changeToken),
+                JSON.stringify({
+                    userId: user.id,
+                    authMethod,
+                    verifiedAt: new Date().toISOString(),
+                }),
+                'EX',
+                EMAIL_CHANGE_AUTH_TTL
+            );
+
+            return res.json(
+                responseUtils.success(
+                    {
+                        change_token: changeToken,
+                        expires_in: EMAIL_CHANGE_AUTH_TTL,
+                        auth_method: authMethod,
+                    },
+                    '身份验证成功'
+                )
+            );
+        } catch (error) {
+            console.error('修改邮箱身份验证失败:', error);
+            return res
+                .status(error.status || 500)
+                .json(responseUtils.error(error.message || '修改邮箱身份验证失败'));
+        }
+    }
+
+    static async checkEmailChangeAvailability(req, res) {
+        try {
+            const user = req.user;
+            const newEmail = getRequestEmail({
+                email: req.body.new_email || req.body.newEmail || req.body.email,
+            });
+
+            if (!validationUtils.isEmail(newEmail)) {
+                return res.status(400).json(responseUtils.error('新邮箱格式不正确'));
+            }
+
+            if (user.email && user.email.toLowerCase() === newEmail) {
+                return res.status(400).json(responseUtils.error('新邮箱不能与当前邮箱相同'));
+            }
+
+            const existingUser = await User.findOne({
+                where: {
+                    email: newEmail,
+                    id: { [Op.ne]: user.id },
+                },
+            });
+
+            if (existingUser) {
+                return res.status(400).json(responseUtils.error('该邮箱已被其他账号使用'));
+            }
+
+            return res.json(
+                responseUtils.success(
+                    {
+                        email: newEmail,
+                        available: true,
+                    },
+                    '邮箱可用'
+                )
+            );
+        } catch (error) {
+            console.error('校验新邮箱可用性失败:', error);
+            return res.status(500).json(responseUtils.error('校验新邮箱可用性失败'));
+        }
+    }
+
+    static async sendEmailChangeVerificationCode(req, res) {
+        try {
+            const user = req.user;
+            const changeToken = String(
+                req.body.change_token || req.body.changeToken || ''
+            ).trim();
+            const newEmail = getRequestEmail({
+                email: req.body.new_email || req.body.newEmail || req.body.email,
+            });
+
+            const authPayload = await getEmailChangeAuthPayload(changeToken, user.id);
+            if (!authPayload) {
+                return res.status(400).json(responseUtils.error('修改邮箱凭证无效或已过期'));
+            }
+
+            if (!validationUtils.isEmail(newEmail)) {
+                return res.status(400).json(responseUtils.error('新邮箱格式不正确'));
+            }
+
+            if (user.email && user.email.toLowerCase() === newEmail) {
+                return res.status(400).json(responseUtils.error('新邮箱不能与当前邮箱相同'));
+            }
+
+            const existingUser = await User.findOne({
+                where: {
+                    email: newEmail,
+                    id: { [Op.ne]: user.id },
+                },
+            });
+
+            if (existingUser) {
+                return res.status(400).json(responseUtils.error('该邮箱已被其他账号使用'));
+            }
+
+            const result = await emailService.sendVerifyCode(newEmail);
+
+            return res.json(responseUtils.success(result, '新邮箱验证码已发送'));
+        } catch (error) {
+            console.error('发送新邮箱验证码失败:', error);
+            return res
+                .status(error.status || 500)
+                .json(responseUtils.error(error.message || '发送新邮箱验证码失败'));
+        }
+    }
+
+    static async confirmEmailChange(req, res) {
+        try {
+            const user = req.user;
+            const clientIp = requestUtils.getClientIp(req);
+            const changeToken = String(
+                req.body.change_token || req.body.changeToken || ''
+            ).trim();
+            const newEmail = getRequestEmail({
+                email: req.body.new_email || req.body.newEmail || req.body.email,
+            });
+            const code = String(req.body.code || '').trim();
+
+            const authPayload = await getEmailChangeAuthPayload(changeToken, user.id);
+            if (!authPayload) {
+                return res.status(400).json(responseUtils.error('修改邮箱凭证无效或已过期'));
+            }
+
+            if (!validationUtils.isEmail(newEmail)) {
+                return res.status(400).json(responseUtils.error('新邮箱格式不正确'));
+            }
+
+            if (user.email && user.email.toLowerCase() === newEmail) {
+                return res.status(400).json(responseUtils.error('新邮箱不能与当前邮箱相同'));
+            }
+
+            const existingUser = await User.findOne({
+                where: {
+                    email: newEmail,
+                    id: { [Op.ne]: user.id },
+                },
+            });
+
+            if (existingUser) {
+                return res.status(400).json(responseUtils.error('该邮箱已被其他账号使用'));
+            }
+
+            await emailService.verifyCode(newEmail, code);
+
+            const oldEmail = user.email;
+            await user.update({
+                email: newEmail,
+                email_verified: true,
+            });
+
+            await redis.del(getEmailChangeAuthKey(changeToken));
+
+            try {
+                const detailRows = [
+                    { label: '账号', value: user.username || `用户 ${user.id}` },
+                    { label: '新邮箱', value: newEmail },
+                    { label: '操作时间', value: formatSecurityTime() },
+                    { label: 'IP 地址', value: clientIp || '未知' },
+                ];
+
+                await emailService.sendSecurityNotice(newEmail, {
+                    subject: '绑定邮箱已更新',
+                    title: '绑定邮箱已更新',
+                    intro: '你的账号已成功更新绑定邮箱，请确认本次操作由你本人发起。',
+                    details: detailRows,
+                    footerNote:
+                        '新邮箱已经完成验证并立即生效。如非本人操作，请尽快联系平台处理。',
+                });
+
+                if (oldEmail && oldEmail.toLowerCase() !== newEmail) {
+                    await emailService.sendSecurityNotice(oldEmail, {
+                        subject: '你的绑定邮箱已被修改',
+                        title: '你的绑定邮箱已被修改',
+                        intro: '系统检测到账号绑定邮箱发生变更，如非本人操作请立即检查账号安全。',
+                        details: detailRows,
+                        footerNote:
+                            '若这不是你本人发起的操作，请立即重置密码并联系平台客服。',
+                    });
+                }
+            } catch (mailError) {
+                console.error('发送邮箱变更安全通知失败:', mailError);
+            }
+
+            const userData = await buildUserResponse(user);
+            return res.json(responseUtils.success(userData, '邮箱修改成功'));
+        } catch (error) {
+            console.error('确认修改邮箱失败:', error);
+            return res
+                .status(error.status || 500)
+                .json(responseUtils.error(error.message || '确认修改邮箱失败'));
         }
     }
 
