@@ -1,0 +1,7784 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "哈尔滨学院校园综合服务平台 API",
+    "version": "1.0.0",
+    "description": "校园综合服务平台后端接口文档。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Current server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System",
+      "description": "系统接口"
+    },
+    {
+      "name": "Public",
+      "description": "公共接口"
+    },
+    {
+      "name": "User Auth",
+      "description": "User Auth endpoints"
+    },
+    {
+      "name": "User Profile",
+      "description": "User Profile endpoints"
+    },
+    {
+      "name": "User Orders",
+      "description": "User Orders endpoints"
+    },
+    {
+      "name": "User Tasks",
+      "description": "User Tasks endpoints"
+    },
+    {
+      "name": "User Forum",
+      "description": "User Forum endpoints"
+    },
+    {
+      "name": "User Messages",
+      "description": "User Messages endpoints"
+    },
+    {
+      "name": "User Wallet",
+      "description": "User Wallet endpoints"
+    },
+    {
+      "name": "User Chat",
+      "description": "User Chat endpoints"
+    },
+    {
+      "name": "Deliverer Auth",
+      "description": "Deliverer Auth endpoints"
+    },
+    {
+      "name": "Deliverer Application",
+      "description": "Deliverer Application endpoints"
+    },
+    {
+      "name": "Deliverer Orders",
+      "description": "Deliverer Orders endpoints"
+    },
+    {
+      "name": "Deliverer Status",
+      "description": "Deliverer Status endpoints"
+    },
+    {
+      "name": "Deliverer Earnings",
+      "description": "Deliverer Earnings endpoints"
+    },
+    {
+      "name": "Deliverer Messages",
+      "description": "Deliverer Messages endpoints"
+    },
+    {
+      "name": "Admin Auth",
+      "description": "Admin Auth endpoints"
+    },
+    {
+      "name": "Admin Users",
+      "description": "Admin Users endpoints"
+    },
+    {
+      "name": "Admin Management",
+      "description": "Admin Management endpoints"
+    },
+    {
+      "name": "Admin Services",
+      "description": "Admin Services endpoints"
+    },
+    {
+      "name": "Admin Orders",
+      "description": "Admin Orders endpoints"
+    },
+    {
+      "name": "Admin Tasks",
+      "description": "Admin Tasks endpoints"
+    },
+    {
+      "name": "Admin Deliverers",
+      "description": "Admin Deliverers endpoints"
+    },
+    {
+      "name": "Admin Forum",
+      "description": "Admin Forum endpoints"
+    },
+    {
+      "name": "Admin Reviews",
+      "description": "Admin Reviews endpoints"
+    },
+    {
+      "name": "Admin Analytics",
+      "description": "Admin Analytics endpoints"
+    },
+    {
+      "name": "Admin Finance",
+      "description": "Admin Finance endpoints"
+    },
+    {
+      "name": "Admin Audit",
+      "description": "Admin Audit endpoints"
+    },
+    {
+      "name": "Admin Settings",
+      "description": "Admin Settings endpoints"
+    },
+    {
+      "name": "Service Auth",
+      "description": "Service Auth endpoints"
+    },
+    {
+      "name": "Service Tickets",
+      "description": "Service Tickets endpoints"
+    },
+    {
+      "name": "Service Chat",
+      "description": "Service Chat endpoints"
+    },
+    {
+      "name": "Service Orders",
+      "description": "Service Orders endpoints"
+    },
+    {
+      "name": "Service Users",
+      "description": "Service Users endpoints"
+    },
+    {
+      "name": "Service Deliverers",
+      "description": "Service Deliverers endpoints"
+    },
+    {
+      "name": "Public Upload",
+      "description": "Public Upload endpoints"
+    },
+    {
+      "name": "Public Auth",
+      "description": "Public Auth endpoints"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "SuccessEnvelope": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "ok"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "请求失败"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/user/auth/register": {
+      "post": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "用户注册",
+        "operationId": "UserAuthController_register",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/user/auth/login": {
+      "post": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "用户登录",
+        "operationId": "UserAuthController_login",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/user/auth/send-verification-code": {
+      "post": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "POST /send-verification-code",
+        "operationId": "post__api_user_auth_send_verification_code",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/user/auth/verify-code": {
+      "post": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "POST /verify-code",
+        "operationId": "post__api_user_auth_verify_code",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/user/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "POST /forgot-password",
+        "operationId": "post__api_user_auth_forgot_password",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/user/auth/reset-password/{token}": {
+      "get": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "Verify Reset Token",
+        "operationId": "UserAuthController_verifyResetToken",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/user/auth/reset-password": {
+      "post": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "POST /reset-password",
+        "operationId": "post__api_user_auth_reset_password",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/user/auth/profile": {
+      "get": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "需要认证的用户路由",
+        "operationId": "UserAuthController_getProfile",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "Update Profile",
+        "operationId": "UserAuthController_updateProfile",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/auth/change-password": {
+      "post": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "Change Password",
+        "operationId": "UserAuthController_changePassword",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/auth/upload-avatar": {
+      "post": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "Upload Avatar",
+        "operationId": "UserAuthController_uploadAvatar",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/user/auth/logout": {
+      "post": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "Logout",
+        "operationId": "UserAuthController_logout",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/auth/account": {
+      "delete": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "Delete Account",
+        "operationId": "UserAuthController_deleteAccount",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/auth/stats": {
+      "get": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "Get User Stats",
+        "operationId": "UserAuthController_getUserStats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/auth/verify-email": {
+      "post": {
+        "tags": [
+          "User Auth"
+        ],
+        "summary": "POST /verify-email",
+        "operationId": "post__api_user_auth_verify_email",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/profile": {
+      "get": {
+        "tags": [
+          "User Profile"
+        ],
+        "summary": "用户个人资料相关接口 获取个人资料",
+        "operationId": "get__api_user_profile",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "User Profile"
+        ],
+        "summary": "更新个人资料",
+        "operationId": "put__api_user_profile",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/profile/avatar": {
+      "post": {
+        "tags": [
+          "User Profile"
+        ],
+        "summary": "上传头像",
+        "operationId": "post__api_user_profile_avatar",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/profile/student-verification": {
+      "post": {
+        "tags": [
+          "User Profile"
+        ],
+        "summary": "提交学生认证",
+        "operationId": "post__api_user_profile_student_verification",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/profile/stats": {
+      "get": {
+        "tags": [
+          "User Profile"
+        ],
+        "summary": "用户统计信息 获取用户统计",
+        "operationId": "get__api_user_profile_stats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/profile/users/{id}": {
+      "get": {
+        "tags": [
+          "User Profile"
+        ],
+        "summary": "获取公开用户详情",
+        "operationId": "get__api_user_profile_users_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/orders": {
+      "post": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "创建订单",
+        "operationId": "UserOrderController_createOrder",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/orders/my-orders": {
+      "get": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "获取我的订单",
+        "operationId": "UserOrderController_getMyOrders",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/orders/stats": {
+      "get": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "获取订单统计",
+        "operationId": "UserOrderController_getOrderStats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/orders/nearby-deliverers": {
+      "get": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "查找附近配送员",
+        "operationId": "UserOrderController_findNearbyDeliverers",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/orders/{id}": {
+      "get": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "获取订单详情",
+        "operationId": "UserOrderController_getOrderDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "修改订单金额",
+        "operationId": "UserOrderController_updateOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/orders/{id}/cancel": {
+      "post": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "取消订单",
+        "operationId": "UserOrderController_cancelOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/orders/{id}/confirm": {
+      "post": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "确认订单完成",
+        "operationId": "UserOrderController_confirmOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/orders/{id}/rate": {
+      "post": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "评价订单",
+        "operationId": "UserOrderController_rateOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/orders/{id}/tickets": {
+      "post": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "创建订单工单",
+        "operationId": "UserOrderController_createServiceTicket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/orders/{id}/refund": {
+      "post": {
+        "tags": [
+          "User Orders"
+        ],
+        "summary": "申请退款",
+        "operationId": "UserOrderController_requestRefund",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/stats/categories": {
+      "get": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "任务相关路由 获取已发布任务分类统计",
+        "operationId": "TaskController_getPublishedCategoryStats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/my/tasks": {
+      "get": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "获取我的任务",
+        "operationId": "TaskController_getMyTasks",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks": {
+      "get": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "获取任务列表",
+        "operationId": "TaskController_getTasks",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "创建任务",
+        "operationId": "TaskController_createTask",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}": {
+      "get": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "获取任务详情",
+        "operationId": "TaskController_getTaskById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "更新任务",
+        "operationId": "TaskController_updateTask",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "删除任务",
+        "operationId": "TaskController_deleteTask",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/cancel": {
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "取消发布任务",
+        "operationId": "TaskController_cancelTask",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/report": {
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "Create Report",
+        "operationId": "TaskController_createReport",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/apply": {
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "申请任务",
+        "operationId": "TaskController_applyForTask",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/applications": {
+      "get": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "获取申请列表",
+        "operationId": "TaskController_getApplications",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/applications/{applicationId}": {
+      "patch": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "处理申请",
+        "operationId": "TaskController_handleApplication",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/complete": {
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "完成任务",
+        "operationId": "TaskController_completeTask",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/confirm": {
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "发布者确认完成任务",
+        "operationId": "TaskController_confirmTask",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/rate": {
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "发布者评价任务",
+        "operationId": "TaskController_rateTask",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/cancellation/request": {
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "任务取消协商",
+        "operationId": "TaskController_requestCancellation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/cancellation/respond": {
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "Respond Cancellation",
+        "operationId": "TaskController_respondCancellation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/cancellation/withdraw": {
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "Withdraw Cancellation Request",
+        "operationId": "TaskController_withdrawCancellationRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/tasks/{id}/cancellation/ticket": {
+      "post": {
+        "tags": [
+          "User Tasks"
+        ],
+        "summary": "Create Cancellation Ticket",
+        "operationId": "TaskController_createCancellationTicket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/forum": {
+      "get": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "公开接口",
+        "operationId": "ForumController_getPosts",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      },
+      "post": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "需要用户认证的接口",
+        "operationId": "ForumController_createPost",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/forum/hot": {
+      "get": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "Get Hot Posts",
+        "operationId": "ForumController_getHotPosts",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/user/forum/stats/categories": {
+      "get": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "Get Category Stats",
+        "operationId": "ForumController_getCategoryStats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/user/forum/my/posts": {
+      "get": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "Get My Posts",
+        "operationId": "ForumController_getMyPosts",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/forum/{id}": {
+      "get": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "Get Post By Id",
+        "operationId": "ForumController_getPostById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      },
+      "put": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "Update Post",
+        "operationId": "ForumController_updatePost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "Delete Post",
+        "operationId": "ForumController_deletePost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/forum/{id}/comments": {
+      "get": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "Get Comments",
+        "operationId": "ForumController_getComments",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      },
+      "post": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "评论相关",
+        "operationId": "ForumController_createComment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/forum/{id}/like": {
+      "post": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "Like Post",
+        "operationId": "ForumController_likePost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/forum/{id}/report": {
+      "post": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "Create Report",
+        "operationId": "ForumController_createReport",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/forum/comments/{commentId}/like": {
+      "post": {
+        "tags": [
+          "User Forum"
+        ],
+        "summary": "Like Comment",
+        "operationId": "ForumController_likeComment",
+        "parameters": [
+          {
+            "name": "commentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/messages/send": {
+      "post": {
+        "tags": [
+          "User Messages"
+        ],
+        "summary": "消息相关",
+        "operationId": "MessageController_sendMessage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/messages/list": {
+      "get": {
+        "tags": [
+          "User Messages"
+        ],
+        "summary": "Get Messages",
+        "operationId": "MessageController_getMessages",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/messages/mark-read": {
+      "post": {
+        "tags": [
+          "User Messages"
+        ],
+        "summary": "Mark As Read",
+        "operationId": "MessageController_markAsRead",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/messages/{message_id}": {
+      "delete": {
+        "tags": [
+          "User Messages"
+        ],
+        "summary": "Delete Message",
+        "operationId": "MessageController_deleteMessage",
+        "parameters": [
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/messages/unread-count": {
+      "get": {
+        "tags": [
+          "User Messages"
+        ],
+        "summary": "Get Unread Count",
+        "operationId": "MessageController_getUnreadCount",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/messages/settings": {
+      "get": {
+        "tags": [
+          "User Messages"
+        ],
+        "summary": "通知设置",
+        "operationId": "MessageController_getNotificationSettings",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "User Messages"
+        ],
+        "summary": "Update Notification Settings",
+        "operationId": "MessageController_updateNotificationSettings",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/messages/register-device": {
+      "post": {
+        "tags": [
+          "User Messages"
+        ],
+        "summary": "Register Device Token",
+        "operationId": "MessageController_registerDeviceToken",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/wallet/overview": {
+      "get": {
+        "tags": [
+          "User Wallet"
+        ],
+        "summary": "Get Wallet Overview",
+        "operationId": "WalletController_getWalletOverview",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/wallet/payment-summary": {
+      "get": {
+        "tags": [
+          "User Wallet"
+        ],
+        "summary": "Get Wallet Payment Summary",
+        "operationId": "WalletController_getWalletPaymentSummary",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/wallet/activities": {
+      "get": {
+        "tags": [
+          "User Wallet"
+        ],
+        "summary": "Get Wallet Activities",
+        "operationId": "WalletController_getWalletActivities",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/wallet/records": {
+      "get": {
+        "tags": [
+          "User Wallet"
+        ],
+        "summary": "Get Wallet Activities",
+        "operationId": "WalletController_getWalletActivities",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/wallet/payment-password": {
+      "post": {
+        "tags": [
+          "User Wallet"
+        ],
+        "summary": "Set Payment Password",
+        "operationId": "WalletController_setPaymentPassword",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/wallet/recharge": {
+      "post": {
+        "tags": [
+          "User Wallet"
+        ],
+        "summary": "Recharge",
+        "operationId": "WalletController_recharge",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/wallet/withdraw": {
+      "post": {
+        "tags": [
+          "User Wallet"
+        ],
+        "summary": "Withdraw",
+        "operationId": "WalletController_withdraw",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/chat/conversations": {
+      "post": {
+        "tags": [
+          "User Chat"
+        ],
+        "summary": "创建会话",
+        "operationId": "ServiceChatController_createConversation",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "User Chat"
+        ],
+        "summary": "获取会话列表（客服端）",
+        "operationId": "ServiceChatController_getConversations",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/chat/my/conversations": {
+      "get": {
+        "tags": [
+          "User Chat"
+        ],
+        "summary": "获取我的会话列表（用户端）",
+        "operationId": "ServiceChatController_getMyConversations",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/chat/conversations/{id}": {
+      "get": {
+        "tags": [
+          "User Chat"
+        ],
+        "summary": "获取会话详情",
+        "operationId": "ServiceChatController_getConversationDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/chat/services": {
+      "get": {
+        "tags": [
+          "User Chat"
+        ],
+        "summary": "获取可转接客服列表",
+        "operationId": "ServiceChatController_getAvailableServices",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/chat/conversations/{id}/transfer": {
+      "post": {
+        "tags": [
+          "User Chat"
+        ],
+        "summary": "转接会话",
+        "operationId": "ServiceChatController_transferConversation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/chat/messages": {
+      "get": {
+        "tags": [
+          "User Chat"
+        ],
+        "summary": "获取消息列表",
+        "operationId": "ServiceChatController_getMessages",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "User Chat"
+        ],
+        "summary": "发送消息",
+        "operationId": "ServiceChatController_sendMessage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/chat/messages/read": {
+      "post": {
+        "tags": [
+          "User Chat"
+        ],
+        "summary": "标记消息已读",
+        "operationId": "ServiceChatController_markAsRead",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/user/chat/users/{userId}/stats": {
+      "get": {
+        "tags": [
+          "User Chat"
+        ],
+        "summary": "获取用户统计信息",
+        "operationId": "ServiceChatController_getUserStats",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/auth/login": {
+      "post": {
+        "tags": [
+          "Deliverer Auth"
+        ],
+        "summary": "配送员登录",
+        "operationId": "DelivererAuthController_login",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/deliverer/auth/profile": {
+      "get": {
+        "tags": [
+          "Deliverer Auth"
+        ],
+        "summary": "需要认证的配送员路由",
+        "operationId": "DelivererAuthController_getProfile",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      },
+      "put": {
+        "tags": [
+          "Deliverer Auth"
+        ],
+        "summary": "Update Profile",
+        "operationId": "DelivererAuthController_updateProfile",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/deliverer/auth/logout": {
+      "post": {
+        "tags": [
+          "Deliverer Auth"
+        ],
+        "summary": "Logout",
+        "operationId": "DelivererAuthController_logout",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/deliverer/application/submit": {
+      "post": {
+        "tags": [
+          "Deliverer Application"
+        ],
+        "summary": "提交配送员申请",
+        "operationId": "DelivererApplicationController_submitApplication",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/deliverer/application/status": {
+      "get": {
+        "tags": [
+          "Deliverer Application"
+        ],
+        "summary": "获取申请状态",
+        "operationId": "DelivererApplicationController_getApplicationStatus",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/application/update": {
+      "put": {
+        "tags": [
+          "Deliverer Application"
+        ],
+        "summary": "更新申请信息",
+        "operationId": "DelivererApplicationController_updateApplication",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/deliverer/orders/available": {
+      "get": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "获取可接单列表",
+        "operationId": "DelivererOrderController_getAvailableOrders",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/nearby": {
+      "get": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "根据位置获取附近订单",
+        "operationId": "DelivererOrderController_getNearbyOrders",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/{id}/accept": {
+      "post": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "接受订单",
+        "operationId": "DelivererOrderController_acceptOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/my-orders": {
+      "get": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "获取我的订单列表",
+        "operationId": "DelivererOrderController_getMyOrders",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/{id}": {
+      "get": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "获取订单详情",
+        "operationId": "DelivererOrderController_getOrderDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/{id}/status": {
+      "put": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "更新订单状态",
+        "operationId": "DelivererOrderController_updateOrderStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/{id}/start-pickup": {
+      "post": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "开始取货",
+        "operationId": "DelivererOrderController_startPickup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/{id}/confirm-pickup": {
+      "post": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "确认取货",
+        "operationId": "DelivererOrderController_confirmPickup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/{id}/start-delivery": {
+      "post": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "开始配送",
+        "operationId": "DelivererOrderController_startDelivery",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/{id}/confirm-delivery": {
+      "post": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "确认送达",
+        "operationId": "DelivererOrderController_confirmDelivery",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/{id}/upload-proof": {
+      "post": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "上传配送照片",
+        "operationId": "DelivererOrderController_uploadDeliveryProof",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/{id}/request-cancel": {
+      "post": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "申请取消订单",
+        "operationId": "DelivererOrderController_requestCancel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/stats/overview": {
+      "get": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "获取配送统计",
+        "operationId": "DelivererOrderController_getDeliveryStats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/today/orders": {
+      "get": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "获取今日订单",
+        "operationId": "DelivererOrderController_getTodayOrders",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/orders/history/orders": {
+      "get": {
+        "tags": [
+          "Deliverer Orders"
+        ],
+        "summary": "获取历史订单",
+        "operationId": "DelivererOrderController_getHistoryOrders",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/status/update": {
+      "post": {
+        "tags": [
+          "Deliverer Status"
+        ],
+        "summary": "更新配送员状态（上线/下线）",
+        "operationId": "DelivererStatusController_updateStatus",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/status/location": {
+      "post": {
+        "tags": [
+          "Deliverer Status"
+        ],
+        "summary": "更新配送员位置",
+        "operationId": "DelivererStatusController_updateLocation",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/status": {
+      "get": {
+        "tags": [
+          "Deliverer Status"
+        ],
+        "summary": "获取当前状态",
+        "operationId": "DelivererStatusController_getStatus",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/earnings": {
+      "get": {
+        "tags": [
+          "Deliverer Earnings"
+        ],
+        "summary": "获取收入统计",
+        "operationId": "DelivererEarningsController_getEarnings",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/earnings/detail": {
+      "get": {
+        "tags": [
+          "Deliverer Earnings"
+        ],
+        "summary": "获取收入详情（按天/周/月）",
+        "operationId": "DelivererEarningsController_getEarningsDetail",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/messages": {
+      "get": {
+        "tags": [
+          "Deliverer Messages"
+        ],
+        "summary": "获取配送员消息列表",
+        "operationId": "DelivererMessageController_getMessages",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/messages/send": {
+      "post": {
+        "tags": [
+          "Deliverer Messages"
+        ],
+        "summary": "发送消息",
+        "operationId": "DelivererMessageController_sendMessage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/deliverer/messages/{id}/read": {
+      "patch": {
+        "tags": [
+          "Deliverer Messages"
+        ],
+        "summary": "标记消息为已读",
+        "operationId": "DelivererMessageController_markAsRead",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/auth/login": {
+      "post": {
+        "tags": [
+          "Admin Auth"
+        ],
+        "summary": "管理员登录",
+        "operationId": "AdminAuthController_login",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/admin/auth/profile": {
+      "get": {
+        "tags": [
+          "Admin Auth"
+        ],
+        "summary": "需要认证的管理员路由",
+        "operationId": "AdminAuthController_getProfile",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Admin Auth"
+        ],
+        "summary": "Update Profile",
+        "operationId": "AdminAuthController_updateProfile",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/auth/change-password": {
+      "post": {
+        "tags": [
+          "Admin Auth"
+        ],
+        "summary": "Change Password",
+        "operationId": "AdminAuthController_changePassword",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/auth/logout": {
+      "post": {
+        "tags": [
+          "Admin Auth"
+        ],
+        "summary": "Logout",
+        "operationId": "AdminAuthController_logout",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/auth/permissions": {
+      "get": {
+        "tags": [
+          "Admin Auth"
+        ],
+        "summary": "Get Permissions",
+        "operationId": "AdminAuthController_getPermissions",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": [
+          "Admin Users"
+        ],
+        "summary": "用户管理路由",
+        "operationId": "AdminUserController_getUsers",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/stats": {
+      "get": {
+        "tags": [
+          "Admin Users"
+        ],
+        "summary": "Get User Stats",
+        "operationId": "AdminUserController_getUserStats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/export": {
+      "get": {
+        "tags": [
+          "Admin Users"
+        ],
+        "summary": "Export Users",
+        "operationId": "AdminUserController_exportUsers",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/batch-update": {
+      "post": {
+        "tags": [
+          "Admin Users"
+        ],
+        "summary": "Batch Update Users",
+        "operationId": "AdminUserController_batchUpdateUsers",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{id}": {
+      "get": {
+        "tags": [
+          "Admin Users"
+        ],
+        "summary": "Get User Detail",
+        "operationId": "AdminUserController_getUserDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{id}/status": {
+      "put": {
+        "tags": [
+          "Admin Users"
+        ],
+        "summary": "Update User Status",
+        "operationId": "AdminUserController_updateUserStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{id}/verify": {
+      "put": {
+        "tags": [
+          "Admin Users"
+        ],
+        "summary": "Verify Student",
+        "operationId": "AdminUserController_verifyStudent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{id}/reset-password": {
+      "post": {
+        "tags": [
+          "Admin Users"
+        ],
+        "summary": "Reset User Password",
+        "operationId": "AdminUserController_resetUserPassword",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{id}/activity-log": {
+      "get": {
+        "tags": [
+          "Admin Users"
+        ],
+        "summary": "Get User Activity Log",
+        "operationId": "AdminUserController_getUserActivityLog",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/admins": {
+      "get": {
+        "tags": [
+          "Admin Management"
+        ],
+        "summary": "List",
+        "operationId": "AdminManagementController_list",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Admin Management"
+        ],
+        "summary": "Create",
+        "operationId": "AdminManagementController_create",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/admins/{id}": {
+      "put": {
+        "tags": [
+          "Admin Management"
+        ],
+        "summary": "Update",
+        "operationId": "AdminManagementController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/services": {
+      "get": {
+        "tags": [
+          "Admin Services"
+        ],
+        "summary": "Get Services",
+        "operationId": "AdminServiceController_getServices",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Admin Services"
+        ],
+        "summary": "Create Service",
+        "operationId": "AdminServiceController_createService",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/services/{id}": {
+      "put": {
+        "tags": [
+          "Admin Services"
+        ],
+        "summary": "Update Service",
+        "operationId": "AdminServiceController_updateService",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/services/{id}/status": {
+      "patch": {
+        "tags": [
+          "Admin Services"
+        ],
+        "summary": "Update Service Status",
+        "operationId": "AdminServiceController_updateServiceStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/orders": {
+      "get": {
+        "tags": [
+          "Admin Orders"
+        ],
+        "summary": "获取订单列表",
+        "operationId": "AdminOrderController_getOrders",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/orders/settlements/run": {
+      "post": {
+        "tags": [
+          "Admin Orders"
+        ],
+        "summary": "执行担保期订单结算",
+        "operationId": "AdminOrderController_runSettlementJob",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/orders/{id}": {
+      "get": {
+        "tags": [
+          "Admin Orders"
+        ],
+        "summary": "获取订单详情",
+        "operationId": "AdminOrderController_getOrderDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Admin Orders"
+        ],
+        "summary": "取消订单",
+        "operationId": "AdminOrderController_cancelOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/orders/{id}/status": {
+      "patch": {
+        "tags": [
+          "Admin Orders"
+        ],
+        "summary": "更新订单状态",
+        "operationId": "AdminOrderController_updateOrderStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/orders/batch-assign": {
+      "post": {
+        "tags": [
+          "Admin Orders"
+        ],
+        "summary": "批量分配订单",
+        "operationId": "AdminOrderController_batchAssignOrders",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/orders/stats/overview": {
+      "get": {
+        "tags": [
+          "Admin Orders"
+        ],
+        "summary": "获取订单统计",
+        "operationId": "AdminOrderController_getOrderStats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/tasks": {
+      "get": {
+        "tags": [
+          "Admin Tasks"
+        ],
+        "summary": "获取任务列表",
+        "operationId": "AdminTaskController_getTasks",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/tasks/{id}": {
+      "get": {
+        "tags": [
+          "Admin Tasks"
+        ],
+        "summary": "获取任务详情",
+        "operationId": "AdminTaskController_getTaskDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Admin Tasks"
+        ],
+        "summary": "删除任务",
+        "operationId": "AdminTaskController_deleteTask",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/tasks/{id}/status": {
+      "patch": {
+        "tags": [
+          "Admin Tasks"
+        ],
+        "summary": "更新任务状态",
+        "operationId": "AdminTaskController_updateTaskStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/tasks/stats/overview": {
+      "get": {
+        "tags": [
+          "Admin Tasks"
+        ],
+        "summary": "获取任务统计",
+        "operationId": "AdminTaskController_getTaskStats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/deliverers": {
+      "get": {
+        "tags": [
+          "Admin Deliverers"
+        ],
+        "summary": "获取配送员列表",
+        "operationId": "AdminDelivererController_getDeliverers",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/deliverers/{id}": {
+      "get": {
+        "tags": [
+          "Admin Deliverers"
+        ],
+        "summary": "获取配送员详情",
+        "operationId": "AdminDelivererController_getDelivererDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Admin Deliverers"
+        ],
+        "summary": "删除/封禁配送员",
+        "operationId": "AdminDelivererController_deleteDeliverer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/deliverers/{id}/verify": {
+      "patch": {
+        "tags": [
+          "Admin Deliverers"
+        ],
+        "summary": "审核配送员申请",
+        "operationId": "AdminDelivererController_verifyDeliverer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/deliverers/{id}/status": {
+      "patch": {
+        "tags": [
+          "Admin Deliverers"
+        ],
+        "summary": "更新配送员状态",
+        "operationId": "AdminDelivererController_updateDelivererStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/deliverers/{id}/unban": {
+      "patch": {
+        "tags": [
+          "Admin Deliverers"
+        ],
+        "summary": "解封配送员认证",
+        "operationId": "AdminDelivererController_unbanDeliverer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/deliverers/stats/overview": {
+      "get": {
+        "tags": [
+          "Admin Deliverers"
+        ],
+        "summary": "获取配送员统计",
+        "operationId": "AdminDelivererController_getDelivererStats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/forum/posts": {
+      "get": {
+        "tags": [
+          "Admin Forum"
+        ],
+        "summary": "获取帖子列表",
+        "operationId": "AdminForumController_getPosts",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/forum/posts/{id}": {
+      "get": {
+        "tags": [
+          "Admin Forum"
+        ],
+        "summary": "获取帖子详情",
+        "operationId": "AdminForumController_getPostDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Admin Forum"
+        ],
+        "summary": "删除帖子",
+        "operationId": "AdminForumController_deletePost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/forum/posts/{id}/moderate": {
+      "patch": {
+        "tags": [
+          "Admin Forum"
+        ],
+        "summary": "审核帖子",
+        "operationId": "AdminForumController_moderatePost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/forum/comments": {
+      "get": {
+        "tags": [
+          "Admin Forum"
+        ],
+        "summary": "获取评论列表",
+        "operationId": "AdminForumController_getComments",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/forum/comments/{id}": {
+      "delete": {
+        "tags": [
+          "Admin Forum"
+        ],
+        "summary": "删除评论",
+        "operationId": "AdminForumController_deleteComment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/forum/reports": {
+      "get": {
+        "tags": [
+          "Admin Forum"
+        ],
+        "summary": "获取举报列表",
+        "operationId": "AdminForumController_getReports",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/forum/reports/{id}": {
+      "patch": {
+        "tags": [
+          "Admin Forum"
+        ],
+        "summary": "处理举报",
+        "operationId": "AdminForumController_handleReport",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/reviews/workbench": {
+      "get": {
+        "tags": [
+          "Admin Reviews"
+        ],
+        "summary": "Get Workbench",
+        "operationId": "ReviewController_getWorkbench",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/reviews/workbench/reports/{id}": {
+      "patch": {
+        "tags": [
+          "Admin Reviews"
+        ],
+        "summary": "Handle Report",
+        "operationId": "ReviewController_handleReport",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/analytics/dashboard": {
+      "get": {
+        "tags": [
+          "Admin Analytics"
+        ],
+        "summary": "获取平台概览",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "quarter",
+                "year"
+              ]
+            },
+            "description": "统计周期"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "平台概览统计",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/user-behavior": {
+      "get": {
+        "tags": [
+          "Admin Analytics"
+        ],
+        "summary": "获取用户行为分析",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "quarter",
+                "year"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "用户活跃、热门行为和留存数据"
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/service-quality": {
+      "get": {
+        "tags": [
+          "Admin Analytics"
+        ],
+        "summary": "获取服务质量指标",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "quarter",
+                "year"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "订单完成率、平均配送时长和投诉数据"
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/revenue": {
+      "get": {
+        "tags": [
+          "Admin Analytics"
+        ],
+        "summary": "获取收入分析",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "quarter",
+                "year"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "收入趋势、来源分布和佣金统计"
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/revenue/details": {
+      "get": {
+        "tags": [
+          "Admin Analytics"
+        ],
+        "summary": "获取收入明细详情",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "payment_method",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "交易明细列表"
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/realtime": {
+      "get": {
+        "tags": [
+          "Admin Analytics"
+        ],
+        "summary": "获取实时监控指标",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "最近一小时的实时数据"
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/alerts/abnormal-orders": {
+      "get": {
+        "tags": [
+          "Admin Analytics"
+        ],
+        "summary": "获取异常订单预警",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "start_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "quarter",
+                "year"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "异常订单与风险提示"
+          }
+        }
+      }
+    },
+    "/api/admin/finance/debts": {
+      "get": {
+        "tags": [
+          "Admin Finance"
+        ],
+        "summary": "Get Deliverer Debts",
+        "operationId": "FinanceController_getDelivererDebts",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/finance/debts/{id}": {
+      "get": {
+        "tags": [
+          "Admin Finance"
+        ],
+        "summary": "Get Deliverer Debt Detail",
+        "operationId": "FinanceController_getDelivererDebtDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/finance/system-account/overview": {
+      "get": {
+        "tags": [
+          "Admin Finance"
+        ],
+        "summary": "Get System Account Overview",
+        "operationId": "FinanceController_getSystemAccountOverview",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/finance/system-account/analysis": {
+      "get": {
+        "tags": [
+          "Admin Finance"
+        ],
+        "summary": "Get System Account Analysis",
+        "operationId": "FinanceController_getSystemAccountAnalysis",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/finance/system-account/transactions": {
+      "get": {
+        "tags": [
+          "Admin Finance"
+        ],
+        "summary": "Get System Account Transactions",
+        "operationId": "FinanceController_getSystemAccountTransactions",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/audit": {
+      "get": {
+        "tags": [
+          "Admin Audit"
+        ],
+        "summary": "审计日志管理路由",
+        "operationId": "AuditLogController_getAuditLogs",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Admin Audit"
+        ],
+        "summary": "Delete Audit Logs",
+        "operationId": "AuditLogController_deleteAuditLogs",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/audit/stats": {
+      "get": {
+        "tags": [
+          "Admin Audit"
+        ],
+        "summary": "Get Audit Log Stats",
+        "operationId": "AuditLogController_getAuditLogStats",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/audit/operators": {
+      "get": {
+        "tags": [
+          "Admin Audit"
+        ],
+        "summary": "Get Operators",
+        "operationId": "AuditLogController_getOperators",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/audit/high-risk": {
+      "get": {
+        "tags": [
+          "Admin Audit"
+        ],
+        "summary": "Get High Risk Logs",
+        "operationId": "AuditLogController_getHighRiskLogs",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/audit/{id}": {
+      "get": {
+        "tags": [
+          "Admin Audit"
+        ],
+        "summary": "Get Audit Log Detail",
+        "operationId": "AuditLogController_getAuditLogDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/audit/delete": {
+      "post": {
+        "tags": [
+          "Admin Audit"
+        ],
+        "summary": "Delete Audit Logs",
+        "operationId": "AuditLogController_deleteAuditLogs",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings": {
+      "get": {
+        "tags": [
+          "Admin Settings"
+        ],
+        "summary": "系统设置管理路由",
+        "operationId": "SystemSettingsController_getSettings",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Admin Settings"
+        ],
+        "summary": "Update Settings",
+        "operationId": "SystemSettingsController_updateSettings",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings/export": {
+      "get": {
+        "tags": [
+          "Admin Settings"
+        ],
+        "summary": "Export Settings",
+        "operationId": "SystemSettingsController_exportSettings",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings/import": {
+      "post": {
+        "tags": [
+          "Admin Settings"
+        ],
+        "summary": "Import Settings",
+        "operationId": "SystemSettingsController_importSettings",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings/reset": {
+      "post": {
+        "tags": [
+          "Admin Settings"
+        ],
+        "summary": "Reset Settings",
+        "operationId": "SystemSettingsController_resetSettings",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings/{category}": {
+      "get": {
+        "tags": [
+          "Admin Settings"
+        ],
+        "summary": "Get Settings By Category",
+        "operationId": "SystemSettingsController_getSettingsByCategory",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Admin Settings"
+        ],
+        "summary": "Update Settings By Category",
+        "operationId": "SystemSettingsController_updateSettingsByCategory",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/auth/login": {
+      "post": {
+        "tags": [
+          "Service Auth"
+        ],
+        "summary": "客服登录",
+        "operationId": "ServiceAuthController_login",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/service/auth/profile": {
+      "get": {
+        "tags": [
+          "Service Auth"
+        ],
+        "summary": "需要认证的客服路由",
+        "operationId": "ServiceAuthController_getProfile",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Service Auth"
+        ],
+        "summary": "Update Profile",
+        "operationId": "ServiceAuthController_updateProfile",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/auth/change-password": {
+      "post": {
+        "tags": [
+          "Service Auth"
+        ],
+        "summary": "Change Password",
+        "operationId": "ServiceAuthController_changePassword",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/auth/logout": {
+      "post": {
+        "tags": [
+          "Service Auth"
+        ],
+        "summary": "Logout",
+        "operationId": "ServiceAuthController_logout",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/tickets": {
+      "get": {
+        "tags": [
+          "Service Tickets"
+        ],
+        "summary": "获取工单列表",
+        "operationId": "ServiceTicketController_getTickets",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Service Tickets"
+        ],
+        "summary": "创建工单",
+        "operationId": "ServiceTicketController_createTicket",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/tickets/{id}": {
+      "get": {
+        "tags": [
+          "Service Tickets"
+        ],
+        "summary": "获取工单详情",
+        "operationId": "ServiceTicketController_getTicketDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/tickets/{id}/status": {
+      "patch": {
+        "tags": [
+          "Service Tickets"
+        ],
+        "summary": "更新工单状态",
+        "operationId": "ServiceTicketController_updateTicketStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/tickets/{id}/claim": {
+      "post": {
+        "tags": [
+          "Service Tickets"
+        ],
+        "summary": "开始处理工单",
+        "operationId": "ServiceTicketController_claimTicket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/tickets/{id}/release": {
+      "post": {
+        "tags": [
+          "Service Tickets"
+        ],
+        "summary": "释放工单",
+        "operationId": "ServiceTicketController_releaseTicket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/tickets/{id}/type": {
+      "patch": {
+        "tags": [
+          "Service Tickets"
+        ],
+        "summary": "修改工单类型",
+        "operationId": "ServiceTicketController_updateTicketType",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/tickets/{id}/assign": {
+      "post": {
+        "tags": [
+          "Service Tickets"
+        ],
+        "summary": "分配工单",
+        "operationId": "ServiceTicketController_assignTicket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/chat/conversations": {
+      "post": {
+        "tags": [
+          "Service Chat"
+        ],
+        "summary": "创建会话",
+        "operationId": "ServiceChatController_createConversation",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      },
+      "get": {
+        "tags": [
+          "Service Chat"
+        ],
+        "summary": "获取会话列表（客服端）",
+        "operationId": "ServiceChatController_getConversations",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/service/chat/my/conversations": {
+      "get": {
+        "tags": [
+          "Service Chat"
+        ],
+        "summary": "获取我的会话列表（用户端）",
+        "operationId": "ServiceChatController_getMyConversations",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/service/chat/conversations/{id}": {
+      "get": {
+        "tags": [
+          "Service Chat"
+        ],
+        "summary": "获取会话详情",
+        "operationId": "ServiceChatController_getConversationDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/service/chat/services": {
+      "get": {
+        "tags": [
+          "Service Chat"
+        ],
+        "summary": "获取可转接客服列表",
+        "operationId": "ServiceChatController_getAvailableServices",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/service/chat/conversations/{id}/transfer": {
+      "post": {
+        "tags": [
+          "Service Chat"
+        ],
+        "summary": "转接会话",
+        "operationId": "ServiceChatController_transferConversation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/service/chat/messages": {
+      "get": {
+        "tags": [
+          "Service Chat"
+        ],
+        "summary": "获取消息列表",
+        "operationId": "ServiceChatController_getMessages",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      },
+      "post": {
+        "tags": [
+          "Service Chat"
+        ],
+        "summary": "发送消息",
+        "operationId": "ServiceChatController_sendMessage",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/service/chat/messages/read": {
+      "post": {
+        "tags": [
+          "Service Chat"
+        ],
+        "summary": "标记消息已读",
+        "operationId": "ServiceChatController_markAsRead",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/service/chat/users/{userId}/stats": {
+      "get": {
+        "tags": [
+          "Service Chat"
+        ],
+        "summary": "获取用户统计信息",
+        "operationId": "ServiceChatController_getUserStats",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/service/orders/{id}": {
+      "get": {
+        "tags": [
+          "Service Orders"
+        ],
+        "summary": "Get Order Detail",
+        "operationId": "ServiceTicketController_getOrderDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/orders/{id}/status": {
+      "patch": {
+        "tags": [
+          "Service Orders"
+        ],
+        "summary": "Update Order Status",
+        "operationId": "ServiceTicketController_updateOrderStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/orders/{id}/refund": {
+      "post": {
+        "tags": [
+          "Service Orders"
+        ],
+        "summary": "申请退款",
+        "operationId": "ServiceTicketController_processRefund",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/orders/{id}/compensation": {
+      "post": {
+        "tags": [
+          "Service Orders"
+        ],
+        "summary": "投诉赔偿",
+        "operationId": "ServiceTicketController_processCompensation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/orders/{id}/compensate": {
+      "post": {
+        "tags": [
+          "Service Orders"
+        ],
+        "summary": "补偿处理",
+        "operationId": "ServiceTicketController_processCompensate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/users": {
+      "get": {
+        "tags": [
+          "Service Users"
+        ],
+        "summary": "获取用户列表",
+        "operationId": "ServiceUserController_getUsers",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/users/{id}": {
+      "get": {
+        "tags": [
+          "Service Users"
+        ],
+        "summary": "获取用户详情",
+        "operationId": "ServiceUserController_getUserDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/users/{id}/ban": {
+      "post": {
+        "tags": [
+          "Service Users"
+        ],
+        "summary": "封禁用户",
+        "operationId": "ServiceUserController_banUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/deliverers": {
+      "get": {
+        "tags": [
+          "Service Deliverers"
+        ],
+        "summary": "获取配送员列表",
+        "operationId": "ServiceDelivererController_getDeliverers",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/deliverers/{id}": {
+      "get": {
+        "tags": [
+          "Service Deliverers"
+        ],
+        "summary": "获取配送员详情",
+        "operationId": "ServiceDelivererController_getDelivererDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/service/deliverers/{id}/status": {
+      "patch": {
+        "tags": [
+          "Service Deliverers"
+        ],
+        "summary": "更新配送员状态",
+        "operationId": "ServiceDelivererController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/public/upload/single": {
+      "post": {
+        "tags": [
+          "Public Upload"
+        ],
+        "summary": "单文件上传",
+        "operationId": "post__api_public_upload_single",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/upload/multiple": {
+      "post": {
+        "tags": [
+          "Public Upload"
+        ],
+        "summary": "多文件上传",
+        "operationId": "post__api_public_upload_multiple",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/send-code": {
+      "post": {
+        "tags": [
+          "Public Auth"
+        ],
+        "summary": "Email",
+        "operationId": "req_body_email",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/api/auth/verify-code": {
+      "post": {
+        "tags": [
+          "Public Auth"
+        ],
+        "summary": "Code",
+        "operationId": "req_body_code",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Server Error"
+          }
+        },
+        "x-auto-generated": true
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "应用健康检查",
+        "responses": {
+          "200": {
+            "description": "服务正常"
+          }
+        }
+      }
+    },
+    "/api/public/health": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "公共健康检查",
+        "responses": {
+          "200": {
+            "description": "服务正常"
+          }
+        }
+      }
+    },
+    "/api/public/status": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "获取服务状态",
+        "responses": {
+          "200": {
+            "description": "返回服务版本和运行状态"
+          }
+        }
+      }
+    }
+  }
+}

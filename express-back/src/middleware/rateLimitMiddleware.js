@@ -1,5 +1,5 @@
 const Redis = require('ioredis');
-const { responseUtils, requestUtils } = require('../utils');
+const { responseUtils, requestUtils } = require('@/utils');
 
 // Redis 客户端 (假设已配置)
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');

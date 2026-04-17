@@ -1,6 +1,6 @@
 // 导入所有模型
 // 用户相关模型
-const { sequelize } = require('../config/database');
+const { sequelize } = require('@/config/database');
 const User = require('./user/User');
 const PickupOrder = require('./user/PickupOrder');
 const PickupOrderItem = require('./user/PickupOrderItem');

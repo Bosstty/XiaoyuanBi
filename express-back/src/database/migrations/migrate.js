@@ -1,5 +1,5 @@
-const { sequelize } = require('../../config/database');
-const models = require('../../models');
+const { sequelize } = require('@/config/database');
+const models = require('@/models');
 
 function getRunnableModels() {
     return Object.values(models).filter(model => {

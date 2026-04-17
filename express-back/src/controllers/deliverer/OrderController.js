@@ -5,10 +5,10 @@ const {
     Deliverer,
     Wallet,
     Transaction,
-} = require('../../models');
-const { responseUtils, paginationUtils, requestUtils } = require('../../utils');
+} = require('@/models');
+const { responseUtils, paginationUtils, requestUtils } = require('@/utils');
 const { Op } = require('sequelize');
-const SecurityService = require('../../services/SecurityService');
+const SecurityService = require('@/services/SecurityService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
 

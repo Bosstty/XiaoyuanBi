@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const AdminAuthController = require('../../controllers/admin/AuthController');
-const { adminAuthMiddleware } = require('../../middleware');
+const AdminAuthController = require('@/controllers/admin/AuthController');
+const { adminAuthMiddleware } = require('@/middleware');
 
 // 管理员登录
 router.post('/login', AdminAuthController.login);

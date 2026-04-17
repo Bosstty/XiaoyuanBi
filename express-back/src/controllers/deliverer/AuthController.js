@@ -1,7 +1,7 @@
-const { Deliverer, User } = require('../../models');
-const { jwtUtils, responseUtils, requestUtils } = require('../../utils');
+const { Deliverer, User } = require('@/models');
+const { jwtUtils, responseUtils, requestUtils } = require('@/utils');
 const { Op } = require('sequelize');
-const SecurityService = require('../../services/SecurityService');
+const SecurityService = require('@/services/SecurityService');
 
 class DelivererAuthController {
     // 配送员登录

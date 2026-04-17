@@ -1,4 +1,4 @@
-const { Deliverer } = require('../../models');
+const { Deliverer } = require('@/models');
 
 class DelivererStatusController {
     // 更新配送员状态（上线/下线）

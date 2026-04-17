@@ -1,6 +1,6 @@
-const { ForumPost: Post, ForumComment: Comment, User, ContentReport } = require('../../models');
+const { ForumPost: Post, ForumComment: Comment, User, ContentReport } = require('@/models');
 const { Op } = require('sequelize');
-const AdminActionNotificationService = require('../../services/AdminActionNotificationService');
+const AdminActionNotificationService = require('@/services/AdminActionNotificationService');
 
 /**
  * 论坛管理控制器

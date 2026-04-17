@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { User, Wallet, Transaction } = require('../models');
+const { User, Wallet, Transaction } = require('@/models');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
 const roundMoney = value => Number(parseAmount(value).toFixed(2));

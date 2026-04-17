@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const UserAuthController = require('../../controllers/user/AuthController');
-const { authMiddleware } = require('../../middleware');
+const UserAuthController = require('@/controllers/user/AuthController');
+const { authMiddleware } = require('@/middleware');
 const { body } = require('express-validator');
-const { handleValidation } = require('../../middleware/validation');
+const { handleValidation } = require('@/middleware/validation');
 const path = require('path');
-const { optimizeUploads } = require('../../middleware/optimizeUploads');
-const { createUpload, resolveUploadDir } = require('../../utils/uploads');
+const { optimizeUploads } = require('@/middleware/optimizeUploads');
+const { createUpload, resolveUploadDir } = require('@/utils/uploads');
 
 const upload = createUpload({
     destination: () => resolveUploadDir('avatars'),

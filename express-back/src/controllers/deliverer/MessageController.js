@@ -1,4 +1,4 @@
-const { Message, User } = require('../../models');
+const { Message, User } = require('@/models');
 const { Op } = require('sequelize');
 
 class DelivererMessageController {

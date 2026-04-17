@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const DelivererStatusController = require('../../controllers/deliverer/StatusController');
+const DelivererStatusController = require('@/controllers/deliverer/StatusController');
 
 // 更新配送员状态（上线/下线）
 router.post('/update', DelivererStatusController.updateStatus);

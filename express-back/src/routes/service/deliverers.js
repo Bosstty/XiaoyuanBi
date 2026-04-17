@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ServiceDelivererController = require('../../controllers/service/DelivererController');
+const ServiceDelivererController = require('@/controllers/service/DelivererController');
 
 // 获取配送员列表
 router.get('/', ServiceDelivererController.getDeliverers);

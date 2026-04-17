@@ -1,5 +1,5 @@
 const winston = require('winston');
-const { requestUtils } = require('../utils');
+const { requestUtils } = require('@/utils');
 
 // 配置日志记录器
 const logger = winston.createLogger({

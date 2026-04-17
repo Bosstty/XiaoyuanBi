@@ -1,4 +1,4 @@
-const { Message, User } = require('../models');
+const { Message, User } = require('@/models');
 const emailService = require('../../services/emailService');
 
 function getAdminDisplayName(adminUser) {

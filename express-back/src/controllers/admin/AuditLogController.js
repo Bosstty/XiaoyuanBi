@@ -1,5 +1,5 @@
-const { AuditLog, User, Admin } = require('../../models');
-const { responseUtils, paginationUtils } = require('../../utils');
+const { AuditLog, User, Admin } = require('@/models');
+const { responseUtils, paginationUtils } = require('@/utils');
 const { Op } = require('sequelize');
 
 class AuditLogController {

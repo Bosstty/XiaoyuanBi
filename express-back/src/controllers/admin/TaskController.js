@@ -1,6 +1,6 @@
-const { Task, User, TaskApplication, Wallet, ContentReport } = require('../../models');
+const { Task, User, TaskApplication, Wallet, ContentReport } = require('@/models');
 const { Op } = require('sequelize');
-const AdminActionNotificationService = require('../../services/AdminActionNotificationService');
+const AdminActionNotificationService = require('@/services/AdminActionNotificationService');
 
 const parseAmount = value => Number(value || 0);
 

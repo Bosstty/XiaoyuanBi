@@ -1,5 +1,5 @@
-const { AuditLog } = require('../models');
-const { requestUtils } = require('../utils');
+const { AuditLog } = require('@/models');
+const { requestUtils } = require('@/utils');
 
 class AuditMiddleware {
     static decodeUrlSafely(url) {

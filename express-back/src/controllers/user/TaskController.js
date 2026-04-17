@@ -8,14 +8,14 @@ const {
     ServiceTicket,
     SystemSetting,
     ContentReport,
-} = require('../../models');
-const ContentModerationService = require('../../services/ContentModerationService');
-const { responseUtils, orderUtils, cryptoUtils } = require('../../utils');
+} = require('@/models');
+const ContentModerationService = require('@/services/ContentModerationService');
+const { responseUtils, orderUtils, cryptoUtils } = require('@/utils');
 const { Op } = require('sequelize');
-const { sequelize } = require('../../config/database');
-const DebtSettlementService = require('../../services/DebtSettlementService');
-const FinanceAccountService = require('../../services/FinanceAccountService');
-const PointsService = require('../../services/PointsService');
+const { sequelize } = require('@/config/database');
+const DebtSettlementService = require('@/services/DebtSettlementService');
+const FinanceAccountService = require('@/services/FinanceAccountService');
+const PointsService = require('@/services/PointsService');
 
 const parseAmount = value => Number(value || 0);
 const roundMoney = value => Number(parseAmount(value).toFixed(2));

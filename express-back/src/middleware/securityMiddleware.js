@@ -1,4 +1,4 @@
-const { requestUtils } = require('../utils');
+const { requestUtils } = require('@/utils');
 
 class SecurityMiddleware {
     static decodeUrlSafely(url) {
@@ -28,6 +28,10 @@ class SecurityMiddleware {
 
     static isSuspiciousRequest(req) {
         const normalizedUrl = SecurityMiddleware.normalizePath(req.originalUrl || req.url || '');
+
+        if (normalizedUrl.startsWith('/api/docs')) {
+            return false;
+        }
 
         const blockedPatterns = [
             '/../',

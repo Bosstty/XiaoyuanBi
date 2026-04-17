@@ -5,7 +5,7 @@ const {
     Transaction,
     User,
     Wallet,
-} = require('../models');
+} = require('@/models');
 const FinanceAccountService = require('./FinanceAccountService');
 const PickupSettlementService = require('./PickupSettlementService');
 

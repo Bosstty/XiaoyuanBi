@@ -1,7 +1,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 
-const { collectUploadedFiles } = require('../utils/uploads');
+const { collectUploadedFiles } = require('@/utils/uploads');
 
 let sharp = null;
 try {

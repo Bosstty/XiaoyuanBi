@@ -7,11 +7,11 @@ const {
     Service,
     ChatConversation,
     ChatMessage,
-} = require('../../models');
+} = require('@/models');
 const { Op } = require('sequelize');
-const { sequelize } = require('../../config/database');
-const PickupSettlementService = require('../../services/PickupSettlementService');
-const DamageCompensationService = require('../../services/DamageCompensationService');
+const { sequelize } = require('@/config/database');
+const PickupSettlementService = require('@/services/PickupSettlementService');
+const DamageCompensationService = require('@/services/DamageCompensationService');
 const { emitConversationEvent } = require('../../../config/socket');
 
 const ALLOWED_TICKET_TYPES = ['complaint', 'refund', 'dispute', 'suggestion', 'other'];

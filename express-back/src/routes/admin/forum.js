@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const AdminForumController = require('../../controllers/admin/ForumController');
+const AdminForumController = require('@/controllers/admin/ForumController');
 
 // 获取帖子列表
 router.get('/posts', AdminForumController.getPosts);

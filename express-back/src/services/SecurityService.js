@@ -1,5 +1,5 @@
 const Redis = require('ioredis');
-const { AuditLog, User, PickupOrder, Task, Transaction } = require('../models');
+const { AuditLog, User, PickupOrder, Task, Transaction } = require('@/models');
 const { Op } = require('sequelize');
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');

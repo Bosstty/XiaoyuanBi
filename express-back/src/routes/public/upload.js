@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
-const { optimizeUploads } = require('../../middleware/optimizeUploads');
+const { optimizeUploads } = require('@/middleware/optimizeUploads');
 const {
     buildPublicUploadPath,
     createUpload,
     resolveUploadDir,
     resolveUploadSegments,
-} = require('../../utils/uploads');
+} = require('@/utils/uploads');
 
 const upload = createUpload({
     destination: req => {

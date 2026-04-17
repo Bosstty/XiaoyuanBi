@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const MessageController = require('../../controllers/user/MessageController');
-const { authMiddleware, adminAuthMiddleware } = require('../../middleware');
+const MessageController = require('@/controllers/user/MessageController');
+const { authMiddleware, adminAuthMiddleware } = require('@/middleware');
 
 // 消息相关
 router.post('/send', MessageController.sendMessage);

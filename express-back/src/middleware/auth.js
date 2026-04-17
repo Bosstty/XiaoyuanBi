@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User, Admin, Deliverer } = require('../models');
+const { User, Admin, Deliverer } = require('@/models');
 
 // JWT认证中间件
 const auth = (type = 'user') => {

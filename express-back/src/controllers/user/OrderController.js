@@ -8,15 +8,15 @@ const {
     Wallet,
     Transaction,
     SystemSetting,
-} = require('../../models');
-const { orderUtils, responseUtils, paginationUtils, cryptoUtils, requestUtils } = require('../../utils');
+} = require('@/models');
+const { orderUtils, responseUtils, paginationUtils, cryptoUtils, requestUtils } = require('@/utils');
 const { Op } = require('sequelize');
-const { sequelize } = require('../../config/database');
-const SecurityService = require('../../services/SecurityService');
-const FinanceAccountService = require('../../services/FinanceAccountService');
-const PickupSettlementService = require('../../services/PickupSettlementService');
-const PointsService = require('../../services/PointsService');
-const ContentModerationService = require('../../services/ContentModerationService');
+const { sequelize } = require('@/config/database');
+const SecurityService = require('@/services/SecurityService');
+const FinanceAccountService = require('@/services/FinanceAccountService');
+const PickupSettlementService = require('@/services/PickupSettlementService');
+const PointsService = require('@/services/PointsService');
+const ContentModerationService = require('@/services/ContentModerationService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
 const roundMoney = value => Number(parseAmount(value).toFixed(2));
@@ -1540,7 +1540,7 @@ class UserOrderController {
     static async findNearbyDeliverers(req, res) {
         try {
             const { latitude, longitude, radius = 5 } = req.query;
-            const { Deliverer } = require('../../models');
+            const { Deliverer } = require('@/models');
 
             const deliverers = await Deliverer.findAll({
                 where: {

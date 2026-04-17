@@ -8,7 +8,7 @@ const {
     ForumComment,
     Service,
     ServiceTicket,
-} = require('../models');
+} = require('@/models');
 
 async function seedData() {
     try {

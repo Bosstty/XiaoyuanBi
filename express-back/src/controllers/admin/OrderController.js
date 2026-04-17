@@ -1,7 +1,7 @@
-const { PickupOrder, User, Deliverer } = require('../../models');
+const { PickupOrder, User, Deliverer } = require('@/models');
 const { Op } = require('sequelize');
-const PickupSettlementService = require('../../services/PickupSettlementService');
-const AdminActionNotificationService = require('../../services/AdminActionNotificationService');
+const PickupSettlementService = require('@/services/PickupSettlementService');
+const AdminActionNotificationService = require('@/services/AdminActionNotificationService');
 
 /**
  * 订单管理控制器

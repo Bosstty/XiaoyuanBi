@@ -1,4 +1,4 @@
-const { Deliverer, User } = require('../../models');
+const { Deliverer, User } = require('@/models');
 
 const buildApplicationPayload = req => {
     const files = req.files || {};

@@ -1,4 +1,4 @@
-const { Deliverer, PickupOrder, Transaction } = require('../../models');
+const { Deliverer, PickupOrder, Transaction } = require('@/models');
 const { Op } = require('sequelize');
 
 class DelivererEarningsController {

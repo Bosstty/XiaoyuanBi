@@ -1,8 +1,8 @@
 const { Op, Sequelize } = require('sequelize');
-const { User, Deliverer, ForumPost, Task, ContentReport } = require('../../models');
-const ContentModerationService = require('../../services/ContentModerationService');
-const AdminActionNotificationService = require('../../services/AdminActionNotificationService');
-const { responseUtils } = require('../../utils');
+const { User, Deliverer, ForumPost, Task, ContentReport } = require('@/models');
+const ContentModerationService = require('@/services/ContentModerationService');
+const AdminActionNotificationService = require('@/services/AdminActionNotificationService');
+const { responseUtils } = require('@/utils');
 
 const PENDING_STUDENT_STATUS = 'pending_review';
 const DEFAULT_LIMIT = 6;

@@ -1,7 +1,7 @@
-const { Admin } = require('../../models');
+const { Admin } = require('@/models');
 const { Op } = require('sequelize');
-const { jwtUtils, responseUtils, requestUtils } = require('../../utils');
-const SecurityService = require('../../services/SecurityService');
+const { jwtUtils, responseUtils, requestUtils } = require('@/utils');
+const SecurityService = require('@/services/SecurityService');
 
 class AdminAuthController {
     // 管理员登录

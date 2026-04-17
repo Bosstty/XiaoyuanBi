@@ -167,13 +167,13 @@
 </template>
 
 <script setup lang="ts">
+import { forumApi } from '@/api';
+import { useAppStore } from '@/stores';
+import type { ForumPost } from '@/types';
+import { resolveAssetUrl } from '@/utils/apiBase';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { NDropdown, NInput, NSpin, useMessage } from 'naive-ui';
-import type { ForumPost } from '@/types';
-import { forumApi } from '@/api';
-import { useAppStore } from '@/stores';
-import { resolveAssetUrl } from '@/utils/apiBase';
 
 const route = useRoute();
 const router = useRouter();

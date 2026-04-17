@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const DelivererApplicationController = require('../../controllers/deliverer/ApplicationController');
-const { authMiddleware } = require('../../middleware');
+const DelivererApplicationController = require('@/controllers/deliverer/ApplicationController');
+const { authMiddleware } = require('@/middleware');
 const path = require('path');
-const { optimizeUploads } = require('../../middleware/optimizeUploads');
-const { createUpload, resolveUploadDir } = require('../../utils/uploads');
+const { optimizeUploads } = require('@/middleware/optimizeUploads');
+const { createUpload, resolveUploadDir } = require('@/utils/uploads');
 
 const upload = createUpload({
     destination: () => resolveUploadDir('deliverer-applications'),

@@ -1,14 +1,14 @@
-const { User, Deliverer, PickupOrder, Task, Wallet, DelivererDebt } = require('../../models');
+const { User, Deliverer, PickupOrder, Task, Wallet, DelivererDebt } = require('@/models');
 const {
     jwtUtils,
     responseUtils,
     validationUtils,
     cryptoUtils,
     requestUtils,
-} = require('../../utils');
+} = require('@/utils');
 const { Op } = require('sequelize');
-const { sequelize } = require('../../config/database');
-const SecurityService = require('../../services/SecurityService');
+const { sequelize } = require('@/config/database');
+const SecurityService = require('@/services/SecurityService');
 const redis = require('../../../config/redis');
 const emailService = require('../../../services/emailService');
 
@@ -433,7 +433,7 @@ class UserAuthController {
     static async getUserStats(req, res) {
         try {
             const userId = req.user.id;
-            const { PickupOrder, Task, ForumPost } = require('../../models');
+            const { PickupOrder, Task, ForumPost } = require('@/models');
 
             // 获取用户的各项统计数据
             const stats = await Promise.all([

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const AdminOrderController = require('../../controllers/admin/OrderController');
+const AdminOrderController = require('@/controllers/admin/OrderController');
 
 // 获取订单列表
 router.get('/', AdminOrderController.getOrders);

@@ -7,10 +7,10 @@ const {
     Admin,
     ChatConversation,
     ChatMessage,
-} = require('../../models');
-const { responseUtils, paginationUtils } = require('../../utils');
+} = require('@/models');
+const { responseUtils, paginationUtils } = require('@/utils');
 const { Op } = require('sequelize');
-const { sequelize } = require('../../config/database');
+const { sequelize } = require('@/config/database');
 
 const DEFAULT_SERVICE_ID = 1;
 

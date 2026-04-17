@@ -1,4 +1,4 @@
-const { SystemSetting } = require('../models');
+const { SystemSetting } = require('@/models');
 
 const DEFAULT_REVIEW_WORDS = [
     '代写',

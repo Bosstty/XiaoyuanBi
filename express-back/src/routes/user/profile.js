@@ -1,8 +1,8 @@
 const express = require('express');
-const AuthController = require('../../controllers/user/AuthController');
-const { auth } = require('../../middleware/auth');
-const { optimizeUploads } = require('../../middleware/optimizeUploads');
-const { createUpload, resolveUploadDir } = require('../../utils/uploads');
+const AuthController = require('@/controllers/user/AuthController');
+const { auth } = require('@/middleware/auth');
+const { optimizeUploads } = require('@/middleware/optimizeUploads');
+const { createUpload, resolveUploadDir } = require('@/utils/uploads');
 
 const router = express.Router();
 

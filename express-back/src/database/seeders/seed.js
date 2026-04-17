@@ -16,7 +16,7 @@ const {
     RolePermission,
     UserRole,
     AuditLog,
-} = require('../../models');
+} = require('@/models');
 
 // 为空表生成示例数据，避免重复插入
 async function seedAdmins() {

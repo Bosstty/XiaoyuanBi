@@ -1,9 +1,9 @@
 const { DataTypes } = require('sequelize');
-const { sequelize } = require('../../config/database');
-const User = require('../user/User');
-const Deliverer = require('../deliverer/Deliverer');
-const PickupOrder = require('../user/PickupOrder');
-const Task = require('../user/Task');
+const { sequelize } = require('@/config/database');
+const User = require('@/models/user/User');
+const Deliverer = require('@/models/deliverer/Deliverer');
+const PickupOrder = require('@/models/user/PickupOrder');
+const Task = require('@/models/user/Task');
 
 const ServiceTicket = sequelize.define('ServiceTicket', {
     id: {

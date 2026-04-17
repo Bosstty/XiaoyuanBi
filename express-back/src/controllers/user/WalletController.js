@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
-const { Wallet, Transaction, Deliverer, PickupOrder, Task, User, DelivererDebt } = require('../../models');
-const { responseUtils, paginationUtils, timeUtils, cryptoUtils, requestUtils } = require('../../utils');
-const DebtSettlementService = require('../../services/DebtSettlementService');
+const { Wallet, Transaction, Deliverer, PickupOrder, Task, User, DelivererDebt } = require('@/models');
+const { responseUtils, paginationUtils, timeUtils, cryptoUtils, requestUtils } = require('@/utils');
+const DebtSettlementService = require('@/services/DebtSettlementService');
 const emailService = require('../../../services/emailService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;

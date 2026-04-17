@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const AuditLogController = require('../../controllers/admin/AuditLogController');
+const AuditLogController = require('@/controllers/admin/AuditLogController');
 
 // 审计日志管理路由
 router.get('/', AuditLogController.getAuditLogs);

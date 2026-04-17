@@ -1,5 +1,5 @@
 const express = require('express');
-const ReviewController = require('../../controllers/admin/ReviewController');
+const ReviewController = require('@/controllers/admin/ReviewController');
 
 const router = express.Router();
 

@@ -1,7 +1,7 @@
-const { ForumPost, ForumComment, User, ContentReport } = require('../../models');
-const { responseUtils, requestUtils } = require('../../utils');
+const { ForumPost, ForumComment, User, ContentReport } = require('@/models');
+const { responseUtils, requestUtils } = require('@/utils');
 const { Op } = require('sequelize');
-const ContentModerationService = require('../../services/ContentModerationService');
+const ContentModerationService = require('@/services/ContentModerationService');
 
 function getRequestedPostStatus(payload = {}) {
     return String(payload?.status || '').trim().toLowerCase();

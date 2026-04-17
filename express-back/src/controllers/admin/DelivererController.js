@@ -1,4 +1,4 @@
-const { Deliverer, User, PickupOrder, ChatConversation, ChatMessage } = require('../../models');
+const { Deliverer, User, PickupOrder, ChatConversation, ChatMessage } = require('@/models');
 const { Op } = require('sequelize');
 
 const DEFAULT_SERVICE_ID = 1;

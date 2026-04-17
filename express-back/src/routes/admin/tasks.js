@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const AdminTaskController = require('../../controllers/admin/TaskController');
+const AdminTaskController = require('@/controllers/admin/TaskController');
 
 // 获取任务列表
 router.get('/', AdminTaskController.getTasks);
