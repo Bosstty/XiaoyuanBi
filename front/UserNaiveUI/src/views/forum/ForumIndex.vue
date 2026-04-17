@@ -279,18 +279,6 @@ const sliceContent = (value?: string) => {
     return value.length > 72 ? `${value.slice(0, 72)}...` : value;
 };
 
-const getPostStatusLabel = (post: ForumPost) => {
-    if (post.isHot || post.is_hot) return '热门';
-    if (post.isPinned || post.is_pinned) return '置顶';
-    return '最新';
-};
-
-const getPostStatusClass = (post: ForumPost) => {
-    if (post.isHot || post.is_hot) return 'is-hot';
-    if (post.isPinned || post.is_pinned) return 'is-pinned';
-    return 'is-latest';
-};
-
 const loadPosts = async () => {
     loading.value = true;
     try {
