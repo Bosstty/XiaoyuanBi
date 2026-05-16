@@ -8,14 +8,14 @@ const {
     ServiceTicket,
     SystemSetting,
     ContentReport,
-} = require('../../models');
-const ContentModerationService = require('../../services/ContentModerationService');
-const { responseUtils, orderUtils, cryptoUtils } = require('../../utils');
+} = require('@/models');
+const ContentModerationService = require('@/services/ContentModerationService');
+const { responseUtils, orderUtils, cryptoUtils } = require('@/utils');
 const { Op } = require('sequelize');
-const { sequelize } = require('../../config/database');
-const DebtSettlementService = require('../../services/DebtSettlementService');
-const FinanceAccountService = require('../../services/FinanceAccountService');
-const PointsService = require('../../services/PointsService');
+const { sequelize } = require('@/config/database');
+const DebtSettlementService = require('@/services/DebtSettlementService');
+const FinanceAccountService = require('@/services/FinanceAccountService');
+const PointsService = require('@/services/PointsService');
 
 const parseAmount = value => Number(value || 0);
 const roundMoney = value => Number(parseAmount(value).toFixed(2));
@@ -1071,9 +1071,9 @@ class TaskController {
                     .status(400)
                     .json(
                         responseUtils.error(
-                            `${ContentModerationService.buildReason(
-                                moderationResult
-                            )}，已自动拦截发布`
+                            ContentModerationService.buildUserFacingMessage(moderationResult, {
+                                label: '任务内容',
+                            })
                         )
                     );
             }
@@ -1147,7 +1147,9 @@ class TaskController {
 
             const message =
                 moderationResult.action === 'review'
-                    ? '任务已提交，命中敏感词并进入重点审核'
+                    ? ContentModerationService.buildUserFacingMessage(moderationResult, {
+                          label: '任务内容',
+                      })
                     : '任务创建成功';
             res.json(responseUtils.success(taskWithPublisher, message));
         } catch (error) {

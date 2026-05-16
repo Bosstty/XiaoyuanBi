@@ -1,5 +1,5 @@
-const { Admin } = require('../../models');
-const { responseUtils } = require('../../utils');
+const { Admin } = require('@/models');
+const { responseUtils } = require('@/utils');
 
 function canManageAdmins(user) {
     const permissions = Array.isArray(user?.permissions) ? user.permissions : [];

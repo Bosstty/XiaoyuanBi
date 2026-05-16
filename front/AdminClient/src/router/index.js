@@ -63,7 +63,7 @@ const router = createRouter({
           component: () => import('../views/reviews/ReviewWorkbench.vue'),
           meta: {
             roles: ['admin'],
-            permission: ['review:view_all', 'review:student', 'review:deliverer', 'review:forum', 'review:task', 'review:report'],
+            permission: ['review:student', 'review:deliverer', 'review:forum', 'review:task', 'review:report'],
           },
         },
         {

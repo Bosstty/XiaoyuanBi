@@ -1,5 +1,5 @@
-const { Message, NotificationSetting, User } = require('../../models');
-const { responseUtils } = require('../../utils');
+const { Message, NotificationSetting, User } = require('@/models');
+const { responseUtils } = require('@/utils');
 const { Op } = require('sequelize');
 
 class MessageController {

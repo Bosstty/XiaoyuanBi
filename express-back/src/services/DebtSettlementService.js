@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { DelivererDebt, DebtRepaymentRecord, Transaction, User, Wallet } = require('../models');
+const { DelivererDebt, DebtRepaymentRecord, Transaction, User, Wallet } = require('@/models');
 const FinanceAccountService = require('./FinanceAccountService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;

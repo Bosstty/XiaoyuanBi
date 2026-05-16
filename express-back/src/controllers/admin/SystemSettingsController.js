@@ -1,5 +1,5 @@
-const { SystemSetting } = require('../../models');
-const { responseUtils } = require('../../utils');
+const { SystemSetting } = require('@/models');
+const { responseUtils } = require('@/utils');
 
 class SystemSettingsController {
     // 获取所有系统设置

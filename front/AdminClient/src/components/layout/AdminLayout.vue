@@ -377,7 +377,7 @@ const menuConfig = [
     title: '审核工作台',
     icon: markRaw(Checked),
     roles: ['admin'],
-    permission: ['review:view_all', 'review:student', 'review:deliverer', 'review:forum', 'review:task', 'review:report'],
+    permission: ['review:student', 'review:deliverer', 'review:forum', 'review:task', 'review:report'],
   },
   { index: '/users', title: '用户管理', icon: markRaw(User), roles: ['admin'], permission: 'user:admin_read' },
   {
@@ -616,9 +616,10 @@ async function submitProfileDialog() {
             avatar: profileDialog.value.form.avatar,
           }
         : {
-            real_name: profileDialog.value.form.name,
+            name: profileDialog.value.form.name,
             phone: profileDialog.value.form.phone,
             email: profileDialog.value.form.email,
+            avatar: profileDialog.value.form.avatar,
           }
 
     const response = await currentAuthApi.value.updateProfile(payload)

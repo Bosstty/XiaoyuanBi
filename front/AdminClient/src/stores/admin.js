@@ -2,6 +2,25 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export const useAdminStore = defineStore('admin', () => {
+  const normalizePermissions = (value) => {
+    if (Array.isArray(value)) {
+      return value.filter((item) => typeof item === 'string' && item.trim())
+    }
+
+    if (typeof value === 'string' && value.trim()) {
+      try {
+        const parsed = JSON.parse(value)
+        return Array.isArray(parsed)
+          ? parsed.filter((item) => typeof item === 'string' && item.trim())
+          : []
+      } catch {
+        return []
+      }
+    }
+
+    return []
+  }
+
   const parseStoredUser = () => {
     const raw =
       localStorage.getItem('auth_user') ||
@@ -27,21 +46,26 @@ export const useAdminStore = defineStore('admin', () => {
   )
   const userType = ref(localStorage.getItem('auth_user_type') || 'admin')
   const isLoggedIn = computed(() => !!token.value)
-  const permissions = ref(admin.value?.permissions || [])
+  const permissions = ref(normalizePermissions(admin.value?.permissions))
   const isAdmin = computed(() => userType.value === 'admin')
   const isService = computed(() => userType.value === 'service')
 
   function setAdmin(adminData) {
-    admin.value = adminData
-    localStorage.setItem('auth_user', JSON.stringify(adminData))
+    const normalizedAdminData = {
+      ...adminData,
+      permissions: normalizePermissions(adminData?.permissions),
+    }
+
+    admin.value = normalizedAdminData
+    localStorage.setItem('auth_user', JSON.stringify(normalizedAdminData))
     if (userType.value === 'service') {
-      localStorage.setItem('service_user', JSON.stringify(adminData))
+      localStorage.setItem('service_user', JSON.stringify(normalizedAdminData))
       localStorage.removeItem('admin_user')
     } else {
-      localStorage.setItem('admin_user', JSON.stringify(adminData))
+      localStorage.setItem('admin_user', JSON.stringify(normalizedAdminData))
       localStorage.removeItem('service_user')
     }
-    permissions.value = adminData.permissions || []
+    permissions.value = normalizedAdminData.permissions
   }
 
   function setToken(tokenValue, type = userType.value || 'admin') {

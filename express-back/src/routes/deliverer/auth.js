@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const DelivererAuthController = require('../../controllers/deliverer/AuthController');
+const DelivererAuthController = require('@/controllers/deliverer/AuthController');
 
 // 配送员登录
 router.post('/login', DelivererAuthController.login);

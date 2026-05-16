@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ServiceUserController = require('../../controllers/service/UserController');
+const ServiceUserController = require('@/controllers/service/UserController');
 
 // 获取用户列表
 router.get('/', ServiceUserController.getUsers);

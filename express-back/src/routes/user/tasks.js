@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const TaskController = require('../../controllers/user/TaskController');
+const TaskController = require('@/controllers/user/TaskController');
 
 // 任务相关路由
 // 获取已发布任务分类统计

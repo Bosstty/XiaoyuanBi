@@ -1,5 +1,5 @@
 <template>
-    <div class="wallet-center">
+    <div class="wallet-center" :class="{ 'is-dark': appStore.isDark }">
         <section class="wallet-center__hero">
             <span class="wallet-center__eyebrow">Campus Wallet</span>
             <h1 class="hero-title" @click="handleBackToProfile">
@@ -131,11 +131,12 @@ import {
     WalletOutline,
 } from '@vicons/ionicons5';
 import { WalletApi } from '@/api';
-import { useUserStore } from '@/stores';
+import { useAppStore, useUserStore } from '@/stores';
 import type { WalletOverview } from '@/types';
 
 const router = useRouter();
 const message = useMessage();
+const appStore = useAppStore();
 const userStore = useUserStore();
 const walletOverview = ref<WalletOverview | null>(null);
 const isLoadingOverview = ref(false);
@@ -299,6 +300,11 @@ onMounted(async () => {
     background: linear-gradient(180deg, #f4f7fb 0%, #eef3fb 100%);
 }
 
+.wallet-center.is-dark {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    color: #e2e8f0;
+}
+
 .wallet-center__hero {
     margin-bottom: 14px;
 }
@@ -339,6 +345,16 @@ onMounted(async () => {
     font-size: 14px;
     line-height: 1.6;
     color: #5b667a;
+}
+
+.wallet-center.is-dark .hero-title {
+    color: #f8fafc;
+}
+
+.wallet-center.is-dark .back-arrow,
+.wallet-center.is-dark .wallet-center__eyebrow,
+.wallet-center.is-dark .wallet-center__hero > p {
+    color: #94a3b8;
 }
 
 .wallet-center__balance-card {
@@ -419,6 +435,11 @@ onMounted(async () => {
     box-shadow: 0 10px 28px rgba(20, 46, 88, 0.06);
 }
 
+.wallet-center.is-dark .wallet-center__section {
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: none;
+}
+
 .wallet-center__section-head {
     display: flex;
     align-items: center;
@@ -430,6 +451,11 @@ onMounted(async () => {
     margin: 0;
     font-size: 16px;
     color: #172033;
+}
+
+.wallet-center.is-dark .wallet-center__section-head h3,
+.wallet-center.is-dark .wallet-center__action strong {
+    color: #f8fafc;
 }
 
 .wallet-center__action-grid {
@@ -447,6 +473,11 @@ onMounted(async () => {
     text-align: left;
 }
 
+.wallet-center.is-dark .wallet-center__action {
+    border-color: rgba(71, 85, 105, 0.72);
+    background: rgba(15, 23, 42, 0.55);
+}
+
 .wallet-center__action-icon {
     display: inline-flex;
     align-items: center;
@@ -455,6 +486,11 @@ onMounted(async () => {
     height: 42px;
     border-radius: 14px;
     margin-bottom: 14px;
+    color: #1e3a8a;
+}
+
+.wallet-center.is-dark .wallet-center__action-icon {
+    color: #dbeafe;
 }
 
 .wallet-center__action strong {
@@ -468,6 +504,10 @@ onMounted(async () => {
     font-size: 12px;
     line-height: 1.6;
     color: #6c7890;
+}
+
+.wallet-center.is-dark .wallet-center__action p {
+    color: #94a3b8;
 }
 
 .wallet-center__safe-space {

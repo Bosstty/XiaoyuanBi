@@ -1,5 +1,5 @@
-const { User, Role, Permission, UserRole, RolePermission } = require('../models');
-const { responseUtils } = require('../utils');
+const { User, Role, Permission, UserRole, RolePermission } = require('@/models');
+const { responseUtils } = require('@/utils');
 const Redis = require('ioredis');
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
@@ -226,7 +226,7 @@ class PermissionMiddleware {
                     return next();
                 }
 
-                const Model = require('../models')[resourceModel];
+                const Model = require('@/models')[resourceModel];
                 const resource = await Model.findByPk(resourceId);
 
                 if (!resource) {

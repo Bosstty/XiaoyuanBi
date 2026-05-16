@@ -896,11 +896,11 @@ onMounted(() => {
   background: var(--success, #67c23a);
 }
 
-.status-dot.resting .status-dot-inner {
+.status-dot.inactive .status-dot-inner {
   background: var(--warning, #e6a23c);
 }
 
-.status-dot.disabled .status-dot-inner {
+.status-dot.suspended .status-dot-inner {
   background: var(--danger, #f56c6c);
 }
 

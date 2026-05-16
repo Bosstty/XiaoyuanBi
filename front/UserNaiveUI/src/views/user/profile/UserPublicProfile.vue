@@ -142,10 +142,7 @@
                             <div class="review-comment">
                                 {{ review.comment || '该评价未填写文字内容' }}
                             </div>
-                            <div
-                                v-if="review.images?.length"
-                                class="review-images"
-                            >
+                            <div v-if="review.images?.length" class="review-images">
                                 <button
                                     v-for="(image, index) in review.images"
                                     :key="`${review.id}-${index}`"
@@ -173,11 +170,7 @@
             </div>
         </main>
 
-        <div
-            v-if="previewImage"
-            class="image-preview"
-            @click="closeImagePreview"
-        >
+        <div v-if="previewImage" class="image-preview" @click="closeImagePreview">
             <img :src="previewImage" alt="预览图片" class="image-preview__image" decoding="async" />
         </div>
     </div>
@@ -284,13 +277,9 @@ onMounted(() => {
 .nav-placeholder {
     width: 42px;
     height: 42px;
-    border-radius: 14px;
     flex-shrink: 0;
 }
 .back-btn {
-    border: none;
-    background: #fff;
-    color: #4a5d79;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -558,6 +547,65 @@ onMounted(() => {
     background: #f8fbff;
     color: #8a96aa;
     text-align: center;
+}
+
+.is-dark .profile-nav h1,
+.is-dark .name-row strong,
+.is-dark .score-item strong,
+.is-dark .stat-card strong,
+.is-dark .section-head h2,
+.is-dark .review-top strong {
+    color: #f8fafc;
+}
+
+.is-dark .back-btn {
+    color: #cbd5e1;
+}
+
+.is-dark .state-box,
+.is-dark .hero-copy p,
+.is-dark .hero-copy span,
+.is-dark .score-item span,
+.is-dark .stat-card span,
+.is-dark .review-top p,
+.is-dark .review-comment,
+.is-dark .empty-box {
+    color: #94a3b8;
+}
+
+.is-dark .verified-badge {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.is-dark .score-item,
+.is-dark .review-card,
+.is-dark .empty-box {
+    background: rgba(15, 23, 42, 0.72);
+    border-color: rgba(71, 85, 105, 0.44);
+}
+
+.is-dark .stat-card {
+    border: 1px solid rgba(71, 85, 105, 0.32);
+}
+
+.is-dark .section-head span {
+    background: rgba(148, 163, 184, 0.16);
+    color: #cbd5e1;
+}
+
+.is-dark .skill-chip {
+    background: rgba(37, 99, 235, 0.18);
+    color: #93c5fd;
+}
+
+.is-dark .review-score {
+    background: rgba(245, 158, 11, 0.16);
+    color: #fbbf24;
+}
+
+.is-dark .review-images__item {
+    background: rgba(30, 41, 59, 0.96);
 }
 @media (max-width: 640px) {
     .profile-shell {

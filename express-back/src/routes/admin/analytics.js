@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const AdminAnalyticsController = require('../../controllers/admin/AnalyticsController');
+const AdminAnalyticsController = require('@/controllers/admin/AnalyticsController');
 
 // 仪表板统计 / 平台概览
 router.get('/dashboard', AdminAnalyticsController.getPlatformOverview);

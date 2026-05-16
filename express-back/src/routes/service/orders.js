@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ServiceTicketController = require('../../controllers/service/TicketController');
+const ServiceTicketController = require('@/controllers/service/TicketController');
 
 router.get('/:id', ServiceTicketController.getOrderDetail);
 router.patch('/:id/status', ServiceTicketController.updateOrderStatus);

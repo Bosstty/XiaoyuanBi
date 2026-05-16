@@ -1,0 +1,29 @@
+后端逻辑修复清单
+
+T1. [已修复] 管理员 /api/admin/auth 除 login 外的接口未挂管理员鉴权
+- 风险: 未登录访问 profile/change-password/logout/permissions 会进入控制器并触发 500，而不是 401
+- 修复结果: auth 路由中除 login 外均已挂载 adminAuthMiddleware
+
+T2. [已修复] /api/admin/services 缺少系统管理权限校验
+- 风险: 任意已登录管理员可直接调用接口创建/修改客服账号
+- 修复结果: /api/admin/services 已补齐 system:manage 权限校验
+
+T3. [已修复] 管理员取消订单未处理退款/解冻，订单状态与资金状态不一致
+- 风险: 订单 cancelled 但用户冻结资金/余额未回退
+- 修复结果: 管理员取消订单已接入 PickupSettlementService.refundUncompletedOrder
+
+T4. [已修复] 管理员资料更新接口存在 Op 未导入和字段名不一致问题
+- 风险: 修改邮箱时报错，修改姓名无法正确落库
+- 修复结果: 已补 Op 导入，并兼容 name / real_name 入参，统一落库到 Admin.name
+
+T5. [已修复] 配送员状态枚举与进行中订单状态判断不一致
+- 风险: banned 状态写库失败，仍有进行中订单的配送员可能被误删/误封
+- 修复结果: banned 已兼容映射为 application_status=banned + status=suspended，进行中订单状态已统一
+
+T6. [已修复] 任务统计中的待审核任务数统计口径错误
+- 风险: 后台统计显示 published 而不是 pending，业务数字错误
+- 修复结果: pendingApproval 已改为统计 status=pending
+
+T7. [已修复] 管理员权限信息接口仍使用旧权限编码
+- 风险: can_manage_users 等字段长期返回错误结果
+- 修复结果: 已切换到现有权限编码 user:admin_read / order:admin / system:manage / analytics:read

@@ -1,4 +1,4 @@
-const { Service, ServiceTicket } = require('../../models');
+const { Service, ServiceTicket } = require('@/models');
 const { Op } = require('sequelize');
 
 const ALLOWED_TICKET_TYPES = ['complaint', 'refund', 'dispute', 'suggestion', 'other'];

@@ -13,6 +13,21 @@
                 <div class="title-group">
                     <strong>全部订单</strong>
                 </div>
+                <NDropdown
+                    trigger="click"
+                    :options="sortOptions"
+                    :value="sortKey"
+                    @select="handleSortChange"
+                >
+                    <button type="button" class="sort-btn" aria-label="切换排序">
+                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                            <path
+                                d="M3 17h6v2H3v-2zm0-6h12v2H3v-2zm0-6h18v2H3V5zm14 14 4-4 4 4h-3v4h-2v-4h-3z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                    </button>
+                </NDropdown>
             </div>
 
             <div class="category-bar">
@@ -48,7 +63,7 @@
 
             <template v-else-if="filteredOrders.length > 0">
                 <article
-                    v-for="(order, index) in filteredOrders"
+                    v-for="(order, index) in sortedOrders"
                     :key="order.id"
                     class="pickup-card"
                     :style="{ animationDelay: `${index * 0.05}s` }"
@@ -182,7 +197,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NButton, NSpin, useMessage } from 'naive-ui';
+import { NButton, NDropdown, NSpin, useMessage } from 'naive-ui';
 import { DelivererOrderApi, DelivererStatusApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
 import { resolveAssetUrl } from '@/utils/apiBase';
@@ -200,6 +215,7 @@ const acceptingId = ref<number | null>(null);
 const offlineMode = ref(false);
 const currentTab = ref<CategoryKey>('all');
 const orders = ref<PickupOrder[]>([]);
+const sortKey = ref('created_desc');
 
 const categoryTabs: Array<{ key: CategoryKey; label: string }> = [
     { key: 'all', label: '全部' },
@@ -208,10 +224,45 @@ const categoryTabs: Array<{ key: CategoryKey; label: string }> = [
     { key: 'medicine', label: '药品' },
     { key: 'daily', label: '生活' },
 ];
+const sortOptions = [
+    { label: '最晚发布', key: 'created_desc' },
+    { label: '最早发布', key: 'created_asc' },
+    { label: '价格最高', key: 'price_desc' },
+    { label: '价格最低', key: 'price_asc' },
+];
 
 const filteredOrders = computed(() => {
     if (currentTab.value === 'all') return orders.value;
     return orders.value.filter(order => order.type === currentTab.value);
+});
+const sortedOrders = computed(() => {
+    const list = [...filteredOrders.value];
+    if (sortKey.value === 'price_desc') {
+        return list.sort(
+            (left, right) =>
+                Number(right.price || 0) +
+                Number(right.tip || 0) -
+                (Number(left.price || 0) + Number(left.tip || 0))
+        );
+    }
+    if (sortKey.value === 'price_asc') {
+        return list.sort(
+            (left, right) =>
+                Number(left.price || 0) +
+                Number(left.tip || 0) -
+                (Number(right.price || 0) + Number(right.tip || 0))
+        );
+    }
+    if (sortKey.value === 'created_asc') {
+        return list.sort(
+            (left, right) =>
+                new Date(left.createdAt || 0).getTime() - new Date(right.createdAt || 0).getTime()
+        );
+    }
+    return list.sort(
+        (left, right) =>
+            new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime()
+    );
 });
 
 const getOrderTypeLabel = (type: PickupOrder['type']) =>
@@ -325,6 +376,11 @@ const handleTabChange = async (key: CategoryKey) => {
     currentTab.value = key;
     appStore.hapticFeedback('light');
     await fetchAvailableOrders();
+};
+
+const handleSortChange = (key: string) => {
+    sortKey.value = key;
+    appStore.hapticFeedback('light');
 };
 
 const handleOrderClick = (order: { id: number }) => {
@@ -452,9 +508,10 @@ onMounted(async () => {
     position: sticky;
     top: 0;
     z-index: 30;
-    padding: 10px 16px 14px;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    backdrop-filter: blur(16px);
+    padding: 10px 16px 8px;
+    background: color-mix(in srgb, var(--card) 96%, transparent);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
 }
 
 .nav-row {
@@ -464,10 +521,10 @@ onMounted(async () => {
 }
 
 .back-btn {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     border: 0;
-    border-radius: 50%;
+    border-radius: 10px;
     background: transparent;
     color: var(--text);
     display: flex;
@@ -475,16 +532,30 @@ onMounted(async () => {
     justify-content: center;
 }
 
-.title-group {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+.sort-btn {
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .title-group {
-    font-size: 15px;
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
+}
+
+.title-group strong {
+    font-size: 16px;
     line-height: 1.2;
-    font-weight: 800;
+    font-weight: 700;
+    letter-spacing: -0.02em;
 }
 
 .title-group span {
@@ -494,27 +565,41 @@ onMounted(async () => {
 
 .category-bar {
     display: flex;
-    gap: 10px;
-    margin-top: 14px;
+    gap: 8px;
+    margin-top: 10px;
     overflow-x: auto;
     scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.category-bar::-webkit-scrollbar {
+    display: none;
 }
 
 .cat-chip {
     white-space: nowrap;
     border: 0;
     border-radius: 999px;
-    padding: 10px 18px;
-    background: rgba(255, 255, 255, 0.65);
+    min-width: 68px;
+    padding: 8px 18px;
+    background: rgba(241, 245, 249, 0.92);
     color: #64748b;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
 }
 
 .cat-chip.active {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: #fff;
-    box-shadow: 0 10px 22px rgba(59, 130, 246, 0.25);
+}
+
+.pickup-hall.is-dark .top-bar {
+    background: rgba(15, 23, 42, 0.94);
+}
+
+.pickup-hall.is-dark .cat-chip {
+    background: rgba(30, 41, 59, 0.92);
+    color: #cbd5e1;
 }
 
 .list-area {

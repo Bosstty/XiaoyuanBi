@@ -1,5 +1,5 @@
 <template>
-    <div class="payment-settings-page">
+    <div class="payment-settings-page" :class="{ 'is-dark': appStore.isDark }">
         <section class="payment-settings-page__topbar">
             <button
                 type="button"
@@ -92,11 +92,12 @@ import {
 } from 'naive-ui';
 import { ChevronBackOutline } from '@vicons/ionicons5';
 import { WalletApi } from '@/api';
-import { useUserStore } from '@/stores';
+import { useAppStore, useUserStore } from '@/stores';
 import PaymentPasswordInput from '@/components/payment/PaymentPasswordInput.vue';
 
 const router = useRouter();
 const message = useMessage();
+const appStore = useAppStore();
 const userStore = useUserStore();
 const formRef = ref<FormInst | null>(null);
 const submitting = ref(false);
@@ -205,6 +206,11 @@ onMounted(async () => {
     background: linear-gradient(180deg, #f4f7fb 0%, #eef3fb 100%);
 }
 
+.payment-settings-page.is-dark {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    color: #e2e8f0;
+}
+
 .payment-settings-page__topbar {
     display: flex;
     align-items: center;
@@ -217,6 +223,12 @@ onMounted(async () => {
     font-size: 17px;
     font-weight: 700;
     color: #172033;
+}
+
+.payment-settings-page.is-dark .payment-settings-page__topbar h1,
+.payment-settings-page.is-dark .payment-settings-page__status strong,
+.payment-settings-page.is-dark .payment-settings-page__alert strong {
+    color: #f8fafc;
 }
 
 .payment-settings-page__back,
@@ -232,6 +244,10 @@ onMounted(async () => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+}
+
+.payment-settings-page.is-dark .payment-settings-page__back {
+    color: #cbd5e1;
 }
 
 .payment-settings-page__hero {
@@ -269,12 +285,22 @@ onMounted(async () => {
     box-shadow: 0 8px 24px rgba(20, 46, 88, 0.06);
 }
 
+.payment-settings-page.is-dark .payment-settings-page__card {
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: none;
+}
+
 .payment-settings-page__alert {
     margin-bottom: 16px;
     padding: 16px;
     border-radius: 16px;
     background: linear-gradient(180deg, #fff8ef 0%, #fff3e0 100%);
     border: 1px solid rgba(255, 166, 77, 0.28);
+}
+
+.payment-settings-page.is-dark .payment-settings-page__alert {
+    background: rgba(120, 53, 15, 0.28);
+    border-color: rgba(251, 146, 60, 0.28);
 }
 
 .payment-settings-page__alert span {
@@ -298,6 +324,13 @@ onMounted(async () => {
     color: #8a5b1d;
 }
 
+.payment-settings-page.is-dark .payment-settings-page__alert span,
+.payment-settings-page.is-dark .payment-settings-page__alert p,
+.payment-settings-page.is-dark .payment-settings-page__status span,
+.payment-settings-page.is-dark .payment-settings-page__tips p {
+    color: #94a3b8;
+}
+
 .payment-settings-page__status {
     display: flex;
     align-items: center;
@@ -306,6 +339,11 @@ onMounted(async () => {
     padding: 14px;
     border-radius: 14px;
     background: #f6f8fc;
+}
+
+.payment-settings-page.is-dark .payment-settings-page__status,
+.payment-settings-page.is-dark .payment-settings-page__tips {
+    background: rgba(15, 23, 42, 0.55);
 }
 
 .payment-settings-page__status span {
@@ -338,5 +376,30 @@ onMounted(async () => {
 
 .payment-settings-page__tips p + p {
     margin-top: 6px;
+}
+
+.payment-settings-page :deep(.n-input-wrapper) {
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.payment-settings-page.is-dark :deep(.n-input-wrapper) {
+    background: rgba(15, 23, 42, 0.7);
+    box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.7);
+}
+
+.payment-settings-page.is-dark :deep(.n-form-item-label__text),
+.payment-settings-page.is-dark :deep(.n-input__input-el),
+.payment-settings-page.is-dark :deep(.n-input__placeholder),
+.payment-settings-page.is-dark :deep(.n-base-selection-label),
+.payment-settings-page.is-dark :deep(.n-button__content) {
+    color: #f8fafc;
+}
+
+.payment-settings-page.is-dark :deep(.n-input__placeholder) {
+    opacity: 0.7;
+}
+
+.payment-settings-page.is-dark :deep(.n-button.n-button--disabled .n-button__content) {
+    color: rgba(255, 255, 255, 0.92) !important;
 }
 </style>

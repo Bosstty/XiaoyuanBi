@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const DelivererOrderController = require('../../controllers/deliverer/OrderController');
+const DelivererOrderController = require('@/controllers/deliverer/OrderController');
 
 // 获取可接单列表
 router.get('/available', DelivererOrderController.getAvailableOrders);

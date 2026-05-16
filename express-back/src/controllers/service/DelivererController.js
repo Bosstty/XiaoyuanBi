@@ -1,4 +1,4 @@
-const { Deliverer } = require('../../models');
+const { Deliverer } = require('@/models');
 
 class ServiceDelivererController {
     // 获取配送员列表

@@ -8,8 +8,8 @@ const {
     PickupOrder,
     DamageClaim,
     Wallet,
-} = require('../../models');
-const FinanceAccountService = require('../../services/FinanceAccountService');
+} = require('@/models');
+const FinanceAccountService = require('@/services/FinanceAccountService');
 
 const parseAmount = value => Number.parseFloat(value || 0) || 0;
 const PLATFORM_REVENUE_SQL = `

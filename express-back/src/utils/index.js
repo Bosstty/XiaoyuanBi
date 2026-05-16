@@ -303,6 +303,58 @@ const validationUtils = {
     },
 };
 
+// 请求工具函数
+const requestUtils = {
+    normalizeIp: value => {
+        if (!value) return null;
+
+        let ip = String(value).trim();
+        if (!ip) return null;
+
+        if (ip.includes(',')) {
+            ip = ip.split(',')[0].trim();
+        }
+
+        if (ip.startsWith('::ffff:')) {
+            ip = ip.slice(7);
+        }
+
+        if (ip === '::1') {
+            return '127.0.0.1';
+        }
+
+        return ip;
+    },
+
+    getClientIp: req => {
+        if (!req) return null;
+
+        const expressIp = requestUtils.normalizeIp(req.ip || req.ips?.[0]);
+        if (expressIp) {
+            return expressIp;
+        }
+
+        const forwardedFor = req.headers?.['x-forwarded-for'];
+        if (forwardedFor) {
+            const normalizedForwardedIp = requestUtils.normalizeIp(forwardedFor);
+            if (normalizedForwardedIp) {
+                return normalizedForwardedIp;
+            }
+        }
+
+        const forwarded = req.headers?.forwarded;
+        if (forwarded) {
+            const match = String(forwarded).match(/for=(?:"?)(\[?[A-Fa-f0-9:.]+\]?)/i);
+            const normalizedForwardedHeaderIp = requestUtils.normalizeIp(match?.[1]);
+            if (normalizedForwardedHeaderIp) {
+                return normalizedForwardedHeaderIp;
+            }
+        }
+
+        return requestUtils.normalizeIp(req.socket?.remoteAddress || req.connection?.remoteAddress);
+    },
+};
+
 module.exports = {
     jwtUtils,
     passwordUtils,
@@ -313,4 +365,5 @@ module.exports = {
     responseUtils,
     cryptoUtils,
     validationUtils,
+    requestUtils,
 };

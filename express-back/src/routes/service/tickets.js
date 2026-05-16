@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ServiceTicketController = require('../../controllers/service/TicketController');
+const ServiceTicketController = require('@/controllers/service/TicketController');
 
 // 获取工单列表
 router.get('/', ServiceTicketController.getTickets);

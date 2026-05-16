@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const ServiceAuthController = require('../../controllers/service/AuthController');
-const { serviceAuth } = require('../../middleware/serviceAuth');
+const ServiceAuthController = require('@/controllers/service/AuthController');
+const { serviceAuth } = require('@/middleware/serviceAuth');
 
 // 客服登录
 router.post('/login', ServiceAuthController.login);

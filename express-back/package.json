@@ -6,6 +6,7 @@
     "scripts": {
         "start": "node app.js",
         "dev": "nodemon --delay 2 app.js",
+        "docs:swagger": "node scripts/generate-swagger-json.js",
         "migrate": "node src/database/migrations/migrate.js",
         "seed": "node src/database/seed.js",
         "test": "echo \"Error: no test specified\" && exit 1"
@@ -35,6 +36,8 @@
         "sequelize": "^6.37.7",
         "sharp": "^0.34.4",
         "socket.io": "^4.8.1",
+        "swagger-jsdoc": "^6.2.8",
+        "swagger-ui-express": "^5.0.1",
         "winston": "^3.17.0"
     },
     "devDependencies": {

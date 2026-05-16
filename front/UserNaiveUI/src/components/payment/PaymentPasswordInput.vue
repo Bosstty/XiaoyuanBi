@@ -1,5 +1,9 @@
 <template>
-    <div class="pin-input" :class="{ 'is-disabled': disabled }" @click="focus">
+    <div
+        class="pin-input"
+        :class="{ 'is-disabled': disabled, 'is-dark': appStore.isDark }"
+        @click="focus"
+    >
         <div
             v-for="index in 6"
             :key="index"
@@ -23,6 +27,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
+import { useAppStore } from '@/stores';
 
 const props = withDefaults(
     defineProps<{
@@ -41,6 +46,7 @@ const emit = defineEmits<{
     'update:modelValue': [value: string];
 }>();
 
+const appStore = useAppStore();
 const inputRef = ref<HTMLInputElement | null>(null);
 const innerValue = computed(() => String(props.modelValue || '').replace(/\D/g, '').slice(0, 6));
 
@@ -96,8 +102,18 @@ defineExpose({ focus });
     color: #0f172a;
 }
 
+.pin-input.is-dark .pin-input__cell {
+    border-color: rgba(71, 85, 105, 0.8);
+    background: rgba(15, 23, 42, 0.72);
+    color: #f8fafc;
+}
+
 .pin-input__cell.is-filled {
     border-color: rgba(59, 130, 246, 0.4);
+}
+
+.pin-input.is-dark .pin-input__cell.is-filled {
+    border-color: rgba(96, 165, 250, 0.72);
 }
 
 .pin-input__native {

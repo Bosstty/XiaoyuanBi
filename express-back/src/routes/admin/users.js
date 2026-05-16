@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const AdminUserController = require('../../controllers/admin/UserController');
+const AdminUserController = require('@/controllers/admin/UserController');
 
 // 用户管理路由
 router.get('/', AdminUserController.getUsers);

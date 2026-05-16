@@ -118,16 +118,38 @@
         </div>
 
         <el-form-item label="审核与系统权限">
-          <div class="permission-sections">
-            <section v-for="group in permissionGroups" :key="group.title" class="permission-section">
-              <div class="permission-section__title">{{ group.title }}</div>
-              <el-checkbox-group v-model="dialog.form.permissions" class="permission-grid">
-                <el-checkbox v-for="item in group.items" :key="item.value" :value="item.value">
+          <el-collapse v-model="dialog.expandedGroups" class="permission-collapse">
+            <el-collapse-item
+              v-for="group in permissionGroups"
+              :key="group.key"
+              :name="group.key"
+              class="permission-collapse__item"
+            >
+              <template #title>
+                <div class="permission-section__header">
+                  <el-checkbox
+                    :model-value="isGroupEnabled(group.key)"
+                    :disabled="isSuperAdminRole"
+                    @click.stop
+                    @change="togglePermissionGroup(group.key, $event)"
+                  >
+                    <span class="permission-section__title">{{ group.title }}</span>
+                  </el-checkbox>
+                </div>
+              </template>
+              <el-checkbox-group v-model="dialog.form.permissions" class="permission-list">
+                <el-checkbox
+                  v-for="item in group.items"
+                  :key="item.value"
+                  :value="item.value"
+                  :disabled="isSuperAdminRole || !isGroupEnabled(group.key)"
+                  class="permission-list__item"
+                >
                   {{ item.label }}
                 </el-checkbox>
               </el-checkbox-group>
-            </section>
-          </div>
+            </el-collapse-item>
+          </el-collapse>
         </el-form-item>
 
         <el-form-item label="备注">
@@ -144,7 +166,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { adminManagementApi } from '@/api'
 
@@ -156,7 +178,6 @@ const permissionOptions = [
   { value: 'review:forum', label: '帖子审核' },
   { value: 'review:task', label: '任务审核' },
   { value: 'review:report', label: '举报处理' },
-  { value: 'review:view_all', label: '查看全部审核模块' },
   { value: 'forum:moderate', label: '论坛管理' },
   { value: 'task:admin', label: '任务管理' },
   { value: 'deliverer:admin', label: '配送员管理' },
@@ -165,32 +186,56 @@ const permissionOptions = [
   { value: 'analytics:read', label: '数据分析查看' },
 ]
 const permissionLabelMap = Object.fromEntries(permissionOptions.map((item) => [item.value, item.label]))
+const allPermissionValues = permissionOptions.map((item) => item.value)
 const permissionGroups = [
   {
+    key: 'review',
     title: '审核权限',
     items: permissionOptions.filter((item) => item.value.startsWith('review:')),
   },
   {
+    key: 'business',
     title: '业务管理权限',
     items: permissionOptions.filter(
       (item) => !item.value.startsWith('review:') && item.value !== 'system:manage' && item.value !== 'analytics:read',
     ),
   },
   {
+    key: 'platform',
     title: '平台与分析权限',
     items: permissionOptions.filter((item) => ['system:manage', 'analytics:read'].includes(item.value)),
   },
 ]
+const permissionGroupMap = Object.fromEntries(
+  permissionGroups.map((group) => [group.key, group.items.map((item) => item.value)]),
+)
+const normalizePermissions = (permissions) => {
+  if (Array.isArray(permissions)) {
+    return permissions.filter((item) => typeof item === 'string' && item.trim())
+  }
+
+  if (typeof permissions === 'string' && permissions.trim()) {
+    try {
+      const parsed = JSON.parse(permissions)
+      return Array.isArray(parsed)
+        ? parsed.filter((item) => typeof item === 'string' && item.trim())
+        : []
+    } catch (_error) {
+      return []
+    }
+  }
+
+  return []
+}
 const activeAdminCount = computed(() => admins.value.filter((item) => item.status === 'active').length)
 const reviewAdminCount = computed(() =>
-  admins.value.filter((item) => Array.isArray(item.permissions) && item.permissions.some((permission) => permission.startsWith('review:'))).length,
+  admins.value.filter((item) => normalizePermissions(item.permissions).some((permission) => permission.startsWith('review:'))).length,
 )
 const systemAdminCount = computed(() =>
   admins.value.filter(
     (item) =>
       item.role === 'super_admin' ||
-      (Array.isArray(item.permissions) &&
-        item.permissions.some((permission) => ['system:manage', 'review:view_all'].includes(permission))),
+      normalizePermissions(item.permissions).includes('system:manage'),
   ).length,
 )
 
@@ -213,13 +258,52 @@ const dialog = reactive({
   loading: false,
   mode: 'create',
   form: buildDefaultForm(),
+  enabledGroups: [],
+  expandedGroups: permissionGroups.map((group) => group.key),
 })
+
+const isSuperAdminRole = computed(() => dialog.form.role === 'super_admin')
+const isGroupEnabled = (groupKey) => dialog.enabledGroups.includes(groupKey)
+
+const syncEnabledGroupsFromPermissions = (permissions = []) => {
+  dialog.enabledGroups = permissionGroups
+    .filter((group) => group.items.some((item) => permissions.includes(item.value)))
+    .map((group) => group.key)
+}
+
+const togglePermissionGroup = (groupKey, checked) => {
+  if (isSuperAdminRole.value) {
+    return
+  }
+
+  const nextChecked = Boolean(checked)
+
+  if (nextChecked) {
+    if (!dialog.enabledGroups.includes(groupKey)) {
+      dialog.enabledGroups = [...dialog.enabledGroups, groupKey]
+    }
+    return
+  }
+
+  dialog.enabledGroups = dialog.enabledGroups.filter((key) => key !== groupKey)
+  const groupPermissions = permissionGroupMap[groupKey] || []
+  dialog.form.permissions = dialog.form.permissions.filter((permission) => !groupPermissions.includes(permission))
+}
+
+const applySuperAdminPermissions = () => {
+  dialog.enabledGroups = permissionGroups.map((group) => group.key)
+  dialog.expandedGroups = permissionGroups.map((group) => group.key)
+  dialog.form.permissions = [...allPermissionValues]
+}
 
 const fetchAdmins = async () => {
   loading.value = true
   try {
     const response = await adminManagementApi.getAdmins()
-    admins.value = response.data || []
+    admins.value = (response.data || []).map((item) => ({
+      ...item,
+      permissions: normalizePermissions(item.permissions),
+    }))
   } catch (error) {
     ElMessage.error(error.message || '获取管理员列表失败')
   } finally {
@@ -236,13 +320,16 @@ const roleText = (role) =>
   }[role] || role || '--')
 
 const formatPermissionList = (permissions) => {
-  if (!Array.isArray(permissions) || !permissions.length) return ['无单独权限']
-  return permissions
+  const normalizedPermissions = normalizePermissions(permissions)
+  if (!normalizedPermissions.length) return ['无单独权限']
+  return normalizedPermissions
 }
 
 const openCreateDialog = () => {
   dialog.mode = 'create'
   dialog.form = buildDefaultForm()
+  dialog.enabledGroups = []
+  dialog.expandedGroups = permissionGroups.map((group) => group.key)
   dialog.visible = true
 }
 
@@ -259,7 +346,13 @@ const openEditDialog = (row) => {
     password: '',
     department: row.department || '',
     notes: row.notes || '',
-    permissions: Array.isArray(row.permissions) ? [...row.permissions] : [],
+    permissions: normalizePermissions(row.permissions),
+  }
+  if (dialog.form.role === 'super_admin') {
+    applySuperAdminPermissions()
+  } else {
+    syncEnabledGroupsFromPermissions(dialog.form.permissions)
+    dialog.expandedGroups = permissionGroups.map((group) => group.key)
   }
   dialog.visible = true
 }
@@ -287,7 +380,7 @@ const submitDialog = async () => {
       password: dialog.form.password,
       department: dialog.form.department,
       notes: dialog.form.notes,
-      permissions: dialog.form.permissions,
+      permissions: normalizePermissions(dialog.form.permissions),
     }
 
     const response =
@@ -310,6 +403,24 @@ const submitDialog = async () => {
 onMounted(() => {
   fetchAdmins()
 })
+
+watch(
+  () => dialog.form.role,
+  (role, previousRole) => {
+    if (!dialog.visible) return
+
+    if (role === 'super_admin') {
+      applySuperAdminPermissions()
+      return
+    }
+
+    if (previousRole === 'super_admin') {
+      dialog.form.permissions = []
+      dialog.enabledGroups = []
+      dialog.expandedGroups = permissionGroups.map((group) => group.key)
+    }
+  },
+)
 </script>
 
 <style scoped>
@@ -406,29 +517,35 @@ onMounted(() => {
   gap: 16px;
 }
 
-.permission-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 16px;
-}
-
-.permission-sections {
-  display: grid;
-  gap: 16px;
-}
-
-.permission-section {
-  padding: 16px 18px;
-  border-radius: 18px;
-  background: #f8fafc;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+.permission-section__header {
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
 .permission-section__title {
-  margin-bottom: 12px;
   color: #334155;
   font-size: 13px;
   font-weight: 700;
+}
+
+.permission-collapse {
+  width: 100%;
+  border-top: none;
+  border-bottom: none;
+}
+
+.permission-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 28px;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.permission-list__item {
+  margin-right: 0;
+  min-width: max-content;
 }
 
 :deep(.el-card__body) {
@@ -443,9 +560,37 @@ onMounted(() => {
   padding-top: 12px;
 }
 
+:deep(.permission-collapse .el-collapse-item) {
+  margin-bottom: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 20px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+:deep(.permission-collapse .el-collapse-item:last-child) {
+  margin-bottom: 0;
+}
+
+:deep(.permission-collapse .el-collapse-item__header) {
+  min-height: 58px;
+  padding: 0 18px;
+  border-bottom: none;
+  background: transparent;
+  line-height: 1.2;
+}
+
+:deep(.permission-collapse .el-collapse-item__wrap) {
+  border-bottom: none;
+  background: transparent;
+}
+
+:deep(.permission-collapse .el-collapse-item__content) {
+  padding: 0 18px 18px;
+}
+
 @media (max-width: 900px) {
   .form-grid,
-  .permission-grid,
   .stats-grid {
     grid-template-columns: 1fr;
   }

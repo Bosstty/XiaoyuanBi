@@ -2119,6 +2119,148 @@ onUnmounted(() => {
     gap: 10px;
     margin-top: 16px;
 }
+
+.task-detail-page.is-dark {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    color: #e2e8f0;
+}
+
+.task-detail-page.is-dark .top-nav {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(71, 85, 105, 0.42);
+}
+
+.task-detail-page.is-dark .nav-title,
+.task-detail-page.is-dark .back-icon,
+.task-detail-page.is-dark .task-title,
+.task-detail-page.is-dark .cancellation-notice__heading strong,
+.task-detail-page.is-dark .cancellation-notice__stat strong,
+.task-detail-page.is-dark .username,
+.task-detail-page.is-dark .application-copy strong,
+.task-detail-page.is-dark .cancellation-panel__copy strong,
+.task-detail-page.is-dark .review-modal__head strong,
+.task-detail-page.is-dark .review-modal__subcard span {
+    color: #f8fafc;
+}
+
+.task-detail-page.is-dark .cat-text,
+.task-detail-page.is-dark .task-desc,
+.task-detail-page.is-dark .meta-item,
+.task-detail-page.is-dark .deadline-note,
+.task-detail-page.is-dark .detail-side-meta,
+.task-detail-page.is-dark .cancellation-notice__heading p,
+.task-detail-page.is-dark .cancellation-notice__stat span,
+.task-detail-page.is-dark .cancellation-notice__reason span,
+.task-detail-page.is-dark .cancellation-notice__reason p,
+.task-detail-page.is-dark .cancellation-notice__ticket,
+.task-detail-page.is-dark .rating,
+.task-detail-page.is-dark .major,
+.task-detail-page.is-dark .application-copy p,
+.task-detail-page.is-dark .application-copy span,
+.task-detail-page.is-dark .task-review-summary p,
+.task-detail-page.is-dark .cancellation-panel__copy p,
+.task-detail-page.is-dark .price-adjust-main span,
+.task-detail-page.is-dark .price-adjust-main p,
+.task-detail-page.is-dark .application-state--text,
+.task-detail-page.is-dark .review-modal__hint,
+.task-detail-page.is-dark .review-modal__subcard p {
+    color: #94a3b8;
+}
+
+.task-detail-page.is-dark .divider,
+.task-detail-page.is-dark .application-card {
+    border-color: rgba(71, 85, 105, 0.38);
+}
+
+.task-detail-page.is-dark :deep(.n-card) {
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: 0 16px 36px rgba(2, 6, 23, 0.28);
+    color: #e2e8f0;
+}
+
+.task-detail-page.is-dark :deep(.n-card-header__main),
+.task-detail-page.is-dark :deep(.n-card-header__extra) {
+    color: #f8fafc;
+}
+
+.task-detail-page.is-dark .cancellation-notice-card {
+    border-color: rgba(96, 165, 250, 0.22);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.94) 100%);
+}
+
+.task-detail-page.is-dark .cancellation-notice-card--rejected {
+    border-color: rgba(245, 158, 11, 0.3);
+    background: linear-gradient(180deg, rgba(69, 39, 0, 0.32) 0%, rgba(15, 23, 42, 0.94) 100%);
+}
+
+.task-detail-page.is-dark .cancellation-notice-card--disputed {
+    border-color: rgba(248, 113, 113, 0.3);
+    background: linear-gradient(180deg, rgba(78, 24, 38, 0.34) 0%, rgba(15, 23, 42, 0.94) 100%);
+}
+
+.task-detail-page.is-dark .cancellation-notice__stat,
+.task-detail-page.is-dark .cancellation-notice__reason,
+.task-detail-page.is-dark .task-review-summary,
+.task-detail-page.is-dark .review-modal__subcard {
+    background: rgba(15, 23, 42, 0.68);
+    border-color: rgba(71, 85, 105, 0.44);
+}
+
+.task-detail-page.is-dark .user-avatar {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.24), rgba(71, 85, 105, 0.7));
+    color: #e2e8f0;
+}
+
+.task-detail-page.is-dark .bottom-action-bar {
+    background: rgba(15, 23, 42, 0.94);
+    box-shadow: 0 -12px 28px rgba(2, 6, 23, 0.28);
+    border-top: 1px solid rgba(71, 85, 105, 0.36);
+}
+
+.task-detail-page.is-dark .review-modal {
+    background: rgba(15, 23, 42, 0.98);
+    box-shadow: 0 24px 50px rgba(2, 6, 23, 0.42);
+}
+
+.task-detail-page.is-dark .review-modal__close {
+    background: rgba(30, 41, 59, 0.96);
+    color: #e2e8f0;
+}
+
+.task-detail-page.is-dark :deep(.n-input-wrapper),
+.task-detail-page.is-dark :deep(.n-input),
+.task-detail-page.is-dark :deep(.n-base-selection) {
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: inset 0 0 0 1px rgba(71, 85, 105, 0.68);
+}
+
+.task-detail-page.is-dark :deep(.n-input__input-el),
+.task-detail-page.is-dark :deep(.n-input__textarea-el),
+.task-detail-page.is-dark :deep(.n-input__placeholder),
+.task-detail-page.is-dark :deep(.n-base-selection-label),
+.task-detail-page.is-dark :deep(.n-base-selection-placeholder),
+.task-detail-page.is-dark :deep(.n-base-selection-placeholder__inner),
+.task-detail-page.is-dark :deep(.n-base-selection-input),
+.task-detail-page.is-dark :deep(.n-base-selection-input__content),
+.task-detail-page.is-dark :deep(.n-button__content),
+.task-detail-page.is-dark :deep(.n-tag__content) {
+    color: #f8fafc;
+}
+
+.task-detail-page.is-dark :deep(.n-input__placeholder),
+.task-detail-page.is-dark :deep(.n-base-selection-placeholder),
+.task-detail-page.is-dark :deep(.n-base-selection-placeholder__inner) {
+    opacity: 0.72;
+}
+
+.task-detail-page.is-dark :deep(.n-button.n-button--disabled) {
+    background: rgba(71, 85, 105, 0.5);
+    border-color: rgba(71, 85, 105, 0.5);
+}
+
+.task-detail-page.is-dark :deep(.n-button.n-button--disabled .n-button__content) {
+    color: #cbd5e1;
+}
 @media (max-width: 640px) {
     .cancellation-notice__header,
     .cancellation-panel {

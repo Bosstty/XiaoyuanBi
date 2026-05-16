@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { Service } = require('../models');
+const { Service } = require('@/models');
 
 // 客服认证中间件
 const serviceAuth = async (req, res, next) => {

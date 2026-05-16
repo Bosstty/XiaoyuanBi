@@ -199,8 +199,8 @@ const visible = computed({
 const getStatusType = (status) => {
   const types = {
     active: 'success',
-    resting: 'warning',
-    disabled: 'danger',
+    inactive: 'warning',
+    suspended: 'danger',
   }
   return types[status] || 'info'
 }
@@ -208,8 +208,8 @@ const getStatusType = (status) => {
 const getStatusText = (status) => {
   const texts = {
     active: '在职',
-    resting: '休息中',
-    disabled: '已禁用',
+    inactive: '休息中',
+    suspended: '暂停服务',
   }
   return texts[status] || '未知'
 }
@@ -261,7 +261,7 @@ const getOrderStatusType = (status) => {
   const types = {
     pending: 'info',
     accepted: 'primary',
-    picking_up: 'warning',
+    picking: 'warning',
     delivering: 'warning',
     completed: 'success',
     cancelled: 'danger',
@@ -273,7 +273,7 @@ const getOrderStatusText = (status) => {
   const texts = {
     pending: '待接单',
     accepted: '已接单',
-    picking_up: '取货中',
+    picking: '取货中',
     delivering: '配送中',
     completed: '已完成',
     cancelled: '已取消',

@@ -1,4 +1,4 @@
-const { User } = require('../../models');
+const { User } = require('@/models');
 
 class ServiceUserController {
     // 获取用户列表

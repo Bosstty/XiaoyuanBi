@@ -1,7 +1,8 @@
 const { Op, Sequelize } = require('sequelize');
-const { User, Deliverer, ForumPost, Task, ContentReport } = require('../../models');
-const ContentModerationService = require('../../services/ContentModerationService');
-const { responseUtils } = require('../../utils');
+const { User, Deliverer, ForumPost, Task, ContentReport } = require('@/models');
+const ContentModerationService = require('@/services/ContentModerationService');
+const AdminActionNotificationService = require('@/services/AdminActionNotificationService');
+const { responseUtils } = require('@/utils');
 
 const PENDING_STUDENT_STATUS = 'pending_review';
 const DEFAULT_LIMIT = 6;
@@ -9,11 +10,7 @@ const DEFAULT_LIMIT = 6;
 function hasReviewAccess(user, codes = []) {
     const directPermissions = Array.isArray(user?.permissions) ? user.permissions : [];
 
-    if (
-        user?.role === 'super_admin' ||
-        directPermissions.includes('all') ||
-        directPermissions.includes('review:view_all')
-    ) {
+    if (user?.role === 'super_admin' || directPermissions.includes('all')) {
         return true;
     }
 
@@ -451,6 +448,29 @@ class ReviewController {
             }
 
             await dbTransaction.commit();
+
+            if (action === 'accept') {
+                await AdminActionNotificationService.notifyUser({
+                    userId: report.biz_type === 'post' ? target.author_id : target.publisher_id,
+                    adminUser: req.user,
+                    entityType: report.biz_type === 'post' ? 'forum_post' : 'task',
+                    entityId: target.id,
+                    entityTitle: target.title,
+                    action: report.biz_type === 'post' ? 'hide' : 'cancelled',
+                    reason: handleReason || '举报处理后已下架',
+                });
+            }
+
+            await AdminActionNotificationService.notifyReportResult({
+                reporterId: report.reporter_id,
+                adminUser: req.user,
+                bizType: report.biz_type,
+                bizId: target.id,
+                targetTitle: target.title || report.snapshot?.title,
+                result: action,
+                handleReason,
+            });
+
             return res.json(responseUtils.success(null, action === 'accept' ? '举报已处理并下架内容' : '举报已忽略'));
         } catch (error) {
             await dbTransaction.rollback();

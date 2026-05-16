@@ -1,5 +1,5 @@
 const express = require('express');
-const UserOrderController = require('../../controllers/user/OrderController');
+const UserOrderController = require('@/controllers/user/OrderController');
 
 // 订单管理路由
 const router = express.Router();

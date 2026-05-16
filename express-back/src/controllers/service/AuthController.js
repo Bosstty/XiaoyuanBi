@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { Service } = require('../../models');
+const { Service } = require('@/models');
 const bcrypt = require('bcryptjs');
 
 class ServiceAuthController {

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const AdminServiceController = require('../../controllers/admin/ServiceController');
+const AdminServiceController = require('@/controllers/admin/ServiceController');
 
 router.get('/', AdminServiceController.getServices);
 router.post('/', AdminServiceController.createService);

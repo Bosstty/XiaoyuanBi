@@ -7,10 +7,10 @@ const {
     Deliverer,
     Message,
     AuditLog,
-} = require('../../models');
-const { responseUtils } = require('../../utils');
+} = require('@/models');
+const { responseUtils } = require('@/utils');
 const { Op } = require('sequelize');
-const { sequelize } = require('../../config/database');
+const { sequelize } = require('@/config/database');
 
 class AnalyticsController {
     // 获取平台概览统计

@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 
 // 导入中间件
-const { authMiddleware, adminAuthMiddleware } = require('../middleware');
-const { serviceAuth } = require('../middleware/serviceAuth');
-const { generalRateLimit } = require('../middleware/rateLimitMiddleware');
-const { createAuditMiddleware } = require('../middleware/auditMiddleware');
-const permissionMiddleware = require('../middleware/permissionMiddleware');
+const { authMiddleware, adminAuthMiddleware } = require('@/middleware');
+const { serviceAuth } = require('@/middleware/serviceAuth');
+const { generalRateLimit } = require('@/middleware/rateLimitMiddleware');
+const { createAuditMiddleware } = require('@/middleware/auditMiddleware');
+const permissionMiddleware = require('@/middleware/permissionMiddleware');
 
 // 应用全局中间件
 router.use(generalRateLimit); // 全局限流
@@ -112,7 +112,12 @@ adminRoutes.use(
 adminRoutes.use('/admins', adminAuthMiddleware, require('./admin/admins'));
 
 // 客服管理 - /api/admin/services/*
-adminRoutes.use('/services', adminAuthMiddleware, require('./admin/services'));
+adminRoutes.use(
+    '/services',
+    adminAuthMiddleware,
+    permissionMiddleware.checkPermission('system', 'manage'),
+    require('./admin/services')
+);
 
 // 订单管理 - /api/admin/orders/*
 adminRoutes.use(

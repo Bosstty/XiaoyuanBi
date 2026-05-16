@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { PickupOrder, User, Deliverer, Wallet, Transaction, SystemSetting } = require('../models');
+const { PickupOrder, User, Deliverer, Wallet, Transaction, SystemSetting } = require('@/models');
 const DebtSettlementService = require('./DebtSettlementService');
 const FinanceAccountService = require('./FinanceAccountService');
 const PointsService = require('./PointsService');

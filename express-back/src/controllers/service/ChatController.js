@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { ChatConversation, ChatMessage, User, Deliverer, PickupOrder, Service, ServiceTicket } = require('../../models');
+const { ChatConversation, ChatMessage, User, Deliverer, PickupOrder, Service, ServiceTicket } = require('@/models');
 const { emitConversationEvent } = require('../../../config/socket');
 
 const DIRECT_CHAT_TYPE = 'user_deliverer';

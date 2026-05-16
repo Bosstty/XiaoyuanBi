@@ -390,26 +390,27 @@ onBeforeUnmount(() => {
 }
 
 .mobile-tab-bar.dark-mode .tab-bar-background {
-    background: #232326;
-    border-top: none;
-    box-shadow: 0 -14px 36px rgba(0, 0, 0, 0.36);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    background: rgba(15, 23, 42, 0.96);
+    border-top: 1px solid rgba(96, 165, 250, 0.14);
+    box-shadow: 0 -14px 36px rgba(2, 6, 23, 0.34);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 .mobile-tab-bar.dark-mode .tab-bar-background::before {
-    background: rgba(82, 90, 110, 0.34);
+    background: rgba(96, 165, 250, 0.12);
 }
 
 .mobile-tab-bar.dark-mode .tab-icon {
-    color: #f5f5f5;
+    color: #cbd5e1;
 }
 
 .mobile-tab-bar.dark-mode .tab-label {
-    color: #a1a1aa;
+    color: #94a3b8;
 }
 
+.mobile-tab-bar.dark-mode .tab-item.active .tab-icon,
 .mobile-tab-bar.dark-mode .tab-item.active .tab-label {
-    color: #ffffff;
+    color: #f8fafc;
 }
 </style>
