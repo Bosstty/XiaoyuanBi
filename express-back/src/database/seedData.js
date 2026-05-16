@@ -12,10 +12,10 @@ const {
 
 async function seedData() {
     try {
-        console.log('🌱 开始生成测试数据...\n');
+        console.log(' 开始生成测试数据...\n');
 
         // 1. 创建测试用户
-        console.log('📦 创建测试用户...');
+        console.log('  创建测试用户...');
         const users = [];
         const userData = [
             {
@@ -83,7 +83,7 @@ async function seedData() {
         }
 
         // 2. 创建测试配送员
-        console.log('\n🚴 创建测试配送员...');
+        console.log('\n  创建测试配送员...');
         const deliverers = [];
         for (let i = 0; i < 3; i++) {
             const deliverer = await Deliverer.create({
@@ -107,7 +107,7 @@ async function seedData() {
         }
 
         // 3. 创建测试订单
-        console.log('\n📦 创建测试订单...');
+        console.log('\n  创建测试订单...');
         const orderTypes = ['express', 'food', 'medicine', 'daily'];
         const orderStatuses = ['pending', 'accepted', 'picking', 'delivering', 'completed'];
         const locations = [
@@ -143,7 +143,7 @@ async function seedData() {
         }
 
         // 4. 创建测试任务
-        console.log('\n📋 创建测试任务...');
+        console.log('\n  创建测试任务...');
         const taskCategories = ['study', 'design', 'tech', 'writing', 'life'];
         const taskTitles = [
             '辅导高等数学',
@@ -172,7 +172,7 @@ async function seedData() {
         }
 
         // 5. 创建测试论坛帖子
-        console.log('\n📝 创建测试论坛帖子...');
+        console.log('\n  创建测试论坛帖子...');
         const forumCategories = ['academic', 'life', 'campus', 'task', 'skill'];
         const postTitles = [
             '求高等数学答疑',
@@ -218,15 +218,15 @@ async function seedData() {
             console.log(`    客服: ${username}`);
         }
 
-        console.log('\n✨ 测试数据生成完成！');
-        console.log('\n📋 测试账号信息:');
+        console.log('\n 测试数据生成完成！');
+        console.log('\n  测试账号信息:');
         console.log('  用户: zhangsan / 123456');
         console.log('  用户: lisi / 123456');
         console.log('  配送员: deliverer1 / 123456');
         console.log('  客服: service1 / 123456');
         console.log('  管理员: admin / 123456\n');
     } catch (error) {
-        console.error('❌ 生成测试数据失败:', error.message);
+        console.error('  生成测试数据失败:', error.message);
     }
 }
 

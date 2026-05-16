@@ -25,7 +25,11 @@ const sequelize = new Sequelize(
         },
         retry: {
             max: 2,
-            match: [/ECONNRESET/i, /SequelizeConnection/i, /SequelizeConnectionAcquireTimeoutError/i],
+            match: [
+                /ECONNRESET/i,
+                /SequelizeConnection/i,
+                /SequelizeConnectionAcquireTimeoutError/i,
+            ],
         },
         logging: process.env.NODE_ENV === 'development' ? console.log : false,
         define: {

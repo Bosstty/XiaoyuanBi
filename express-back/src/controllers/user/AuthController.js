@@ -105,6 +105,8 @@ class UserAuthController {
                 student_id,
                 username,
                 email,
+                verification_code,
+                verificationCode,
                 password,
                 phone,
                 real_name,
@@ -112,6 +114,19 @@ class UserAuthController {
                 major,
                 grade,
             } = req.body;
+            const normalizedEmail = String(email || '')
+                .trim()
+                .toLowerCase();
+            const verifyCode = String(verification_code || verificationCode || '')
+                .trim();
+
+            if (!validationUtils.isEmail(normalizedEmail)) {
+                return res.status(400).json(responseUtils.error('邮箱格式不正确'));
+            }
+
+            if (!/^\d{6}$/.test(verifyCode)) {
+                return res.status(400).json(responseUtils.error('请先填写6位邮箱验证码'));
+            }
 
             // 检查学号是否已存在
             const existingStudentId = await User.findOne({
@@ -124,7 +139,7 @@ class UserAuthController {
 
             // 检查邮箱是否已存在
             const existingEmail = await User.findOne({
-                where: { email },
+                where: { email: normalizedEmail },
             });
 
             if (existingEmail) {
@@ -142,11 +157,13 @@ class UserAuthController {
                 }
             }
 
+            await emailService.verifyCode(normalizedEmail, verifyCode);
+
             // 创建用户
             const user = await User.create({
                 student_id,
                 username,
-                email,
+                email: normalizedEmail,
                 password,
                 phone,
                 real_name,
@@ -154,6 +171,7 @@ class UserAuthController {
                 major,
                 grade,
                 status: 'active',
+                email_verified: true,
             });
 
             // 异常行为检测

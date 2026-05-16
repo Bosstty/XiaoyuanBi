@@ -37,8 +37,11 @@ coverage/
 .cache/
 temp/
 tmp/
+docs/
 ClAUDE*
 *.txt
+*.docs
+*.docx
 express-back/uploads/
 
 #废弃的用户端

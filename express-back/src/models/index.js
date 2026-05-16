@@ -76,7 +76,7 @@ Deliverer.belongsTo(User, {
     as: 'user',
 });
 
-// 配送员与代取订单的关系 (原有的User关联保持兼容)
+// 配送员与代取订单的关系 
 User.hasMany(PickupOrder, {
     foreignKey: 'deliverer_id',
     as: 'deliveries',

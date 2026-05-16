@@ -15,7 +15,36 @@ const upload = createUpload({
 });
 
 // 用户注册
-router.post('/register', UserAuthController.register);
+router.post(
+    '/register',
+    [
+        body('student_id')
+            .trim()
+            .notEmpty()
+            .withMessage('学号不能为空')
+            .isLength({ min: 8, max: 12 })
+            .withMessage('学号长度应为8-12位'),
+        body('username')
+            .trim()
+            .notEmpty()
+            .withMessage('用户名不能为空')
+            .isLength({ min: 2, max: 20 })
+            .withMessage('用户名长度应为2-20位'),
+        body('email').trim().isEmail().withMessage('邮箱格式不正确'),
+        body('password').isLength({ min: 6 }).withMessage('密码至少6位'),
+        body('phone').optional().isMobilePhone('zh-CN').withMessage('手机号格式不正确'),
+        body()
+            .custom(body => {
+                const code = String(body.verification_code || body.verificationCode || '').trim();
+                if (!/^\d{6}$/.test(code)) {
+                    throw new Error('验证码必须为6位数字');
+                }
+                return true;
+            }),
+        handleValidation,
+    ],
+    UserAuthController.register
+);
 
 // 用户登录
 router.post('/login', UserAuthController.login);

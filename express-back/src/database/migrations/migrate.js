@@ -3,7 +3,9 @@ const models = require('../../models');
 
 function getRunnableModels() {
     return Object.values(models).filter(model => {
-        return model && typeof model.getTableName === 'function' && typeof model.sync === 'function';
+        return (
+            model && typeof model.getTableName === 'function' && typeof model.sync === 'function'
+        );
     });
 }
 
@@ -101,11 +103,7 @@ async function syncMissingColumns(model, queryInterface) {
                 continue;
             }
 
-            await queryInterface.addColumn(
-                tableName,
-                columnName,
-                buildColumnDefinition(attribute)
-            );
+            await queryInterface.addColumn(tableName, columnName, buildColumnDefinition(attribute));
             missingColumns.push(columnName);
         }
 

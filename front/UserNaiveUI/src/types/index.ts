@@ -65,6 +65,7 @@ export interface UserRegisterData {
     student_id: string;
     username: string;
     email: string;
+    verification_code: string;
     password: string;
     phone?: string;
     real_name?: string;

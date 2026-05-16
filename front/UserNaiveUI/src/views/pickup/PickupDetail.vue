@@ -113,7 +113,11 @@
                                     </div>
                                 </div>
                                 <div
-                                    v-if="isPublisher && counterpartName !== '暂未接单' && counterpartPhone"
+                                    v-if="
+                                        isPublisher &&
+                                        counterpartName !== '暂未接单' &&
+                                        counterpartPhone
+                                    "
                                     class="detail-kv detail-kv--contact-action"
                                 >
                                     <label>{{ counterpartLabel }}电话</label>
@@ -268,44 +272,66 @@
                                 </div>
                                 <div v-if="order.payment_status" class="detail-kv">
                                     <label>支付状态</label>
-                                    <strong>{{ getPaymentStatusLabel(order.payment_status) }}</strong>
+                                    <strong>
+                                        {{ getPaymentStatusLabel(order.payment_status) }}
+                                    </strong>
                                 </div>
                                 <div v-if="order.settlement_status" class="detail-kv">
                                     <label>结算状态</label>
-                                    <strong>{{ getSettlementStatusLabel(order.settlement_status) }}</strong>
+                                    <strong>
+                                        {{ getSettlementStatusLabel(order.settlement_status) }}
+                                    </strong>
                                 </div>
                                 <div
-                                    v-if="order.damage_claim_status && order.damage_claim_status !== 'none'"
+                                    v-if="
+                                        order.damage_claim_status &&
+                                        order.damage_claim_status !== 'none'
+                                    "
                                     class="detail-kv"
                                 >
                                     <label>赔付状态</label>
-                                    <strong>{{ getDamageClaimStatusLabel(order.damage_claim_status) }}</strong>
+                                    <strong>
+                                        {{ getDamageClaimStatusLabel(order.damage_claim_status) }}
+                                    </strong>
                                 </div>
                                 <div v-if="Number(order.refund_amount || 0) > 0" class="detail-kv">
                                     <label>已退款</label>
-                                    <strong>¥{{ Number(order.refund_amount || 0).toFixed(2) }}</strong>
+                                    <strong>
+                                        ¥{{ Number(order.refund_amount || 0).toFixed(2) }}
+                                    </strong>
                                 </div>
                                 <div
                                     v-if="Number(order.compensation_amount || 0) > 0"
                                     class="detail-kv"
                                 >
                                     <label>赔付金额</label>
-                                    <strong>¥{{ Number(order.compensation_amount || 0).toFixed(2) }}</strong>
+                                    <strong>
+                                        ¥{{ Number(order.compensation_amount || 0).toFixed(2) }}
+                                    </strong>
                                 </div>
                                 <div
                                     v-if="Number(order.deliverer_frozen_amount || 0) > 0"
                                     class="detail-kv"
                                 >
                                     <label>待结算冻结</label>
-                                    <strong>¥{{ Number(order.deliverer_frozen_amount || 0).toFixed(2) }}</strong>
+                                    <strong>
+                                        ¥{{ Number(order.deliverer_frozen_amount || 0).toFixed(2) }}
+                                    </strong>
                                 </div>
                                 <div v-if="order.settlement_hold_until" class="detail-kv">
                                     <label>担保截止</label>
-                                    <strong>{{ formatDateTime(order.settlement_hold_until) }}</strong>
+                                    <strong>
+                                        {{ formatDateTime(order.settlement_hold_until) }}
+                                    </strong>
                                 </div>
-                                <div v-if="order.settlement_note" class="detail-kv detail-kv--stack">
+                                <div
+                                    v-if="order.settlement_note"
+                                    class="detail-kv detail-kv--stack"
+                                >
                                     <label>处理备注</label>
-                                    <strong class="detail-review-text">{{ order.settlement_note }}</strong>
+                                    <strong class="detail-review-text">
+                                        {{ order.settlement_note }}
+                                    </strong>
                                 </div>
                             </article>
                         </div>
@@ -807,7 +833,9 @@ const adjustedPrice = ref<number | null>(null);
 const adjustPricePassword = ref('');
 const submittingServiceTicket = ref(false);
 const serviceTicketDescription = ref('');
-const serviceTicketMode = ref<'complaint' | 'refund' | 'dispute' | 'suggestion' | 'other'>('complaint');
+const serviceTicketMode = ref<'complaint' | 'refund' | 'dispute' | 'suggestion' | 'other'>(
+    'complaint'
+);
 const serviceTicketTypeOptions = [
     { label: '投诉', value: 'complaint' },
     { label: '退款', value: 'refund' },
@@ -817,9 +845,11 @@ const serviceTicketTypeOptions = [
 ] as const;
 const currentServiceTicketHint = computed(() => {
     const map = {
-        complaint: '如果存在服务态度、配送异常、超时等投诉问题，可提交投诉工单，由客服介入并视情况赔偿。',
+        complaint:
+            '如果存在服务态度、配送异常、超时等投诉问题，可提交投诉工单，由客服介入并视情况赔偿。',
         refund: '如果订单未正常履约、配送异常或需要退回款项，可以提交退款申请，由客服介入处理。',
-        dispute: '如果出现物品损坏、丢失或需要平台先行赔付的情况，可以提交损坏赔付申请，由客服介入处理。',
+        dispute:
+            '如果出现物品损坏、丢失或需要平台先行赔付的情况，可以提交损坏赔付申请，由客服介入处理。',
         suggestion: '如果你对平台、配送流程或功能体验有改进建议，可以提交建议工单。',
         other: '其他无法归类的问题，也可以通过工单提交给客服处理。',
     } as const;

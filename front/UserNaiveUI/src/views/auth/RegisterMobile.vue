@@ -123,6 +123,45 @@
                     </div>
                     <div v-if="errors.email" class="auth-error">{{ errors.email }}</div>
                 </div>
+
+                <div class="auth-field">
+                    <label class="auth-label" for="verification-code">邮箱验证码</label>
+                    <div
+                        class="auth-input-wrap auth-input-wrap--verify"
+                        :class="{ 'has-error': !!errors.verification_code }"
+                    >
+                        <span class="auth-input-icon">
+                            <NIcon :size="18"><ShieldCheckmarkOutline /></NIcon>
+                        </span>
+                        <input
+                            id="verification-code"
+                            v-model="formData.verification_code"
+                            class="auth-input"
+                            type="text"
+                            inputmode="numeric"
+                            maxlength="6"
+                            placeholder="请输入邮箱验证码"
+                            @blur="validateField('verification_code')"
+                        />
+                        <button
+                            type="button"
+                            class="auth-verify-btn"
+                            :disabled="isSendingCode || sendCodeCountdown > 0"
+                            @click="handleSendVerificationCode"
+                        >
+                            {{
+                                isSendingCode
+                                    ? '发送中...'
+                                    : sendCodeCountdown > 0
+                                      ? `${sendCodeCountdown}s`
+                                      : '发送验证码'
+                            }}
+                        </button>
+                    </div>
+                    <div v-if="errors.verification_code" class="auth-error">
+                        {{ errors.verification_code }}
+                    </div>
+                </div>
             </section>
 
             <section class="auth-card">
@@ -327,9 +366,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { NDropdown, NIcon } from 'naive-ui';
+import { NDropdown, NIcon, useMessage } from 'naive-ui';
 import {
     BookOutline,
     BusinessOutline,
@@ -348,16 +387,21 @@ import {
     ShieldCheckmarkOutline,
 } from '@vicons/ionicons5';
 import { useUserStore } from '@/stores';
+import { AuthApi } from '@/api';
 import type { UserRegisterData } from '@/types';
 
 const router = useRouter();
 const userStore = useUserStore();
+const message = useMessage();
 
 const isLoading = ref(false);
+const isSendingCode = ref(false);
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 const collegeDropdownVisible = ref(false);
 const gradeDropdownVisible = ref(false);
+const sendCodeCountdown = ref(0);
+let sendCodeTimer: ReturnType<typeof setInterval> | null = null;
 
 const collegeOptions = [
     { label: '计算机学院', key: '计算机学院' },
@@ -379,6 +423,7 @@ const formData = reactive({
     username: '',
     real_name: '',
     email: '',
+    verification_code: '',
     phone: '',
     college: '',
     major: '',
@@ -393,6 +438,7 @@ const errors = reactive<Record<string, string>>({
     username: '',
     real_name: '',
     email: '',
+    verification_code: '',
     phone: '',
     college: '',
     major: '',
@@ -408,6 +454,7 @@ const isFormValid = computed(() => {
         formData.username &&
         formData.real_name &&
         formData.email &&
+        formData.verification_code &&
         formData.college &&
         formData.major &&
         formData.grade &&
@@ -433,6 +480,11 @@ const validateField = (field: string) => {
             errors.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())
                 ? ''
                 : '请输入正确邮箱';
+            break;
+        case 'verification_code':
+            errors.verification_code = /^\d{6}$/.test(formData.verification_code.trim())
+                ? ''
+                : '请输入6位验证码';
             break;
         case 'phone':
             errors.phone =
@@ -480,12 +532,58 @@ const goBack = () => {
     router.push('/');
 };
 
+const stopSendCodeTimer = () => {
+    if (sendCodeTimer) {
+        clearInterval(sendCodeTimer);
+        sendCodeTimer = null;
+    }
+};
+
+const startSendCodeCountdown = (seconds: number) => {
+    stopSendCodeTimer();
+    sendCodeCountdown.value = seconds;
+
+    sendCodeTimer = setInterval(() => {
+        if (sendCodeCountdown.value <= 1) {
+            sendCodeCountdown.value = 0;
+            stopSendCodeTimer();
+            return;
+        }
+
+        sendCodeCountdown.value -= 1;
+    }, 1000);
+};
+
+const handleSendVerificationCode = async () => {
+    validateField('email');
+    if (errors.email) {
+        return;
+    }
+
+    isSendingCode.value = true;
+    try {
+        const response = await AuthApi.sendVerificationCode({
+            type: 'email',
+            target: formData.email.trim(),
+        });
+        startSendCodeCountdown(response.data?.cooldown || 60);
+        message.success(response.message || '验证码已发送，请查收邮箱');
+    } catch (error: any) {
+        const responseMessage =
+            error?.response?.data?.message || error?.message || '验证码发送失败，请稍后重试';
+        message.error(responseMessage);
+    } finally {
+        isSendingCode.value = false;
+    }
+};
+
 const handleRegister = async () => {
     [
         'student_id',
         'username',
         'real_name',
         'email',
+        'verification_code',
         'phone',
         'college',
         'major',
@@ -507,6 +605,7 @@ const handleRegister = async () => {
             username: formData.username.trim(),
             real_name: formData.real_name.trim(),
             email: formData.email.trim(),
+            verification_code: formData.verification_code.trim(),
             phone: formData.phone.trim() || undefined,
             college: formData.college,
             major: formData.major.trim(),
@@ -525,6 +624,10 @@ const handleRegister = async () => {
         isLoading.value = false;
     }
 };
+
+onBeforeUnmount(() => {
+    stopSendCodeTimer();
+});
 </script>
 
 <style scoped>
@@ -575,5 +678,31 @@ const handleRegister = async () => {
 
 .auth-dropdown-value.is-placeholder {
     color: #94a1b4;
+}
+
+.auth-input-wrap--verify {
+    gap: 8px;
+}
+
+.auth-verify-btn {
+    border: 0;
+    border-radius: 12px;
+    background: #2f6bff;
+    color: #fff;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        opacity 0.2s ease,
+        transform 0.2s ease;
+}
+
+.auth-verify-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
 }
 </style>

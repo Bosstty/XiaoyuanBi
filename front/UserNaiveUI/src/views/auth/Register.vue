@@ -63,6 +63,31 @@
                     </NGi>
 
                     <NGi>
+                        <NFormItem label="邮箱验证码" path="verification_code">
+                            <div class="verify-code-row">
+                                <NInput
+                                    v-model:value="formData.verification_code"
+                                    placeholder="请输入6位验证码"
+                                    maxlength="6"
+                                />
+                                <NButton
+                                    type="primary"
+                                    ghost
+                                    :loading="isSendingCode"
+                                    :disabled="sendCodeCountdown > 0"
+                                    @click="handleSendVerificationCode"
+                                >
+                                    {{
+                                        sendCodeCountdown > 0
+                                            ? `${sendCodeCountdown}s 后重试`
+                                            : '发送验证码'
+                                    }}
+                                </NButton>
+                            </div>
+                        </NFormItem>
+                    </NGi>
+
+                    <NGi>
                         <NFormItem label="手机号" path="phone">
                             <NInput
                                 v-model:value="formData.phone"
@@ -242,7 +267,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import {
     NCard,
@@ -262,6 +287,7 @@ import {
 } from 'naive-ui';
 import { SchoolOutline as SchoolIcon } from '@vicons/ionicons5';
 import { useUserStore } from '@/stores';
+import { AuthApi } from '@/api';
 import type { UserRegisterData } from '@/types';
 
 const router = useRouter();
@@ -271,12 +297,16 @@ const userStore = useUserStore();
 const formRef = ref<FormInst | null>(null);
 const showTermsModal = ref(false);
 const showPrivacyModal = ref(false);
+const isSendingCode = ref(false);
+const sendCodeCountdown = ref(0);
+let sendCodeTimer: ReturnType<typeof setInterval> | null = null;
 
 // 表单数据
 const formData = reactive<UserRegisterData & { confirmPassword: string; agreeToTerms: boolean }>({
     student_id: '',
     username: '',
     email: '',
+    verification_code: '',
     password: '',
     confirmPassword: '',
     phone: '',
@@ -372,6 +402,18 @@ const rules: FormRules = {
             trigger: ['input', 'blur'],
         },
     ],
+    verification_code: [
+        {
+            required: true,
+            message: '请输入邮箱验证码',
+            trigger: ['input', 'blur'],
+        },
+        {
+            pattern: /^\d{6}$/,
+            message: '验证码必须为6位数字',
+            trigger: ['input', 'blur'],
+        },
+    ],
     phone: [
         {
             pattern: /^1[3-9]\d{9}$/,
@@ -443,6 +485,61 @@ const rules: FormRules = {
     ],
 };
 
+const stopSendCodeTimer = () => {
+    if (sendCodeTimer) {
+        clearInterval(sendCodeTimer);
+        sendCodeTimer = null;
+    }
+};
+
+const startSendCodeCountdown = (seconds: number) => {
+    stopSendCodeTimer();
+    sendCodeCountdown.value = seconds;
+
+    sendCodeTimer = setInterval(() => {
+        if (sendCodeCountdown.value <= 1) {
+            sendCodeCountdown.value = 0;
+            stopSendCodeTimer();
+            return;
+        }
+
+        sendCodeCountdown.value -= 1;
+    }, 1000);
+};
+
+const handleSendVerificationCode = async () => {
+    const email = formData.email.trim();
+    if (!email) {
+        message.error('请输入邮箱地址');
+        return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        message.error('请输入正确的邮箱格式');
+        return;
+    }
+
+    try {
+        isSendingCode.value = true;
+
+        const response = await AuthApi.sendVerificationCode({
+            type: 'email',
+            target: email,
+        });
+
+        startSendCodeCountdown(response.data?.cooldown || 60);
+        message.success(response.message || '验证码已发送，请查收邮箱');
+    } catch (error: any) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else if (error?.message) {
+            message.error(error.message);
+        }
+    } finally {
+        isSendingCode.value = false;
+    }
+};
+
 // 注册处理
 const handleRegister = async () => {
     try {
@@ -458,6 +555,7 @@ const handleRegister = async () => {
             student_id: formData.student_id,
             username: formData.username,
             email: formData.email,
+            verification_code: formData.verification_code,
             password: formData.password,
             phone: formData.phone || undefined,
             real_name: formData.real_name,
@@ -486,6 +584,10 @@ const handleRegister = async () => {
         }
     }
 };
+
+onBeforeUnmount(() => {
+    stopSendCodeTimer();
+});
 </script>
 
 <style scoped>
@@ -531,6 +633,16 @@ const handleRegister = async () => {
 .register-footer p {
     color: var(--text-color-3);
     font-size: 14px;
+}
+
+.verify-code-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.verify-code-row .n-input {
+    flex: 1;
 }
 
 .terms-content,

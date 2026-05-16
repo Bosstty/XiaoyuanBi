@@ -18,7 +18,7 @@ const {
     AuditLog,
 } = require('../../models');
 
-// 为空表生成示例数据，避免重复插入
+// 为空表生成数据，避免重复插入
 async function seedAdmins() {
     console.log('检查管理员数据...');
     const adminExists = await Admin.findOne({ where: { username: 'admin' } });
@@ -26,27 +26,13 @@ async function seedAdmins() {
         await Admin.create({
             username: 'admin',
             email: 'admin@campus.com',
-            password: 'admin123456',
+            password: '123456',
             name: '超级管理员',
             role: 'super_admin',
             permissions: ['all'],
             status: 'active',
         });
-        console.log('  创建默认超级管理员 admin');
-    }
-
-    const moderatorExists = await Admin.findOne({ where: { username: 'moderator' } });
-    if (!moderatorExists) {
-        await Admin.create({
-            username: 'moderator',
-            email: 'moderator@campus.com',
-            password: 'mod123456',
-            name: '版主',
-            role: 'moderator',
-            permissions: ['forum_manage', 'user_manage'],
-            status: 'active',
-        });
-        console.log('  创建默认版主 moderator');
+        console.log(' 创建默认超级管理员 admin');
     }
 }
 
