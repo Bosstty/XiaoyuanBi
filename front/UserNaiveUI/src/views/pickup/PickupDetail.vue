@@ -499,7 +499,14 @@
             </div>
         </main>
 
-        <MobileModal v-model:show="showRatingModal" title="评价订单" @confirm="submitRating">
+        <MobileModal
+            v-model:show="showRatingModal"
+            title="评价订单"
+            show-footer
+            confirm-text="提交评价"
+            :loading="submittingRating"
+            @confirm="submitRating"
+        >
             <div class="rating-form">
                 <div class="rating-stars">
                     <button
@@ -819,6 +826,7 @@ const delivererAction = ref<null | 'accept' | 'startPickup' | 'confirmPickup' | 
     null
 );
 const showRatingModal = ref(false);
+const submittingRating = ref(false);
 const showAdjustPriceModal = ref(false);
 const showServiceTicketModal = ref(false);
 const showProofSourceModal = ref(false);
@@ -1769,6 +1777,7 @@ const submitServiceTicket = async () => {
 
 const submitRating = async () => {
     if (!order.value) return;
+    submittingRating.value = true;
     try {
         const response = await PickupApi.rateOrder(order.value.id, {
             rating: rating.value,
@@ -1784,6 +1793,8 @@ const submitRating = async () => {
         message.success('评价成功');
     } catch (error: any) {
         message.error(error?.message || '评价失败');
+    } finally {
+        submittingRating.value = false;
     }
 };
 
