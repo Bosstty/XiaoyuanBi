@@ -163,15 +163,22 @@ class AdminAuthController {
         try {
             const admin = req.user;
             const directPermissions = Array.isArray(admin.permissions) ? admin.permissions : [];
+            const systemPermissions = ['system:manage', 'audit:read', 'analytics:read'];
 
             const permissions = {
                 role: admin.role,
                 permissions: directPermissions,
                 can_manage_users: directPermissions.includes('all') || directPermissions.includes('user:admin_read'),
                 can_manage_orders: directPermissions.includes('all') || directPermissions.includes('order:admin'),
-                can_manage_system: directPermissions.includes('all') || directPermissions.includes('system:manage'),
-                can_view_analytics: directPermissions.includes('all') || directPermissions.includes('analytics:read'),
-                can_manage_finance: directPermissions.includes('all') || directPermissions.includes('analytics:read'),
+                can_manage_system:
+                    directPermissions.includes('all') ||
+                    systemPermissions.some(permission => directPermissions.includes(permission)),
+                can_view_audit:
+                    directPermissions.includes('all') || directPermissions.includes('audit:read'),
+                can_view_analytics:
+                    directPermissions.includes('all') || directPermissions.includes('analytics:read'),
+                can_manage_finance:
+                    directPermissions.includes('all') || directPermissions.includes('analytics:read'),
             };
 
             res.json(responseUtils.success(permissions, '获取权限信息成功'));

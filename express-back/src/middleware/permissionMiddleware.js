@@ -490,13 +490,20 @@ class PermissionMiddleware {
                     group: 'system',
                 },
 
-                // 数据分析权限
+                // 系统权限
+                {
+                    name: '查看审计日志',
+                    code: 'audit:read',
+                    resource: 'audit',
+                    action: 'read',
+                    group: 'system',
+                },
                 {
                     name: '查看数据分析',
                     code: 'analytics:read',
                     resource: 'analytics',
                     action: 'read',
-                    group: 'analytics',
+                    group: 'system',
                 },
             ];
 

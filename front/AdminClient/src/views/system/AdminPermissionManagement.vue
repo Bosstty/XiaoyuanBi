@@ -3,7 +3,7 @@
     <div class="page-header">
       <div class="page-header-left">
         <h1 class="page-title">管理员权限</h1>
-        <p class="page-subtitle">由 super_admin 统一配置管理员账号、角色与审核权限</p>
+        <p class="page-subtitle">由 super_admin 统一配置管理员账号、角色与后台权限</p>
       </div>
       <el-button type="primary" @click="openCreateDialog">新增管理员</el-button>
     </div>
@@ -25,9 +25,9 @@
         <p>至少拥有 1 项审核权限</p>
       </article>
       <article class="stat-card">
-        <span>系统管理</span>
+        <span>系统权限</span>
         <strong>{{ systemAdminCount }}</strong>
-        <p>拥有系统配置或全局权限</p>
+        <p>拥有系统管理、审计日志或数据分析权限</p>
       </article>
     </section>
 
@@ -117,7 +117,7 @@
           </el-form-item>
         </div>
 
-        <el-form-item label="审核与系统权限">
+        <el-form-item label="审核、业务与系统权限">
           <el-collapse v-model="dialog.expandedGroups" class="permission-collapse">
             <el-collapse-item
               v-for="group in permissionGroups"
@@ -183,6 +183,7 @@ const permissionOptions = [
   { value: 'deliverer:admin', label: '配送员管理' },
   { value: 'user:admin_read', label: '用户管理' },
   { value: 'system:manage', label: '系统管理' },
+  { value: 'audit:read', label: '审计日志查看' },
   { value: 'analytics:read', label: '数据分析查看' },
 ]
 const permissionLabelMap = Object.fromEntries(permissionOptions.map((item) => [item.value, item.label]))
@@ -201,9 +202,11 @@ const permissionGroups = [
     ),
   },
   {
-    key: 'platform',
-    title: '平台与分析权限',
-    items: permissionOptions.filter((item) => ['system:manage', 'analytics:read'].includes(item.value)),
+    key: 'system',
+    title: '系统权限',
+    items: permissionOptions.filter((item) =>
+      ['system:manage', 'audit:read', 'analytics:read'].includes(item.value),
+    ),
   },
 ]
 const permissionGroupMap = Object.fromEntries(
@@ -235,7 +238,9 @@ const systemAdminCount = computed(() =>
   admins.value.filter(
     (item) =>
       item.role === 'super_admin' ||
-      normalizePermissions(item.permissions).includes('system:manage'),
+      normalizePermissions(item.permissions).some((permission) =>
+        ['system:manage', 'audit:read', 'analytics:read'].includes(permission),
+      ),
   ).length,
 )
 
