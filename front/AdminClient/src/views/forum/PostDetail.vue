@@ -387,15 +387,16 @@ const submitModerate = async () => {
 
   moderateDialog.loading = true
   try {
-    const response = await forumManagementApi.moderatePost(post.value.id, {
-      action: moderateDialog.form.action,
-      reason: moderateDialog.form.reason,
-    })
+    const { action, reason } = moderateDialog.form
+    const response =
+      action === 'delete'
+        ? await forumManagementApi.deletePost(post.value.id, reason)
+        : await forumManagementApi.moderatePost(post.value.id, action, reason)
 
     if (response.success) {
       ElMessage.success('操作成功')
       moderateDialog.visible = false
-      if (moderateDialog.form.action === 'delete') {
+      if (action === 'delete') {
         router.push('/forum')
       } else {
         fetchPostDetail()
