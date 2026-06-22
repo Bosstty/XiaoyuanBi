@@ -48,6 +48,73 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+function formatInlineMarkdown(value) {
+    const escaped = escapeHtml(value);
+    return escaped
+        .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#111827;font-weight:700;">$1</strong>')
+        .replace(/`([^`]+)`/g, '<code style="padding:1px 6px;border-radius:6px;background:#f3f4f6;color:#111827;font-size:12px;">$1</code>');
+}
+
+function isMarkdownTableRow(line) {
+    const normalized = String(line || '').trim();
+    return normalized.startsWith('|') && normalized.endsWith('|');
+}
+
+function isMarkdownTableDivider(line) {
+    const normalized = String(line || '')
+        .trim()
+        .replace(/\s/g, '');
+    return /^\|(?:-+\|)+$/.test(normalized);
+}
+
+function parseMarkdownTableCells(line) {
+    return String(line || '')
+        .trim()
+        .slice(1, -1)
+        .split('|')
+        .map(cell => cell.trim());
+}
+
+function buildMarkdownTableHtml(tableLines = []) {
+    if (tableLines.length < 2) return '';
+
+    const [headerLine, dividerLine, ...bodyLines] = tableLines;
+    if (!isMarkdownTableRow(headerLine) || !isMarkdownTableDivider(dividerLine)) {
+        return '';
+    }
+
+    const headers = parseMarkdownTableCells(headerLine);
+    const rows = bodyLines.filter(isMarkdownTableRow).map(parseMarkdownTableCells);
+
+    const thead = `<tr>${headers
+        .map(
+            header =>
+                `<th style="padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;text-align:left;font-size:13px;font-weight:700;color:#374151;">${formatInlineMarkdown(header)}</th>`
+        )
+        .join('')}</tr>`;
+
+    const tbody = rows
+        .map(
+            row =>
+                `<tr>${row
+                    .map(
+                        cell =>
+                            `<td style="padding:10px 12px;border:1px solid #e5e7eb;font-size:14px;color:#374151;vertical-align:top;">${formatInlineMarkdown(cell)}</td>`
+                    )
+                    .join('')}</tr>`
+        )
+        .join('');
+
+    return `
+        <div style="margin:12px 0 18px;overflow:hidden;border:1px solid #e5e7eb;border-radius:12px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+                <thead>${thead}</thead>
+                <tbody>${tbody}</tbody>
+            </table>
+        </div>
+    `;
+}
+
 const MAIL_BRAND_NAME = '校园服务平台';
 
 function buildEmailLayout({ eyebrow, title, intro, body, footerNote }) {
@@ -248,6 +315,112 @@ function buildSecurityNoticeEmail({ title, intro, details = [], footerNote }) {
     });
 }
 
+function markdownToSimpleHtml(markdown) {
+    return String(markdown || '')
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => {
+            if (line.startsWith('## ')) {
+                return `<h3 style="margin:18px 0 10px;font-size:17px;color:#111827;">${formatInlineMarkdown(line.slice(3))}</h3>`;
+            }
+            if (line.startsWith('### ')) {
+                return `<h4 style="margin:14px 0 8px;font-size:15px;color:#374151;">${formatInlineMarkdown(line.slice(4))}</h4>`;
+            }
+            if (line.startsWith('- ')) {
+                return `<li style="margin:8px 0;">${formatInlineMarkdown(line.slice(2))}</li>`;
+            }
+            return `<p style="margin:10px 0;color:#374151;line-height:1.9;">${formatInlineMarkdown(line)}</p>`;
+        })
+        .join('');
+}
+
+function buildAiAnalysisEmail({ title, intro, summaryMarkdown, footerNote }) {
+    const rawLines = String(summaryMarkdown || '')
+        .split(/\r?\n/)
+        .map(line => line.trim());
+    const htmlBlocks = [];
+    let listBuffer = [];
+    let tableBuffer = [];
+
+    const flushList = () => {
+        if (!listBuffer.length) return;
+        htmlBlocks.push(
+            `<ul style="margin:8px 0 18px 20px;padding:0 0 0 4px;color:#374151;line-height:1.9;">${listBuffer.join('')}</ul>`
+        );
+        listBuffer = [];
+    };
+
+    const flushTable = () => {
+        if (!tableBuffer.length) return;
+        const tableHtml = buildMarkdownTableHtml(tableBuffer);
+        if (tableHtml) {
+            htmlBlocks.push(tableHtml);
+        } else {
+            htmlBlocks.push(
+                ...tableBuffer.map(line => `<p style="margin:10px 0;color:#374151;line-height:1.9;">${formatInlineMarkdown(line)}</p>`)
+            );
+        }
+        tableBuffer = [];
+    };
+
+    for (const line of rawLines) {
+        if (!line) {
+            flushList();
+            flushTable();
+            continue;
+        }
+
+        if (isMarkdownTableRow(line) || (tableBuffer.length && isMarkdownTableDivider(line))) {
+            flushList();
+            tableBuffer.push(line);
+            continue;
+        }
+
+        if (line.startsWith('- ')) {
+            flushTable();
+            listBuffer.push(`<li style="margin:8px 0;">${formatInlineMarkdown(line.slice(2))}</li>`);
+            continue;
+        }
+
+        flushList();
+        flushTable();
+
+        if (line.startsWith('## ')) {
+            htmlBlocks.push(
+                `<div style="margin:22px 0 10px;padding-top:18px;border-top:1px solid #e5e7eb;">
+                    <h3 style="margin:0;font-size:18px;color:#111827;">${formatInlineMarkdown(line.slice(3))}</h3>
+                </div>`
+            );
+            continue;
+        }
+
+        if (line.startsWith('### ')) {
+            htmlBlocks.push(
+                `<h4 style="margin:14px 0 8px;font-size:15px;color:#374151;">${formatInlineMarkdown(line.slice(4))}</h4>`
+            );
+            continue;
+        }
+
+        htmlBlocks.push(
+            `<p style="margin:10px 0;color:#374151;line-height:1.9;">${formatInlineMarkdown(line)}</p>`
+        );
+    }
+
+    flushList();
+    flushTable();
+
+    return buildEmailLayout({
+        eyebrow: 'AI Analysis Report',
+        title,
+        intro,
+        body: htmlBlocks.join('') || markdownToSimpleHtml(summaryMarkdown),
+        footerNote:
+            footerNote ||
+            '该分析内容由 AI 基于当前平台数据生成，请以平台实时数据与业务页面展示为准。',
+    });
+}
+
 async function sendVerifyCode(email) {
     const normalizedEmail = normalizeEmail(email);
     const cooldownKey = getCooldownKey(normalizedEmail);
@@ -368,6 +541,35 @@ async function sendAdminActionNotice(
     return true;
 }
 
+async function sendAiAnalysisReport(
+    email,
+    { subject, title, intro, summaryMarkdown, text, footerNote }
+) {
+    const normalizedEmail = normalizeEmail(email);
+    const from = process.env.MAIL_FROM || process.env.MAIL_USER;
+
+    if (!normalizedEmail || !from) {
+        return false;
+    }
+
+    await transporter.sendMail({
+        from,
+        to: normalizedEmail,
+        subject,
+        text:
+            text ||
+            `${title}\n${intro}\n\n${String(summaryMarkdown || '').replace(/[*#`>|]/g, '')}\n\n请以平台实时数据为准。`,
+        html: buildAiAnalysisEmail({
+            title,
+            intro,
+            summaryMarkdown,
+            footerNote,
+        }),
+    });
+
+    return true;
+}
+
 module.exports = {
     sendVerifyCode,
     verifyCode,
@@ -375,4 +577,5 @@ module.exports = {
     buildResetPasswordEmail,
     sendSecurityNotice,
     sendAdminActionNotice,
+    sendAiAnalysisReport,
 };

@@ -1,5 +1,13 @@
 const { Op } = require('sequelize');
-const { Wallet, Transaction, Deliverer, PickupOrder, Task, User, DelivererDebt } = require('@/models');
+const {
+    Wallet,
+    Transaction,
+    Deliverer,
+    PickupOrder,
+    Task,
+    User,
+    DelivererDebt,
+} = require('@/models');
 const { responseUtils, paginationUtils, timeUtils, cryptoUtils, requestUtils } = require('@/utils');
 const DebtSettlementService = require('@/services/DebtSettlementService');
 const emailService = require('../../../services/emailService');
@@ -72,10 +80,7 @@ async function getWalletDebtSnapshot(userId, wallet) {
         attributes: ['remaining_amount'],
     });
 
-    const debtAmount = debtRows.reduce(
-        (sum, debt) => sum + parseAmount(debt.remaining_amount),
-        0
-    );
+    const debtAmount = debtRows.reduce((sum, debt) => sum + parseAmount(debt.remaining_amount), 0);
     const availableBalance = parseAmount(wallet.balance);
     const displayBalance = Number((availableBalance - debtAmount).toFixed(2));
 
@@ -945,7 +950,9 @@ class WalletController {
             const clientIp = requestUtils.getClientIp(req);
 
             if (!req.user.email || !req.user.email_verified) {
-                return res.status(400).json(responseUtils.error('请先完成邮箱验证后再设置或修改支付密码'));
+                return res
+                    .status(400)
+                    .json(responseUtils.error('请先完成邮箱验证后再设置或修改支付密码'));
             }
 
             if (!/^\d{6}$/.test(String(payment_password || ''))) {
@@ -984,7 +991,8 @@ class WalletController {
                         { label: 'IP 地址', value: clientIp || '未知' },
                         { label: '设备信息', value: req.get('User-Agent') || '未知设备' },
                     ],
-                    footerNote: '支付密码将用于余额支付、订单冻结和提现校验。如非本人操作，请立即修改登录密码并联系平台。',
+                    footerNote:
+                        '支付密码将用于余额支付、订单冻结和提现校验。如非本人操作，请立即修改登录密码并联系平台。',
                 });
             } catch (mailError) {
                 console.error('发送支付密码变更通知邮件失败:', mailError);

@@ -218,10 +218,20 @@
                 <p>开启后你可以在订单中心和抢单大厅查看并接收新的代取订单。</p>
             </div>
             <div class="order-center__online-modal-actions">
-                <NButton quaternary round :disabled="statusSubmitting" @click="onlinePromptVisible = false">
+                <NButton
+                    quaternary
+                    round
+                    :disabled="statusSubmitting"
+                    @click="onlinePromptVisible = false"
+                >
                     暂不开启
                 </NButton>
-                <NButton type="primary" round :loading="statusSubmitting" @click="confirmEnableOnline">
+                <NButton
+                    type="primary"
+                    round
+                    :loading="statusSubmitting"
+                    @click="confirmEnableOnline"
+                >
                     立即开启
                 </NButton>
             </div>

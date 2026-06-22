@@ -610,7 +610,7 @@ const go = (route: string) => {
 
 .campus-home__shortcut-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
     gap: 12px;
 }
 

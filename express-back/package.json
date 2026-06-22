@@ -21,6 +21,8 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "@langchain/core": "^0.3.80",
+        "@langchain/openai": "^0.6.17",
         "bcryptjs": "^3.0.2",
         "cors": "^2.8.5",
         "dotenv": "^17.2.2",
@@ -38,7 +40,9 @@
         "socket.io": "^4.8.1",
         "swagger-jsdoc": "^6.2.8",
         "swagger-ui-express": "^5.0.1",
-        "winston": "^3.17.0"
+        "undici": "^7.28.0",
+        "winston": "^3.17.0",
+        "zod": "^3.25.76"
     },
     "devDependencies": {
         "nodemon": "^3.1.10"

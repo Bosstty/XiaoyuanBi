@@ -40,7 +40,11 @@ const DEFAULT_REJECT_WORDS = [
 function parseWordList(value, fallback) {
     if (Array.isArray(value)) {
         const normalized = value
-            .map(item => String(item || '').trim().toLowerCase())
+            .map(item =>
+                String(item || '')
+                    .trim()
+                    .toLowerCase()
+            )
             .filter(Boolean);
         return normalized.length ? normalized : fallback;
     }

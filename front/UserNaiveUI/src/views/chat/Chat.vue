@@ -3,7 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import type { Socket } from 'socket.io-client';
-import { chatApi } from '@/api';
+import MarkdownIt from 'markdown-it';
+import { assistantApi, chatApi } from '@/api';
 import { useAppStore, useUserStore } from '@/stores';
 import { resolveAssetUrl } from '@/utils/apiBase';
 import { createChatSocket } from '@/utils/chatSocket';
@@ -20,8 +21,8 @@ const messages = ref<any[]>([]);
 const messageInput = ref('');
 const loading = ref(false);
 const sending = ref(false);
-const bootstrapping = ref(false);
 const uploading = ref(false);
+const aiStatusText = ref('');
 const showActionPanel = ref(false);
 const conversationOpenedFromList = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
@@ -31,13 +32,98 @@ const pinchStartDistance = ref(0);
 const pinchStartScale = ref(1);
 const socket = ref<Socket | null>(null);
 const joinedConversationId = ref<number | null>(null);
+const AI_CONVERSATION_ID = 'ai-assistant';
+const AI_STORAGE_KEY = 'ai-assistant-session';
+const AI_WELCOME_MESSAGE = '你好，我是智能助手。你可以直接问我订单、任务、钱包概况，或者做一些平台数据分析。';
+const markdown = new MarkdownIt({
+    html: false,
+    linkify: true,
+    breaks: true,
+});
 let handleSocketConnect: (() => void) | null = null;
 let handleSocketMessageNew: ((payload: any) => void) | null = null;
 let handleSocketConversationUpdated: ((payload: any) => void) | null = null;
 let handleSocketMessageRead: ((payload: any) => void) | null = null;
 let handleSocketConnectError: ((error: any) => void) | null = null;
 
-const hasConversation = computed(() => conversations.value.length > 0);
+const hasConversation = computed(() => conversationItems.value.length > 0);
+const isAIConversation = computed(() => currentConversation.value?.id === AI_CONVERSATION_ID);
+
+const buildAIConversation = () => {
+    const stored = loadAIConversationSession();
+    return {
+        id: AI_CONVERSATION_ID,
+        is_ai: true,
+        unread_count: 0,
+        last_message: stored.messages[stored.messages.length - 1]?.content || AI_WELCOME_MESSAGE,
+        last_message_at: stored.updatedAt || new Date().toISOString(),
+    };
+};
+
+const aiConversation = ref(buildAIConversation());
+const conversationItems = computed(() => [aiConversation.value, ...conversations.value]);
+
+function loadAIConversationSession() {
+    try {
+        const raw = localStorage.getItem(AI_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (!parsed || !Array.isArray(parsed.messages)) {
+            throw new Error('empty');
+        }
+
+        const normalizedMessages = parsed.messages.map((item: any, index: number) => {
+            if (
+                index === 0 &&
+                item?.sender_type === 'assistant' &&
+                typeof item?.content === 'string' &&
+                (item.content.includes('我不主动透露所使用的具体模型名称') ||
+                    item.content.includes('我是哈尔滨学院校园综合服务平台的 AI 客服助手'))
+            ) {
+                return {
+                    ...item,
+                    content: AI_WELCOME_MESSAGE,
+                };
+            }
+
+            return item;
+        });
+
+        return {
+            messages: normalizedMessages,
+            updatedAt: parsed.updatedAt || null,
+        };
+    } catch (error) {
+        return {
+            updatedAt: null,
+            messages: [
+                {
+                    id: `ai-welcome`,
+                    sender_id: 0,
+                    sender_type: 'assistant',
+                    type: 'text',
+                    content: AI_WELCOME_MESSAGE,
+                    created_at: new Date().toISOString(),
+                },
+            ],
+        };
+    }
+}
+
+const persistAIConversationSession = (sessionMessages: any[]) => {
+    const updatedAt = sessionMessages[sessionMessages.length - 1]?.created_at || new Date().toISOString();
+    localStorage.setItem(
+        AI_STORAGE_KEY,
+        JSON.stringify({
+            updatedAt,
+            messages: sessionMessages,
+        })
+    );
+    aiConversation.value = {
+        ...aiConversation.value,
+        last_message: sessionMessages[sessionMessages.length - 1]?.content || AI_WELCOME_MESSAGE,
+        last_message_at: updatedAt,
+    };
+};
 
 const resolveAvatarUrl = (value?: string | null) => {
     if (!value) return '';
@@ -45,6 +131,17 @@ const resolveAvatarUrl = (value?: string | null) => {
 };
 
 const getOtherParty = (conversation: any) => {
+    if (conversation?.is_ai) {
+        return {
+            id: AI_CONVERSATION_ID,
+            name: '智能助手',
+            avatar: '',
+            role: 'AI 助手',
+            staffCode: '',
+            serviceStatus: 'online',
+        };
+    }
+
     if (conversation?.partner) {
         return {
             id: conversation.partner.id || conversation?.service?.id || null,
@@ -120,6 +217,11 @@ const formatMessageTime = (time?: string) => {
 const formatConversationPreview = (value?: string) => {
     const content = String(value || '').trim();
     if (!content) return '暂无消息';
+    const normalizedContent = content
+        .replace(/[*_`>#-]/g, ' ')
+        .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
 
     const lowerContent = content.toLowerCase();
     const isUploadPath =
@@ -131,7 +233,7 @@ const formatConversationPreview = (value?: string) => {
         return '[图片]';
     }
 
-    return content;
+    return normalizedContent || content;
 };
 
 const sortConversations = (list: any[]) =>
@@ -190,6 +292,15 @@ const isMyMessage = (msg: any) => {
 
 const isSystemMessage = (msg: any) => msg.type === 'system';
 const isImageMessage = (msg: any) => msg.type === 'image';
+const isStreamingMessage = (msg: any) => Boolean(msg?.streaming);
+const shouldRenderMarkdown = (msg: any) =>
+    !isMyMessage(msg) && !isImageMessage(msg) && !isSystemMessage(msg) && msg?.sender_type === 'assistant';
+const renderMessageHtml = (content?: string) => markdown.render(String(content || ''));
+const renderAssistantHtml = (content?: string) =>
+    renderMessageHtml(content)
+        .replace(/<hr>/g, '<div class="markdown-section-divider"></div>')
+        .replace(/<table>/g, '<div class="markdown-table-wrap"><table>')
+        .replace(/<\/table>/g, '</table></div>');
 const resolveChatImageSrc = (content?: string) => {
     if (!content) return '';
     return resolveAssetUrl(content);
@@ -342,7 +453,29 @@ const openConversationById = async (conversationId?: number | null) => {
     }
 };
 
+const openAIConversation = async () => {
+    const session = loadAIConversationSession();
+    currentConversation.value = aiConversation.value;
+    conversationOpenedFromList.value = true;
+    showActionPanel.value = false;
+    messages.value = session.messages;
+
+    if (route.query.conversationId !== AI_CONVERSATION_ID) {
+        router.replace({
+            path: '/chat',
+            query: { conversationId: AI_CONVERSATION_ID },
+        });
+    }
+
+    await scrollToBottom();
+};
+
 const selectConversation = async (conversation: any, options?: { fromList?: boolean }) => {
+    if (conversation?.is_ai) {
+        await openAIConversation();
+        return;
+    }
+
     currentConversation.value = conversation;
     conversationOpenedFromList.value = Boolean(options?.fromList);
     conversation.unread_count = 0;
@@ -392,6 +525,102 @@ const sendMessage = async () => {
     sending.value = true;
     try {
         const content = messageInput.value.trim();
+
+        if (isAIConversation.value) {
+            const streamingMessageId = `ai-streaming-${Date.now()}`;
+            const userMessage = {
+                id: `ai-user-${Date.now()}`,
+                sender_id: userStore.user?.id,
+                sender_type: 'user',
+                type: 'text',
+                content,
+                created_at: new Date().toISOString(),
+            };
+            messages.value = [...messages.value, userMessage];
+            persistAIConversationSession(messages.value);
+            messageInput.value = '';
+            await scrollToBottom();
+
+            const history: Array<{ role: 'user' | 'assistant'; content: string }> = messages.value.map(item => ({
+                role: item.sender_type === 'user' ? 'user' : 'assistant',
+                content: String(item.content || ''),
+            }));
+            const assistantMessage = {
+                id: streamingMessageId,
+                sender_id: 0,
+                sender_type: 'assistant',
+                type: 'text',
+                content: '',
+                created_at: new Date().toISOString(),
+                streaming: true,
+            };
+            messages.value = [...messages.value, assistantMessage];
+            aiStatusText.value = '正在分析中';
+            await scrollToBottom();
+
+            await assistantApi.streamChat(
+                {
+                    messages: history,
+                },
+                {
+                    onEvent: async event => {
+                        const streamEvent = event as any;
+
+                        if (event.type === 'status') {
+                            aiStatusText.value = String(streamEvent.message || '正在分析中');
+                            return;
+                        }
+
+                        if (event.type === 'tool') {
+                            aiStatusText.value = `正在${String(streamEvent.label || '查询相关信息')}...`;
+                            return;
+                        }
+
+                        if (event.type === 'reasoning') {
+                            if (!messages.value.find(item => item.id === streamingMessageId)?.content) {
+                                aiStatusText.value = '正在思考并组织答案';
+                            }
+                            return;
+                        }
+
+                        if (event.type === 'content') {
+                            messages.value = messages.value.map(item =>
+                                item.id === streamingMessageId
+                                    ? {
+                                          ...item,
+                                          content: `${item.content || ''}${String(streamEvent.content || '')}`,
+                                      }
+                                    : item
+                            );
+                            await scrollToBottom();
+                            return;
+                        }
+
+                        if (event.type === 'done') {
+                            aiStatusText.value = '';
+                            messages.value = messages.value.map(item =>
+                                item.id === streamingMessageId
+                                    ? {
+                                          ...item,
+                                          streaming: false,
+                                          content: item.content || String(streamEvent.data?.reply || ''),
+                                      }
+                                    : item
+                            );
+                            persistAIConversationSession(messages.value);
+                            await scrollToBottom();
+                            return;
+                        }
+
+                        if (event.type === 'error') {
+                            throw new Error(String(streamEvent.message || 'AI 助手流式回复失败'));
+                        }
+                    },
+                }
+            );
+            return;
+        }
+
         const res = await chatApi.sendMessage({
             conversation_id: currentConversation.value.id,
             content,
@@ -412,7 +641,21 @@ const sendMessage = async () => {
         }
     } catch (error) {
         console.error('发送消息失败:', error);
-        message.error('发送消息失败');
+        if (isAIConversation.value) {
+            aiStatusText.value = '';
+            const fallbackMessage = (error as Error)?.message || 'AI 助手请求失败';
+            messages.value = messages.value.map(item =>
+                item?.streaming
+                    ? {
+                          ...item,
+                          streaming: false,
+                          content: fallbackMessage,
+                      }
+                    : item
+            );
+            persistAIConversationSession(messages.value);
+        }
+        message.error((error as Error)?.message || '发送消息失败');
     } finally {
         sending.value = false;
     }
@@ -426,7 +669,7 @@ const toggleActionPanel = () => {
 const handleImageSelected = async (event: Event) => {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
-    if (!file || !currentConversation.value) return;
+    if (!file || !currentConversation.value || isAIConversation.value) return;
 
     uploading.value = true;
     try {
@@ -458,30 +701,6 @@ const handleImageSelected = async (event: Event) => {
     } finally {
         uploading.value = false;
         target.value = '';
-    }
-};
-
-const startServiceConversation = async () => {
-    if (bootstrapping.value) return;
-
-    bootstrapping.value = true;
-    try {
-        const res = await chatApi.createConversation({
-            type: 'user_service',
-            ticket_type: 'other',
-            initial_message: '您好，我想咨询一下。',
-        });
-
-        if (res.success && res.data) {
-            await fetchConversations();
-            await openConversationById(res.data.id);
-            message.success('已进入客服会话');
-        }
-    } catch (error) {
-        console.error('创建客服会话失败:', error);
-        message.error('打开客服会话失败');
-    } finally {
-        bootstrapping.value = false;
     }
 };
 
@@ -611,7 +830,13 @@ const disconnectChatSocket = () => {
 onMounted(async () => {
     connectChatSocket();
     await fetchConversations();
-    const conversationId = Number(route.query.conversationId || 0);
+    const queryConversationId = String(route.query.conversationId || '');
+    if (queryConversationId === AI_CONVERSATION_ID) {
+        await openAIConversation();
+        return;
+    }
+
+    const conversationId = Number(queryConversationId || 0);
     if (conversationId) {
         await openConversationById(conversationId);
     }
@@ -620,6 +845,13 @@ onMounted(async () => {
 watch(
     () => route.query.conversationId,
     async value => {
+        if (String(value || '') === AI_CONVERSATION_ID) {
+            if (!isAIConversation.value) {
+                await openAIConversation();
+            }
+            return;
+        }
+
         const conversationId = Number(value || 0);
         if (!conversationId || currentConversation.value?.id === conversationId) return;
         await openConversationById(conversationId);
@@ -636,6 +868,11 @@ watch(
         if (!value) {
             leaveConversationRoom();
             closeImagePreview();
+            return;
+        }
+
+        if (value === AI_CONVERSATION_ID) {
+            leaveConversationRoom();
             return;
         }
 
@@ -666,19 +903,19 @@ onBeforeUnmount(() => {
         <div class="conversation-list" :class="{ active: !currentConversation }">
             <div class="list-header">
                 <span>消息</span>
-                <button class="new-chat-btn" @click="startServiceConversation">联系客服</button>
+                <button class="new-chat-btn" @click="openAIConversation">智能助手</button>
             </div>
 
             <div v-if="loading" class="loading">加载中...</div>
 
             <div v-else-if="!hasConversation" class="empty">
                 <p>暂无会话</p>
-                <button @click="startServiceConversation">发起客服咨询</button>
+                <button @click="openAIConversation">打开智能助手</button>
             </div>
 
             <div v-else class="conversation-items">
                 <div
-                    v-for="conv in conversations"
+                    v-for="conv in conversationItems"
                     :key="conv.id"
                     class="conversation-item"
                     :class="{
@@ -763,7 +1000,36 @@ onBeforeUnmount(() => {
                                     @click="openImagePreview(resolveChatImageSrc(msg.content))"
                                 />
                             </div>
-                            <div v-else class="text">{{ msg.content }}</div>
+                            <div v-else class="text" :class="{ 'text--streaming': isStreamingMessage(msg) }">
+                                <div
+                                    v-if="msg.content && shouldRenderMarkdown(msg)"
+                                    class="markdown-body"
+                                    v-html="renderAssistantHtml(msg.content)"
+                                ></div>
+                                <div v-else-if="msg.content">{{ msg.content }}</div>
+                                <div
+                                    v-if="isStreamingMessage(msg) && !msg.content"
+                                    class="ai-streaming-state"
+                                >
+                                    <span>{{ aiStatusText || '正在分析中' }}</span>
+                                    <span class="ai-streaming-dots">
+                                        <i></i>
+                                        <i></i>
+                                        <i></i>
+                                    </span>
+                                </div>
+                                <div
+                                    v-else-if="isStreamingMessage(msg)"
+                                    class="ai-streaming-inline"
+                                >
+                                    <span>{{ aiStatusText || '生成中' }}</span>
+                                    <span class="ai-streaming-dots">
+                                        <i></i>
+                                        <i></i>
+                                        <i></i>
+                                    </span>
+                                </div>
+                            </div>
                             <div class="time">
                                 {{ formatMessageTime(msg.created_at || msg.createdAt) }}
                             </div>
@@ -780,7 +1046,7 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div v-if="showActionPanel" class="action-panel">
+                <div v-if="showActionPanel && !isAIConversation" class="action-panel">
                     <button type="button" class="action-card" @click="triggerImageUpload">
                         <span class="action-icon">🖼</span>
                         <span class="action-label">照片</span>
@@ -789,6 +1055,7 @@ onBeforeUnmount(() => {
 
                 <div class="input-area">
                     <button
+                        v-if="!isAIConversation"
                         type="button"
                         class="image-btn"
                         :disabled="uploading || sending"
@@ -799,7 +1066,7 @@ onBeforeUnmount(() => {
                     <input
                         v-model="messageInput"
                         type="text"
-                        placeholder="输入消息..."
+                        :placeholder="isAIConversation ? '输入你想问智能助手的问题...' : '输入消息...'"
                         :disabled="sending || uploading"
                         @keyup.enter="sendMessage"
                     />
@@ -812,6 +1079,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <input
+                    v-if="!isAIConversation"
                     ref="fileInputRef"
                     type="file"
                     accept="image/*"
@@ -1172,6 +1440,199 @@ onBeforeUnmount(() => {
     border-radius: 18px 8px 18px 18px;
 }
 
+.markdown-body {
+    display: grid;
+    gap: 12px;
+}
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) {
+    margin: 0;
+    color: #17304f;
+    line-height: 1.35;
+}
+
+.markdown-body :deep(h1) {
+    font-size: 18px;
+}
+
+.markdown-body :deep(h2) {
+    font-size: 16px;
+}
+
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) {
+    font-size: 14px;
+}
+
+.markdown-body :deep(p) {
+    margin: 0;
+    line-height: 1.82;
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+    margin: 0;
+    padding-left: 20px;
+    display: grid;
+    gap: 8px;
+}
+
+.markdown-body :deep(li) {
+    line-height: 1.75;
+    padding-left: 2px;
+}
+
+.markdown-body :deep(ul li::marker),
+.markdown-body :deep(ol li::marker) {
+    color: #2f6bff;
+}
+
+.markdown-body :deep(strong) {
+    color: #0f2743;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 7px;
+    background: rgba(47, 107, 255, 0.08);
+}
+
+.markdown-body :deep(code) {
+    padding: 2px 6px;
+    border-radius: 8px;
+    background: rgba(23, 48, 79, 0.08);
+    font-size: 12px;
+    font-family: Consolas, 'Courier New', monospace;
+}
+
+.markdown-body :deep(pre) {
+    margin: 0;
+    padding: 12px;
+    border-radius: 14px;
+    background: #f4f7fb;
+    overflow-x: auto;
+}
+
+.markdown-body :deep(pre code) {
+    padding: 0;
+    background: transparent;
+}
+
+.markdown-body :deep(blockquote) {
+    margin: 0;
+    padding-left: 12px;
+    border-left: 3px solid rgba(47, 107, 255, 0.28);
+    color: #4f5d73;
+}
+
+.markdown-body :deep(a) {
+    color: #2f6bff;
+    text-decoration: none;
+}
+
+.markdown-body :deep(hr) {
+    border: none;
+    border-top: 1px solid rgba(23, 48, 79, 0.08);
+    margin: 2px 0;
+}
+
+.markdown-body :deep(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #f8fbff;
+}
+
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(23, 48, 79, 0.08);
+    vertical-align: top;
+}
+
+.markdown-body :deep(th) {
+    font-weight: 700;
+    color: #17304f;
+    background: rgba(47, 107, 255, 0.06);
+}
+
+.markdown-body :deep(tr:last-child td) {
+    border-bottom: none;
+}
+
+.markdown-table-wrap {
+    overflow-x: auto;
+    border-radius: 14px;
+}
+
+.markdown-section-divider {
+    height: 1px;
+    margin: 2px 0;
+    background: linear-gradient(90deg, rgba(47, 107, 255, 0.18), rgba(23, 48, 79, 0.06));
+}
+
+.text--streaming {
+    min-width: 124px;
+}
+
+.ai-streaming-state,
+.ai-streaming-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-streaming-state {
+    min-height: 24px;
+    color: #4f5d73;
+}
+
+.ai-streaming-inline {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #7b8798;
+}
+
+.ai-streaming-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ai-streaming-dots i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.35;
+    animation: aiDotsPulse 1.2s infinite ease-in-out;
+}
+
+.ai-streaming-dots i:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.ai-streaming-dots i:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes aiDotsPulse {
+    0%,
+    80%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.25;
+    }
+    40% {
+        transform: translateY(-2px);
+        opacity: 1;
+    }
+}
+
 .image-card {
     overflow: hidden;
     border-radius: 16px;
@@ -1434,6 +1895,62 @@ onBeforeUnmount(() => {
 .chat-page.is-dark .message.mine .text {
     background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
     color: #fff;
+}
+
+.chat-page.is-dark .ai-streaming-state,
+.chat-page.is-dark .ai-streaming-inline {
+    color: #a8b6c9;
+}
+
+.chat-page.is-dark .markdown-body :deep(h1),
+.chat-page.is-dark .markdown-body :deep(h2),
+.chat-page.is-dark .markdown-body :deep(h3),
+.chat-page.is-dark .markdown-body :deep(h4),
+.chat-page.is-dark .markdown-body :deep(strong) {
+    color: #f4f8ff;
+}
+
+.chat-page.is-dark .markdown-body :deep(strong) {
+    background: rgba(96, 165, 250, 0.16);
+}
+
+.chat-page.is-dark .markdown-body :deep(code) {
+    background: rgba(148, 163, 184, 0.14);
+}
+
+.chat-page.is-dark .markdown-body :deep(pre) {
+    background: rgba(15, 23, 42, 0.88);
+}
+
+.chat-page.is-dark .markdown-body :deep(blockquote) {
+    border-left-color: rgba(96, 165, 250, 0.4);
+    color: #bfd0e4;
+}
+
+.chat-page.is-dark .markdown-body :deep(a) {
+    color: #7db6ff;
+}
+
+.chat-page.is-dark .markdown-body :deep(hr) {
+    border-top-color: rgba(148, 163, 184, 0.14);
+}
+
+.chat-page.is-dark .markdown-body :deep(table) {
+    background: rgba(15, 23, 42, 0.82);
+}
+
+.chat-page.is-dark .markdown-body :deep(th),
+.chat-page.is-dark .markdown-body :deep(td) {
+    border-bottom-color: rgba(148, 163, 184, 0.12);
+}
+
+.chat-page.is-dark .markdown-body :deep(th) {
+    background: rgba(96, 165, 250, 0.12);
+    color: #e9f2ff;
+}
+
+.chat-page.is-dark .markdown-section-divider {
+    background: linear-gradient(90deg, rgba(96, 165, 250, 0.24), rgba(148, 163, 184, 0.08));
 }
 
 .chat-page.is-dark .action-icon {
